@@ -1,0 +1,2182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALL IN — Gestão de Clientes</title>
+<style>
+:root{--primary:#0077B5;--primary-light:#00A0DC;--primary-dark:#005885;--bg:#F3F6F8;--card:#fff;--sidebar:#0A2D4E;--stext:#B8CDD9;--text:#1A1A2E;--muted:#6B7280;--border:#E5E7EB;--green:#057642;--gbg:#E6F7EE;--yellow:#B45309;--ybg:#FEF3C7;--red:#DC2626;--rbg:#FEE2E2;--gray:#6B7280;--gbg2:#F3F4F6;--radius:12px;--shadow:0 2px 8px rgba(0,0,0,.08)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh}
+#sidebar{width:240px;min-height:100vh;background:var(--sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100}
+.sb-logo{padding:20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-logo h2{color:white;font-size:18px;font-weight:800;letter-spacing:.5px}
+.sb-logo span{color:var(--stext);font-size:11px}
+.sb-nav{padding:12px 0;flex:1}
+.ni{display:flex;align-items:center;gap:10px;padding:11px 20px;color:var(--stext);cursor:pointer;font-size:13px;border-left:3px solid transparent;transition:all .2s}
+.ni:hover{background:rgba(255,255,255,.06);color:white}
+.ni.active{background:rgba(0,119,181,.2);color:white;border-left-color:var(--primary-light);font-weight:600}
+.ni-icon{font-size:16px;width:20px;text-align:center}
+.sb-footer{padding:14px 20px;border-top:1px solid rgba(255,255,255,.08);color:var(--stext);font-size:11px}
+#main{margin-left:240px;flex:1}
+.topbar{background:white;padding:13px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.topbar h1{font-size:17px;font-weight:700}
+.content{padding:24px 28px}
+.card{background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden}
+.ch{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.ch h3{font-size:13px;font-weight:600}
+.cb{padding:18px}
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
+.stat{background:white;border-radius:var(--radius);padding:18px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.stat-num{font-size:30px;font-weight:800;color:var(--primary)}
+.stat-lbl{font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.cc{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s}
+.cc:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.cc-top{padding:14px 16px;display:flex;align-items:center;gap:12px}
+.av{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:white;flex-shrink:0}
+.av-s{width:36px;height:36px;font-size:12px}
+.av-m{width:44px;height:44px;font-size:15px}
+.av-l{width:60px;height:60px;font-size:20px}
+.cname{font-size:14px;font-weight:600;line-height:1.3}
+.tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
+.tag{font-size:10px;padding:2px 6px;border-radius:4px;background:#EFF6FF;color:#1D4ED8;font-weight:500}
+.tag-g{background:#DCFCE7;color:#166534}
+.tag-r{background:var(--rbg);color:var(--red)}
+.tag-y{background:var(--ybg);color:var(--yellow)}
+.tag-gray{background:var(--gbg2);color:var(--gray)}
+.psec{padding:10px 16px 12px;background:#FAFAFA;border-top:1px solid var(--border)}
+.pb-track{background:#E5E7EB;border-radius:99px;height:5px}
+.pb-fill{height:5px;border-radius:99px}
+.srow{display:flex;gap:10px;margin-top:6px;font-size:11px}
+.alert-s{padding:8px 16px;border-top:1px solid #FDE68A;background:#FFFBEB}
+.drow{display:flex;align-items:center;gap:8px;font-size:11px;padding:2px 0}
+.dname{flex:1}
+.dresp{color:var(--muted);font-size:10px}
+.badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:99px;white-space:nowrap;cursor:pointer;user-select:none}
+.bc{background:var(--gbg);color:var(--green)}
+.ba{background:var(--ybg);color:var(--yellow)}
+.bp{background:var(--gbg2);color:var(--gray)}
+.br{background:var(--rbg);color:var(--red)}
+.back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--primary);cursor:pointer;margin-bottom:18px;font-weight:500}
+.back:hover{text-decoration:underline}
+.dh{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:22px;display:flex;align-items:center;gap:18px;margin-bottom:18px}
+.dinfo h2{font-size:19px;font-weight:700}
+.dinfo p{font-size:12px;color:var(--muted);margin-top:3px}
+.tabs{display:flex;background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
+.tab{padding:11px 18px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.tab:hover{color:var(--primary);background:#F9FAFB}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);background:#EFF6FF}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{background:#F9FAFB;padding:9px 13px;text-align:left;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+td{padding:11px 13px;font-size:12px;border-bottom:1px solid #F3F4F6;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#FAFAFA}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.fg input,.fg textarea,.fg select{padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text);background:white;font-family:inherit;transition:border-color .2s}
+.fg input:focus,.fg textarea:focus{outline:none;border-color:var(--primary)}
+.fg textarea{min-height:80px;resize:vertical}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.btn{padding:7px 15px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .2s;font-family:inherit}
+.btn-p{background:var(--primary);color:white}
+.btn-p:hover{background:var(--primary-dark)}
+.btn-o{background:white;color:var(--primary);border:1px solid var(--primary)}
+.btn-o:hover{background:#EFF6FF}
+.btn-s{padding:4px 9px;font-size:11px;border-radius:6px}
+.weeks-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.wk{border:1px solid var(--border);border-radius:8px;padding:12px 8px;text-align:center;cursor:pointer;transition:all .2s}
+.wk:hover{border-color:var(--primary);transform:translateY(-1px)}
+.wk h4{font-size:11px;font-weight:600;margin-bottom:6px}
+.wk.wc{background:var(--gbg);border-color:#B5DFC9}
+.wk.wa{background:var(--ybg);border-color:#F0D88A}
+.wk.wp{background:#F9FAFB}
+.enc-grid{display:flex;flex-wrap:wrap;gap:6px}
+.enc{width:34px;height:34px;border-radius:6px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;cursor:pointer;transition:all .2s}
+.enc:hover{border-color:var(--primary)}
+.enc.ed{background:var(--gbg);color:var(--green);border-color:#B5DFC9}
+.tooltip{position:relative;cursor:help;border-bottom:1px dotted var(--muted)}
+.tooltip:hover::after{content:attr(data-tooltip);position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:#1A1A2E;color:white;padding:8px 12px;border-radius:6px;font-size:11px;white-space:nowrap;z-index:10;font-weight:400}
+.fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.enc.ep{background:#F9FAFB;color:var(--muted)}
+.filter-bar{display:flex;gap:7px;margin-bottom:18px;flex-wrap:wrap}
+.fc{padding:5px 13px;border-radius:99px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:white;color:var(--muted);transition:all .2s}
+.fc:hover,.fc.active{background:var(--primary);color:white;border-color:var(--primary)}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sh h2{font-size:15px;font-weight:700}
+.nf{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px;font-family:inherit;resize:vertical;min-height:90px;color:var(--text)}
+.nf:focus{outline:none;border-color:var(--primary)}
+.fi{border:none;font-size:12px;color:var(--muted);background:transparent;font-family:inherit;width:100%;cursor:pointer;padding:0}
+.fi:focus{outline:1px solid var(--primary);border-radius:4px}
+.sec-div{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:18px 0 10px;display:flex;align-items:center;gap:8px}
+.sec-div::after{content:'';flex:1;height:1px;background:var(--border)}
+.cap-bar{height:8px;border-radius:99px;overflow:hidden;background:#E5E7EB;margin-top:6px}
+.cap-fill{height:8px;border-radius:99px}
+#toast{position:fixed;bottom:22px;right:22px;background:#0A2D4E;color:white;padding:11px 18px;border-radius:10px;font-size:12px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:600}
+.pill-ativo{background:var(--gbg);color:var(--green)}
+.pill-vencido{background:var(--rbg);color:var(--red)}
+.pill-finalizado{background:var(--gbg2);color:var(--gray)}
+input.mini,select.mini{font-size:11px;border:1px solid var(--border);border-radius:6px;padding:6px 9px;background:white;cursor:pointer;font-family:inherit}
+input.mini:focus{outline:none;border-color:var(--primary)}
+/* Modal overlay */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:white;border-radius:16px;width:100%;max-width:720px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 48px rgba(0,0,0,.2)}
+.modal-hd{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;z-index:1;border-radius:16px 16px 0 0}
+.modal-hd h3{font-size:16px;font-weight:700}
+.modal-body{padding:22px 24px}
+.modal-ft{padding:14px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:white;border-radius:0 0 16px 16px}
+.sec-h{font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.7px;margin:20px 0 10px;padding-bottom:6px;border-bottom:2px solid #DBEAFE;display:block}
+.fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.fgrid-full{grid-column:1/-1}
+/* Results tab */
+.res-card{background:white;border:1px solid var(--border);border-radius:var(--radius);padding:18px;text-align:center}
+.res-num{font-size:30px;font-weight:800;line-height:1}
+.res-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+@media(max-width:900px){#sidebar{width:56px}.ni span:not(.ni-icon){display:none}.sb-logo span,.sb-footer,.sb-logo h2{display:none}#main{margin-left:56px}.stats-grid{grid-template-columns:repeat(2,1fr)}.fgrid{grid-template-columns:1fr}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<aside id="sidebar">
+  <div class="sb-logo" style="padding:18px 16px 14px">
+  <svg width="100" height="36" viewBox="0 0 200 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="13" cy="10" r="6" fill="#00A0DC"/>
+    <circle cx="27" cy="5" r="4.5" fill="#00A0DC" opacity=".65"/>
+    <circle cx="8" cy="24" r="3.5" fill="#00A0DC" opacity=".4"/>
+    <text x="36" y="47" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="38" fill="white" letter-spacing="-1">All In</text>
+    <line x1="36" y1="58" x2="198" y2="58" stroke="#00A0DC" stroke-width="2.5" stroke-linecap="round"/>
+  </svg>
+  <span style="display:block;color:var(--stext);font-size:10px;margin-top:3px;letter-spacing:.3px">Gestão de Clientes</span>
+</div>
+  <nav class="sb-nav">
+    <div class="ni active" onclick="nav('dash')"><span class="ni-icon">📊</span><span>Dashboard</span></div>
+    <div class="ni" onclick="nav('clients',{clientId:null})"><span class="ni-icon">👥</span><span>Clientes</span></div>
+    <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Pendências da Semana</span></div>
+    <div class="ni" onclick="nav('func')"><span class="ni-icon">👩‍💼</span><span>Por Funcionária</span></div>
+    <div class="ni" onclick="nav('team')"><span class="ni-icon">🤝</span><span>Time</span></div>
+  </nav>
+  <div class="sb-footer">Mariana Souza<br>ALL IN — Estrategista LinkedIn</div>
+</aside>
+<div id="main">
+  <div class="topbar"><h1 id="ttitle">Dashboard</h1><div id="tactions"></div></div>
+  <div class="content" id="view"></div>
+</div>
+<div id="toast"></div>
+<script>
+// ────────────────────────────────────────────────────────────
+// HELPERS
+// ────────────────────────────────────────────────────────────
+const COLORS=['#0077B5','#7C5CBF','#E8622A','#057642','#0891B2','#7C3AED','#B45309','#065F46','#1D4ED8','#9333EA','#0F766E','#D97706','#BE185D','#1E3A5F','#4A1942'];
+function initials(n){return n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]?.toUpperCase()||'').join('')}
+function color(i){return COLORS[i%COLORS.length]}
+function fmtDate(ts){if(!ts)return '—';const d=new Date(ts);return d.toLocaleDateString('pt-BR')}
+function SL(s){return{concluido:'✅ Concluído',andamento:'🔄 Em andamento',pendente:'⏳ Pendente',atrasado:'❌ Atrasado'}[s]||s}
+function SC(s){return{concluido:'bc',andamento:'ba',pendente:'bp',atrasado:'br'}[s]||'bp'}
+function CS(s){return{pendente:'andamento',andamento:'concluido',concluido:'pendente',atrasado:'pendente'}[s]||'pendente'}
+function WC(s){return{concluido:'wc',andamento:'wa',pendente:'wp'}[s]||'wp'}
+function prog(c){const t=c.deliverables.length,d=c.deliverables.filter(x=>x.status==='concluido').length;return t?Math.round(d/t*100):0}
+function getDaysUntil(dueDate){if(!dueDate)return null;const today=new Date();today.setHours(0,0,0,0);const due=new Date(dueDate);due.setHours(0,0,0,0);return Math.floor((due-today)/(1000*60*60*24))}
+function getDelStatusByDate(del){if(!del.dueDate)return del.status;const days=getDaysUntil(del.dueDate);if(days<0)return 'atrasado';return del.status}
+function getDelClassByDate(del){const status=getDelStatusByDate(del);const days=getDaysUntil(del.dueDate);if(days!==null&&days>=0&&days<=7)return'ba';return SC(status)}
+function getContractDaysRemaining(contractDue){const d=getDaysUntil(contractDue);if(d===null)return'—';if(d<0)return`${Math.abs(d)}d atrasado`;return`${d}d restante`}
+const $ = id=>document.getElementById(id);
+function toast(m){const t=$('toast');t.textContent=m;t.style.opacity='1';setTimeout(()=>t.style.opacity='0',2500)}
+// TOKEN GENERATION
+function generateToken(){const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';let token='';for(let i=0;i<16;i++)token+=chars.charAt(Math.floor(Math.random()*chars.length));return token}
+
+// ────────────────────────────────────────────────────────────
+// DEFAULT DELIVERABLES
+// ────────────────────────────────────────────────────────────
+function gpDels(){return[
+  {id:'gp1',name:'Publicar Conteúdo',product:'Gestão de Perfil',status:'andamento',responsible:'',dueDate:null},
+  {id:'gp2',name:'Preencher Planilha de Leads',product:'Gestão de Perfil',status:'pendente',responsible:'',dueDate:null},
+  {id:'gp3',name:'Enviar Histórico (Perfil)',product:'Gestão de Perfil',status:'pendente',responsible:'',dueDate:null},
+  {id:'gp4',name:'Gestão de Campanha',product:'Gestão de Perfil',status:'pendente',responsible:'',dueDate:null},
+]}
+function icDels(){return[
+  {id:'ic1',name:'Onboarding',product:'Implementação Comercial',status:'pendente',responsible:'',dueDate:null},
+  {id:'ic2',name:'Reunião de Boas Vindas',product:'Implementação Comercial',status:'pendente',responsible:'',dueDate:null},
+  {id:'ic3',name:'Briefing / ICP',product:'Implementação Comercial',status:'pendente',responsible:'',dueDate:null},
+  {id:'ic4',name:'Revisão do Perfil',product:'Implementação Comercial',status:'pendente',responsible:'',dueDate:null},
+  {id:'ic5',name:'Relatório de Ajustes',product:'Implementação Comercial',status:'pendente',responsible:'',dueDate:null},
+  {id:'ic6',name:'Play Book de Vendas',product:'Implementação Comercial',status:'pendente',responsible:'',dueDate:null},
+  {id:'ic7',name:'Implementação da IA',product:'Implementação Comercial',status:'pendente',responsible:'',dueDate:null},
+  {id:'ic8',name:'Entregáveis Finais',product:'Implementação Comercial',status:'pendente',responsible:'',dueDate:null},
+]}
+function mkClient(name,i,products,contractStatus,contractDue,assignees,customDels){
+  const dels=customDels||(products.includes('Implementação Comercial')?[...gpDels(),...icDels()]:gpDels());
+  return{id:name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'').substring(0,30)+'_'+i,
+    name,initials:initials(name),color:color(i),products,contractStatus:contractStatus||'ativo',
+    contractDue:contractDue||null,assignees:assignees||[],deliverables:dels,
+    monthlyContent:{'Maio 2026':{'1ª Semana':'pendente','2ª Semana':'pendente','3ª Semana':'pendente','4ª Semana':'pendente'}},
+    encounters:{list:[]},arts:[],notes:'',email:'',phone:'',linkedin:'',startDate:'',birthday:'',
+    nicho:'',cnpj:'',address:'',contractValue:'',paymentMethod:'',paymentStatus:'em-dia',results:[],mainOwner:'',token:generateToken()}
+}
+
+// ────────────────────────────────────────────────────────────
+// DEFAULT DATA
+// ────────────────────────────────────────────────────────────
+const DEFAULT={
+  clients:[
+    // Known detailed clients
+    Object.assign(mkClient('Leticia Petean',0,['Gestão de Perfil','Implementação Comercial'],'ativo',1793343600000,['Iasmim Flávia Marques Soares'])
+      ,{deliverables:[
+        {id:'d1',name:'Onboarding',product:'Implementação Comercial',status:'concluido',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d2',name:'Reunião de Boas Vindas',product:'Implementação Comercial',status:'concluido',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d3',name:'Explicar a Jornada',product:'Implementação Comercial',status:'concluido',responsible:'Mariana Souza'},
+        {id:'d4',name:'Relatório de Briefing',product:'Implementação Comercial',status:'concluido',responsible:'Naiara Faria'},
+        {id:'d5',name:'Relatório ICP',product:'Implementação Comercial',status:'concluido',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d6',name:'Revisão do Perfil',product:'Implementação Comercial',status:'andamento',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d7',name:'Relatório de Ajustes',product:'Implementação Comercial',status:'andamento',responsible:'Mariana Souza'},
+        {id:'d8',name:'Play Book de Vendas',product:'Implementação Comercial',status:'andamento',responsible:'Mariana Souza'},
+        {id:'d9',name:'Implementação da IA',product:'Implementação Comercial',status:'andamento',responsible:'Gabriela Nogueira'},
+        {id:'d10',name:'Entregáveis Finais',product:'Implementação Comercial',status:'pendente',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d11',name:'Publicar Conteúdo',product:'Gestão de Perfil',status:'andamento',responsible:'Gabriela Nogueira'},
+        {id:'d12',name:'Enviar Histórico (Perfil)',product:'Gestão de Perfil',status:'pendente',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d13',name:'Preencher Planilha de Leads',product:'Gestão de Perfil',status:'pendente',responsible:'Iasmim Flávia Marques Soares'},
+      ],encounters:{total:12,completed:1},
+      monthlyContent:{'Maio 2026':{'1ª Semana':'pendente','2ª Semana':'pendente','3ª Semana':'pendente','4ª Semana':'pendente'}}}),
+    Object.assign(mkClient('Marília Campos Carneiro',1,['Gestão de Perfil','Implementação Comercial'],'ativo',1790233200000,['Rebeca Gomes de Araújo'])
+      ,{deliverables:[
+        {id:'d1',name:'Onboarding',product:'Implementação Comercial',status:'concluido',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d2',name:'Reunião de Boas Vindas',product:'Implementação Comercial',status:'concluido',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d3',name:'Explicar a Jornada',product:'Implementação Comercial',status:'concluido',responsible:'Mariana Souza'},
+        {id:'d4',name:'Relatório de Briefing',product:'Implementação Comercial',status:'concluido',responsible:'Mariana Souza'},
+        {id:'d5',name:'Relatório ICP',product:'Implementação Comercial',status:'concluido',responsible:'Rebeca Gomes de Araújo'},
+        {id:'d6',name:'Revisão do Perfil',product:'Implementação Comercial',status:'andamento',responsible:'Rebeca Gomes de Araújo'},
+        {id:'d7',name:'Relatório de Ajustes',product:'Implementação Comercial',status:'andamento',responsible:'Mariana Souza'},
+        {id:'d8',name:'Play Book de Vendas',product:'Implementação Comercial',status:'andamento',responsible:'Mariana Souza'},
+        {id:'d9',name:'Implementação da IA',product:'Implementação Comercial',status:'andamento',responsible:'Rebeca Gomes de Araújo'},
+        {id:'d10',name:'Entregáveis Finais',product:'Implementação Comercial',status:'pendente',responsible:'Rebeca Gomes de Araújo'},
+        {id:'d11',name:'Publicar Conteúdo',product:'Gestão de Perfil',status:'andamento',responsible:'Gabriela Nogueira'},
+        {id:'d12',name:'Enviar Histórico (Perfil)',product:'Gestão de Perfil',status:'pendente',responsible:'Rebeca Gomes de Araújo'},
+        {id:'d13',name:'Preencher Planilha de Leads',product:'Gestão de Perfil',status:'pendente',responsible:'Rebeca Gomes de Araújo'},
+      ],encounters:{total:12,completed:1},
+      monthlyContent:{'Maio 2026':{'1ª Semana':'pendente','2ª Semana':'pendente','3ª Semana':'pendente','4ª Semana':'pendente'}}}),
+    Object.assign(mkClient('Marcelo Wietha',2,['Gestão de Perfil','Implementação Comercial'],'ativo',1790319600000,['Rebeca Gomes de Araújo','Iasmim Flávia Marques Soares'])
+      ,{deliverables:[
+        {id:'d1',name:'Onboarding',product:'Implementação Comercial',status:'concluido',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d2',name:'Reunião de Boas Vindas',product:'Implementação Comercial',status:'concluido',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d3',name:'Explicar a Jornada',product:'Implementação Comercial',status:'concluido',responsible:'Mariana Souza'},
+        {id:'d4',name:'Relatório de Briefing',product:'Implementação Comercial',status:'concluido',responsible:'Naiara Faria'},
+        {id:'d5',name:'Relatório ICP',product:'Implementação Comercial',status:'concluido',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d6',name:'Revisão do Perfil',product:'Implementação Comercial',status:'concluido',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d7',name:'Relatório de Ajustes',product:'Implementação Comercial',status:'andamento',responsible:'Mariana Souza'},
+        {id:'d8',name:'Play Book de Vendas',product:'Implementação Comercial',status:'andamento',responsible:'Mariana Souza'},
+        {id:'d9',name:'Implementação da IA',product:'Implementação Comercial',status:'andamento',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d10',name:'Entregáveis Finais',product:'Implementação Comercial',status:'andamento',responsible:'Iasmim Flávia Marques Soares'},
+        {id:'d11',name:'Publicar Conteúdo',product:'Gestão de Perfil',status:'andamento',responsible:'Rebeca Gomes de Araújo'},
+        {id:'d12',name:'Enviar Histórico (Perfil)',product:'Gestão de Perfil',status:'andamento',responsible:'Rebeca Gomes de Araújo'},
+        {id:'d13',name:'Gestão de Campanha',product:'Gestão de Perfil',status:'andamento',responsible:'Rebeca Gomes de Araújo'},
+      ],encounters:{total:12,completed:1},
+      monthlyContent:{'Abril 2026':{'1ª Semana':'concluido','2ª Semana':'concluido','3ª Semana':'concluido','4ª Semana':'concluido'},'Maio 2026':{'1ª Semana':'concluido','2ª Semana':'andamento','3ª Semana':'pendente','4ª Semana':'pendente'}}}),
+    // Remaining clients from ClickUp Cadastro/Contratos
+    mkClient('Tatiani Garcia De Faria',3,['Gestão de Perfil'],'ativo',1789542000000,[]),
+    mkClient('Sergimara',4,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Letícia Franco',5,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Bertucci',6,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Marcello',7,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Jivago',8,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Sandro',9,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Lissandra',10,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Raquel Mateus',11,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Raphael Ribeiro',12,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Giuliano Beggio',13,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Daniela Anderson',14,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Leticia de Souza Medeiros Franco',15,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Felipe Elcio Dias',16,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Jose Ricardo',17,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Ludimila Muller',18,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Maressa Ferreira Marra Toussaint',19,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Paulo Henrique Teixeira',20,['Gestão de Perfil'],'ativo',1774940400000,[]),
+    mkClient('Rafael Rodrigues',21,['Gestão de Perfil'],'vencido',1775804400000,[]),
+    mkClient('Elaine Lima',22,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Silvia Zuffo',23,['Gestão de Perfil'],'vencido',1766473200000,[]),
+    mkClient('Guilherme Gomes — Uluhub',24,['Gestão de Perfil'],'vencido',1767078000000,[]),
+    mkClient('Ana Martins',25,['Gestão de Perfil'],'ativo',1778310000000,[]),
+    mkClient('Luciana Rezende',26,['Gestão de Perfil'],'vencido',1755759600000,[]),
+    mkClient('Fabrício Fidelis',27,['Gestão de Perfil'],'vencido',1761894000000,[]),
+    mkClient('Renata Rosendo de Lima Costa',28,['Gestão de Perfil'],'vencido',1771570800000,[]),
+    mkClient('Laura Bigaton',29,['Gestão de Perfil'],'ativo',1772348400000,[]),
+    mkClient('Luana Maciel',30,['Gestão de Perfil'],'ativo',1780988400000,[]),
+    mkClient('Leticia Tonon',31,['Gestão de Perfil'],'ativo',null,['Nayara Calixto Justino Campos']),
+    mkClient('Fernanda Gomes',32,['Gestão de Perfil'],'ativo',null,['Nayara Calixto Justino Campos']),
+    mkClient('André Gandelman',33,['Gestão de Perfil'],'ativo',null,['Nayara Calixto Justino Campos']),
+    mkClient('Rafael Souza',34,['Gestão de Perfil'],'ativo',null,['Nayara Calixto Justino Campos']),
+    mkClient('Magno Reis',35,['Gestão de Perfil'],'finalizado',1761894000000,[]),
+  ],
+  team:[
+    {id:'rebeca',name:'Rebeca Gomes de Araújo',role:'Social Seller',dept:'Comercial',email:'rebecaaragom17@gmail.com',phone:'15 988268017',birthday:'2001-06-28',color:'#0077B5',initials:'RA',notes:'',capacity:12},
+    {id:'gisele',name:'Gisele Alexandrina de Oliveira',role:'Social Seller',dept:'Comercial',email:'giseleoliveira.salespro@gmail.com',phone:'31 97202-6874',birthday:'1983-04-09',color:'#7C5CBF',initials:'GO',notes:'',capacity:12},
+    {id:'iasmim',name:'Iasmim Flávia Marques Soares',role:'Social Seller',dept:'Comercial',email:'iasmimms49@gmail.com',phone:'32 999617911',birthday:'1996-12-14',color:'#E8622A',initials:'IS',notes:'',capacity:12},
+    {id:'gabriela',name:'Gabriela Nogueira',role:'Head de Conteúdo',dept:'Gestão de Conteúdo',email:'gabrielaheadmkt@gmail.com',phone:'31 995745031',birthday:'1994-11-15',color:'#057642',initials:'GN',notes:'',capacity:20},
+    {id:'nayara',name:'Nayara Calixto Justino Campos',role:'Assistente',dept:'Operações',email:'nayara@agenciaallin.com',phone:'31 972679915',birthday:'2001-04-16',color:'#0891B2',initials:'NC',notes:'',capacity:10},
+  ]
+};
+
+// ────────────────────────────────────────────────────────────
+// STATE & PERSISTENCE
+// ────────────────────────────────────────────────────────────
+let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null};
+let D=(()=>{try{const s=localStorage.getItem('allin');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT))}catch{return JSON.parse(JSON.stringify(DEFAULT))}})();
+const save=()=>localStorage.setItem('allin',JSON.stringify(D));
+const getC=()=>D.clients.find(c=>c.id===S.clientId);
+const getM=()=>D.team.find(m=>m.id===S.memberId);
+const TEAM_NAMES=()=>D.team.map(m=>m.name);
+const TEAM_PASSWORD='allin2026';
+
+// MIGRATE TOKENS - Ensure all clients have tokens
+D.clients.forEach(c=>{if(!c.token)c.token=generateToken();});
+
+// MIGRATE EMAIL & BIRTHDAY - Initialize for portal login
+D.clients.forEach((c,i)=>{
+  // Set email if not already set (format: firstname.lastname@example.com)
+  if(!c.email||c.email===''){
+    const nameParts=c.name.toLowerCase().split(' ');
+    const firstName=nameParts[0];
+    const lastName=nameParts[nameParts.length-1];
+    c.email=`${firstName}.${lastName}@allinposicionamento.com.br`;
+  }
+  // Set birthday if not already set (sample: different for each for testing)
+  if(!c.birthday||c.birthday===''){
+    const birthdays=['15/03/1990','22/07/1985','08/11/1992','03/01/1988','19/05/1995','27/09/1991','14/06/1989','30/04/1993','12/12/1987','05/08/1994'];
+    c.birthday=birthdays[i%birthdays.length];
+  }
+});
+save();
+
+// ────────────────────────────────────────────────────────────
+// NAVIGATE
+// ────────────────────────────────────────────────────────────
+function nav(view,extra={}){
+  if(S.view==='team')S.teamAuth=false;
+  Object.assign(S,{view},extra);
+  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dash','clients','semana','func','team'][i]===view));
+  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',semana:'Pendências da Semana',func:'Por Funcionária',team:'Gestão de Time'};
+  $('ttitle').textContent=titles[view]||view;
+  render();
+}
+function render(){
+  // Handle client portal authentication
+  if(S.isClientPortal){
+    if(S.authenticatedClientId){return $('view').innerHTML=rClientPortalAuth();}
+    else{return $('view').innerHTML=rLoginPortal();}
+  }
+  // Normal admin views
+  $('view').innerHTML={dash:rDash,clients:rClients,semana:rWeeklyPending,func:rFunc,team:rTeam,clientView:rClientView}[S.view]();
+}
+
+// ────────────────────────────────────────────────────────────
+// DASHBOARD
+// ────────────────────────────────────────────────────────────
+function rDash(){
+  const ativos=D.clients.filter(c=>c.contractStatus==='ativo');
+  const vencidos=D.clients.filter(c=>c.contractStatus==='vencido');
+  const allD=D.clients.flatMap(c=>c.deliverables);
+  const done=allD.filter(d=>d.status==='concluido').length;
+  const going=allD.filter(d=>d.status==='andamento').length;
+  const pend=allD.filter(d=>d.status==='pendente').length;
+
+  const alertCards=vencidos.map(c=>`
+    <div class="drow"><span class="dname"><strong>${c.name}</strong></span>
+    <span class="pill pill-vencido">Contrato vencido</span>
+    <span class="badge bp" style="margin-left:8px;cursor:pointer" onclick="nav('clients',{clientId:'${c.id}',tab:'pessoal'})">Ver →</span></div>`).join('');
+
+  const thisMonth=new Date().getMonth();
+  const thisYear=new Date().getFullYear();
+  const birthdays=D.team.filter(m=>{
+    if(!m.birthday)return false;
+    const bd=new Date(m.birthday+' ');
+    return bd.getMonth()===thisMonth;
+  });
+  const bdayHtml=birthdays.length?birthdays.map(m=>{
+    const bdateStr=new Date(m.birthday).toLocaleDateString('pt-BR');
+    return `<div style="display:flex;align-items:center;gap:8px;background:#F9FAFB;padding:8px 12px;border-radius:8px"><div class="av av-s" style="background:${m.color}">${m.initials}</div><div><strong style="font-size:12px">${m.name}</strong><br><span style="font-size:10px;color:var(--muted)">${bdateStr}</span></div></div>`;
+  }).join(''):'';
+
+  const html=`<div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="stat" onclick="nav('clients',{statusFilter:'ativo'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--primary)">${ativos.length}</div><div class="stat-lbl">Clientes Ativos</div></div>
+    <div class="stat" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--green)">${done}</div><div class="stat-lbl">Concluídas</div></div>
+    <div class="stat" onclick="nav('clients',{statusFilter:'vencido'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--red)">${vencidos.length}</div><div class="stat-lbl">Contratos Vencidos</div></div>
+  </div>
+  <div class="card" style="margin-bottom:18px;border-color:#E8622A;border-left:4px solid #E8622A"><div class="ch" style="background:#FFF7ED"><h3>🎂 Aniversariantes do Mês</h3></div><div class="cb"><div style="display:flex;flex-wrap:wrap;gap:8px">${bdayHtml||'<span style="color:var(--muted);font-size:12px">Nenhum aniversário neste mês</span>'}</div></div></div>
+  ${vencidos.length?`<div class="card" style="margin-bottom:18px;border-color:#FDE68A"><div class="ch" style="background:#FFFBEB"><h3>⚠️ Contratos Vencidos</h3></div><div class="cb">${alertCards}</div></div>`:''}
+  <div style="margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+    <div class="card"><div class="ch"><h3>📊 Volume Mensal de Leads Gerados</h3></div><div class="cb" style="padding:20px"><canvas id="chartMonthlyleads" height="70"></canvas></div></div>
+    <div class="card"><div class="ch"><h3>👥 Distribuição de Leads por Vendedor</h3></div><div class="cb" style="padding:20px"><canvas id="chartLeadsbyVendor" height="70"></canvas></div></div>
+  </div>`;
+  setTimeout(()=>{
+    const monthlyData=getMonthlyLeadsData();
+    new Chart(document.getElementById('chartMonthlyleads'),{type:'bar',data:{labels:monthlyData.labels,datasets:[{label:'Leads',data:monthlyData.data,backgroundColor:'#0077B5',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:5}}}}});
+    const vendorData=getLeadsbyVendorData();
+    new Chart(document.getElementById('chartLeadsbyVendor'),{type:'line',data:{labels:vendorData.labels,datasets:[{label:'Leads',data:vendorData.data,borderColor:'#0077B5',backgroundColor:'rgba(0,119,181,.1)',fill:true,tension:.4,borderWidth:2,pointRadius:5,pointBackgroundColor:'#0077B5'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:5}}}}});
+  },100);
+  return html;
+}
+function getMonthlyLeadsData(){const months={};D.clients.forEach(c=>{(c.results||[]).forEach(r=>{if(!months[r.month])months[r.month]=0;months[r.month]+=(r.leads||0)})});const labels=Object.keys(months).slice(-4);const data=labels.map(m=>months[m]||0);return{labels,data}}
+function getLeadsbyVendorData(){const vendors={};D.clients.forEach(c=>{const assignee=c.assignees[0]||'Sem atribuição';const firstName=assignee.split(' ')[0];if(!vendors[firstName])vendors[firstName]=0;(c.results||[]).forEach(r=>{vendors[firstName]+=(r.leads||0)})});const labels=Object.keys(vendors);const data=labels.map(v=>vendors[v]);return{labels,data}}
+
+// ────────────────────────────────────────────────────────────
+// CLIENTS
+// ────────────────────────────────────────────────────────────
+function rClients(){
+  if(S.clientId)return rDetail();
+
+  if(S.viewMode==='myportfolio'){
+    if(!S.selectedTeamMember){
+      return`<div style="padding:40px 28px;text-align:center">
+        <div style="background:white;border-radius:12px;padding:40px;max-width:400px;margin:auto">
+          <h2 style="margin-bottom:20px">👤 Minha Carteira</h2>
+          <p style="color:var(--muted);margin-bottom:24px">Selecione sua funcionária para visualizar seus clientes:</p>
+          <select onchange="S.selectedTeamMember=this.value;render()" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px">
+            <option value="">— Selecionar —</option>
+            ${D.team.map(m=>`<option value="${m.name}">${m.name}</option>`).join('')}
+          </select>
+          <button class="btn btn-o" style="margin-top:20px;width:100%" onclick="S.viewMode='normal';render()">← Voltar</button>
+        </div>
+      </div>`;
+    }
+    const member=D.team.find(m=>m.name===S.selectedTeamMember);
+    const myClients=D.clients.filter(c=>c.assignees.includes(S.selectedTeamMember)).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+    const myActive=myClients.filter(c=>c.contractStatus==='ativo');
+    const myExpired=myClients.filter(c=>c.contractStatus==='vencido');
+    const allDels=myClients.flatMap(c=>c.deliverables);
+    const doneCount=allDels.filter(d=>d.status==='concluido').length;
+    const totalCount=allDels.length;
+
+    const cards=myClients.map(c=>{
+      const p=prog(c);
+      const pends=c.deliverables.filter(d=>d.status==='pendente'||d.status==='atrasado');
+      return `<div class="cc" onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})">
+        <div class="cc-top">
+          <div class="av av-m" style="background:${c.color}">${c.initials}</div>
+          <div style="flex:1">
+            <div class="cname">${c.name}</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:6px">👤 ${c.assignees.length?c.assignees.map(a=>a.split(' ')[0]).join(', '):'Sem responsável'}</div>
+            <div class="tags">${c.products.map(pr=>`<span class="tag">${pr}</span>`).join('')}</div>
+          </div>
+        </div>
+        <div style="padding:8px 12px;border-top:1px solid var(--border);margin-top:8px;font-size:11px">
+          <div style="display:flex;justify-content:space-between;align-items:center;color:var(--muted);margin-bottom:4px">
+            <span>Status do Contrato</span>
+            <span class="pill pill-${c.contractStatus}" style="font-size:9px;padding:2px 8px">${c.contractStatus==='ativo'?'Ativo':c.contractStatus==='vencido'?'Vencido':'Finalizado'}</span>
+          </div>
+          <div style="font-weight:600;color:var(--text)">📅 ${getContractDaysRemaining(c.contractDue)}</div>
+        </div>
+        ${pends.length?`<div class="alert-s" style="margin-top:8px">${pends.slice(0,2).map(d=>`<div class="drow"><span class="dname" style="font-size:11px">${d.name}</span><span class="dresp">${d.responsible||'—'}</span></div>`).join('')}${pends.length>2?`<div style="font-size:9px;color:var(--muted);padding:4px 0">+${pends.length-2} pendentes</div>`:''}</div>`:''}
+      </div>`;
+    }).join('');
+
+    return`<div class="sh"><h2 style="display:flex;align-items:center;gap:12px">
+      <div class="av av-s" style="background:${member?.color||'#ccc'}">${member?.initials||'?'}</div>
+      <span>Minha Carteira — ${S.selectedTeamMember}</span>
+    </h2><button class="btn btn-o btn-s" onclick="S.viewMode='normal';S.selectedTeamMember=null;render()">← Voltar</button></div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="stat"><div class="stat-num">${myClients.length}</div><div class="stat-lbl">Clientes</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--green)">${doneCount}</div><div class="stat-lbl">Concluídas</div></div>
+      <div class="stat"><div class="stat-num">${totalCount?Math.round(doneCount/totalCount*100):0}%</div><div class="stat-lbl">Progresso</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--muted)">${allDels.length}</div><div class="stat-lbl">Total de Entregas</div></div>
+    </div>
+    <div class="grid2">${cards||'<div style="color:var(--muted);padding:20px">Nenhum cliente atribuído.</div>'}</div>`;
+  }
+
+  S.viewMode='normal';
+  const products=['todos',...new Set(D.clients.flatMap(c=>c.products))];
+  const statuses=['todos','ativo','vencido','finalizado'];
+  const assignees=['todos',...new Set(D.team.map(m=>m.name))];
+  let list=D.clients;
+  if(S.prodFilter!=='todos')list=list.filter(c=>c.products.includes(S.prodFilter));
+  if(S.statusFilter!=='todos')list=list.filter(c=>c.contractStatus===S.statusFilter);
+  if(S.assigneeFilter!=='todos')list=list.filter(c=>c.assignees.includes(S.assigneeFilter));
+  // Search by name or email
+  if(S.searchTerm){
+    const term=S.searchTerm.toLowerCase();
+    list=list.filter(c=>c.name.toLowerCase().includes(term)||(c.email||'').toLowerCase().includes(term));
+  }
+  // Sort logic
+  if(S.sortOrder==='nome'){
+    list=list.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  }else if(S.sortOrder==='vencimento'){
+    list=list.sort((a,b)=>{
+      const dateA=new Date(a.contractDue||0);
+      const dateB=new Date(b.contractDue||0);
+      return dateA-dateB;
+    });
+  }else if(S.sortOrder==='pendencias'){
+    list=list.sort((a,b)=>{
+      const pendA=(a.deliverables||[]).filter(d=>d.status==='pendente'||d.status==='atrasado').length;
+      const pendB=(b.deliverables||[]).filter(d=>d.status==='pendente'||d.status==='atrasado').length;
+      return pendB-pendA;
+    });
+  }
+
+  const prodStats=S.prodFilter!=='todos'?{
+    list:list,
+    ativos:list.filter(c=>c.contractStatus==='ativo'),
+    vencidos:list.filter(c=>c.contractStatus==='vencido'),
+    done:list.flatMap(c=>c.deliverables.filter(d=>d.product===S.prodFilter&&d.status==='concluido')).length,
+    total:list.flatMap(c=>c.deliverables.filter(d=>d.product===S.prodFilter)).length,
+    doneAll:list.flatMap(c=>c.deliverables.filter(d=>d.status==='concluido')).length,
+    totalAll:list.flatMap(c=>c.deliverables).length
+  }:null;
+
+  const statusLabel={ativo:'Ativo',vencido:'Vencido',finalizado:'Finalizado'};
+  const cards=list.map(c=>{
+    const p=prog(c);
+    const pends=c.deliverables.filter(d=>d.status==='pendente'||d.status==='atrasado');
+    const daysRemaining=getContractDaysRemaining(c.contractDue);
+    return`<div class="cc" style="position:relative;overflow:visible;display:flex;flex-direction:column">
+      <div class="cc-top" onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})" style="cursor:pointer;flex:1">
+        <div class="av av-m" style="background:${c.color}">${c.initials}</div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between">
+          <div>
+            <div class="cname">${c.name}</div>
+            <div style="font-size:13px;font-weight:600;color:${c.color};margin-bottom:6px">👤 ${c.assignees.length?c.assignees.map(a=>a).join(', '):'Sem responsável'}</div>
+            <div class="tags">${c.products.map(pr=>`<span class="tag" style="font-size:10px">${pr}</span>`).join('')}</div>
+          </div>
+        </div>
+        <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between">
+          <div style="font-size:18px;font-weight:800;color:${c.color}">${p}%</div>
+          <span class="pill pill-${c.contractStatus}" style="font-size:9px;padding:2px 8px;white-space:nowrap">${statusLabel[c.contractStatus]}</span>
+        </div>
+      </div>
+      <div style="padding:10px 12px;border-top:1px solid var(--border);margin-top:8px;font-size:11px;background:#FAFAFA">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
+          <div style="flex:1">
+            <div style="color:var(--muted);font-size:10px;margin-bottom:2px">Contrato</div>
+            <div style="font-weight:600;color:var(--text)">${daysRemaining}</div>
+          </div>
+          <button class="btn btn-o btn-s" style="white-space:nowrap" onclick="event.stopPropagation();openTokenModal('${c.id}')" title="Código do Portal">🔐</button>
+          <button class="btn btn-o btn-s" style="white-space:nowrap" onclick="event.stopPropagation();openClientView('${c.id}')">Ver →</button>
+        </div>
+      </div>
+      ${pends.length?`<div class="alert-s" style="margin-top:0;border-top:none">${pends.slice(0,2).map(d=>`<div class="drow"><span class="dname" style="font-size:11px">${d.name}</span><span class="dresp" style="font-size:10px">${d.responsible||'—'}</span></div>`).join('')}${pends.length>2?`<div style="font-size:9px;color:var(--muted);padding:4px 12px">+${pends.length-2} pendentes</div>`:''}</div>`:''}
+    </div>`;
+  }).join('');
+
+  return`<div class="sh" style="margin-bottom:14px"><h2>Clientes</h2><button class="btn btn-p btn-s" onclick="S.viewMode='myportfolio';S.selectedTeamMember=null;render()">👤 Minha Carteira</button></div>
+  <div class="filter-bar" style="gap:12px;margin-bottom:12px">
+    <input type="text" class="mini" placeholder="🔍 Buscar por nome/email..." value="${S.searchTerm}" onkeyup="S.searchTerm=this.value;render()" style="flex:1;max-width:300px">
+    <select class="mini" onchange="S.sortOrder=this.value;render()" style="width:200px">
+      <option value="nome" ${S.sortOrder==='nome'?'selected':''}>Ordenar: A-Z</option>
+      <option value="vencimento" ${S.sortOrder==='vencimento'?'selected':''}>Ordenar: Vencimento</option>
+      <option value="pendencias" ${S.sortOrder==='pendencias'?'selected':''}>Ordenar: Pendências</option>
+    </select>
+  </div>
+  <div class="filter-bar">
+    <strong style="font-size:11px;color:var(--muted);align-self:center">Plano:</strong>
+    ${products.map(f=>`<span class="fc ${S.prodFilter===f?'active':''}" onclick="S.prodFilter='${f}';render()">${f==='todos'?'Todos':f}</span>`).join('')}
+  </div>
+  ${prodStats?`<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;margin-top:12px">
+    <div class="stat"><div class="stat-num">${prodStats.list.length}</div><div class="stat-lbl">Total na Carteira</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--green)">${prodStats.ativos.length}</div><div class="stat-lbl">Ativos</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--red)">${prodStats.vencidos.length}</div><div class="stat-lbl">Vencidos</div></div>
+    <div class="stat"><div class="stat-num">${prodStats.totalAll?Math.round(prodStats.doneAll/prodStats.totalAll*100):0}%</div><div class="stat-lbl">Progresso Geral</div></div>
+  </div>`:''}
+  <div class="filter-bar">
+    <strong style="font-size:11px;color:var(--muted);align-self:center">Status:</strong>
+    ${statuses.map(f=>`<span class="fc ${S.statusFilter===f?'active':''}" onclick="S.statusFilter='${f}';render()">${f==='todos'?'Todos':f.charAt(0).toUpperCase()+f.slice(1)}</span>`).join('')}
+    <strong style="font-size:11px;color:var(--muted);align-self:center;margin-left:8px">Carreira:</strong>
+    <select class="mini" onchange="S.assigneeFilter=this.value;render()">
+      <option value="todos">Todas</option>
+      ${D.team.map(m=>`<option value="${m.name}" ${S.assigneeFilter===m.name?'selected':''}>${m.name.split(' ')[0]}</option>`).join('')}
+    </select>
+  </div>
+  <div class="sh"><h2>${list.length} cliente${list.length!==1?'s':''}</h2><button class="btn btn-p btn-s" onclick="addClient()">+ Novo</button></div>
+  <div class="grid2">${cards||'<div style="color:var(--muted);padding:20px">Nenhum cliente encontrado.</div>'}</div>`;
+}
+
+// ────────────────────────────────────────────────────────────
+// CLIENT DETAIL
+// ────────────────────────────────────────────────────────────
+function rDetail(){
+  const c=getC();if(!c)return'';
+  const p=prog(c);
+  const tabs={entregas:'📦 Entregas',conteudo:'📅 Conteúdo Mensal',encontros:'🤝 Encontros',artes:'📱 Artes',portal:'👁️ Portal do Cliente',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
+  const tabHtml=Object.entries(tabs).map(([k,v])=>`<div class="tab ${S.tab===k?'active':''}" onclick="S.tab='${k}';render()">${v}</div>`).join('');
+  const statusMap={ativo:'pill-ativo',vencido:'pill-vencido',finalizado:'pill-finalizado'};
+  let body='';
+
+  if(S.tab==='entregas'){
+    const filterKey='delFilter_'+c.id;const f=localStorage.getItem(filterKey)||'todas';
+    const prods=[...new Set(c.deliverables.map(d=>d.product))];
+    const getFiltered=dels=>{
+      if(f==='atrasadas')return dels.filter(d=>getDaysUntil(d.dueDate)<0);
+      if(f==='proximas')return dels.filter(d=>{const dy=getDaysUntil(d.dueDate);return dy!==null&&dy>=0&&dy<=7});
+      return dels;
+    };
+    const getDayStr=d=>{const dy=getDaysUntil(d.dueDate);if(dy===null)return'—';if(dy<0)return`${Math.abs(dy)}d atrasado`;if(dy===0)return'Hoje';if(dy===1)return'Amanhã';return`${dy}d`;};
+    body=`<div style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn ${f==='todas'?'btn-p':'btn-o'} btn-s" onclick="localStorage.setItem('delFilter_${c.id}','todas');render()">Todas</button>
+      <button class="btn ${f==='atrasadas'?'btn-p':'btn-o'} btn-s" onclick="localStorage.setItem('delFilter_${c.id}','atrasadas');render()">🔴 Atrasadas</button>
+      <button class="btn ${f==='proximas'?'btn-p':'btn-o'} btn-s" onclick="localStorage.setItem('delFilter_${c.id}','proximas');render()">⏰ Próximas (7 dias)</button>
+    </div>`;
+    body+=prods.map(prod=>{
+      let dels=c.deliverables.filter(d=>d.product===prod);dels=getFiltered(dels);
+      dels.sort((a,b)=>{const da=getDaysUntil(a.dueDate),db=getDaysUntil(b.dueDate);if(da===null&&db===null)return 0;if(da===null)return 1;if(db===null)return-1;return da-db;});
+      const pct=Math.round(c.deliverables.filter(d=>d.product===prod&&d.status==='concluido').length/c.deliverables.filter(d=>d.product===prod).length*100);
+      return`<div class="card" style="margin-bottom:16px">
+        <div class="ch"><h3>📦 ${prod}</h3>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:11px;color:var(--muted)">${c.deliverables.filter(d=>d.product===prod&&d.status==='concluido').length}/${c.deliverables.filter(d=>d.product===prod).length}</span>
+            <div style="width:70px;background:#E5E7EB;border-radius:99px;height:5px"><div style="width:${pct}%;height:5px;border-radius:99px;background:${c.color}"></div></div>
+          </div>
+        </div>
+        <div class="tw"><table><thead><tr><th>Entrega</th><th>Data de Vencimento</th><th>Responsável</th><th>Status</th></tr></thead><tbody>
+          ${dels.map(d=>`<tr>
+            <td>${d.name}</td>
+            <td><input type="date" class="mini" value="${d.dueDate||''}" onchange="updDel('${c.id}','${d.id}','dueDate',this.value)" style="width:130px"><span style="font-size:10px;color:var(--muted);margin-left:8px">${getDayStr(d)}</span></td>
+            <td><select class="mini" onchange="updDel('${c.id}','${d.id}','responsible',this.value)">
+              <option value="">— Selecionar —</option>
+              ${TEAM_NAMES().map(n=>`<option value="${n}" ${d.responsible===n?'selected':''}>${n.split(' ')[0]}</option>`).join('')}
+            </select></td>
+            <td><span class="badge ${getDelClassByDate(d)}" onclick="cycleDel('${c.id}','${d.id}')" title="Clique para alterar">${getDelStatusByDate(d)==='atrasado'?'❌ Atrasado':SL(d.status)} ↻</span></td>
+          </tr>`).join('')}
+        </tbody></table></div>
+      </div>`;
+    }).join('');
+  }
+  else if(S.tab==='conteudo'){
+    const months=Object.keys(c.monthlyContent);
+    body=months.map(m=>`<div class="card" style="margin-bottom:14px">
+      <div class="ch"><h3>📅 ${m}</h3><button class="btn btn-o btn-s" onclick="addWeek('${c.id}','${m}')">+ Semana</button></div>
+      <div class="cb"><div class="weeks-grid">
+        ${Object.entries(c.monthlyContent[m]).map(([wk,st])=>`
+        <div class="wk ${WC(st)}" onclick="cycleWeek('${c.id}','${m}','${wk}')">
+          <h4>${wk}</h4><span class="badge ${SC(st)}">${SL(st)}</span>
+        </div>`).join('')}
+      </div></div>
+    </div>`).join('')+
+    `<button class="btn btn-o btn-s" style="margin-bottom:16px" onclick="addMonth('${c.id}')">+ Novo mês</button>
+    <div class="card"><div class="ch"><h3>🎯 Encontros Coletivos</h3><span style="font-size:12px;color:var(--muted)">${c.encounters.completed}/${c.encounters.total} realizados</span></div>
+    <div class="cb"><div class="enc-grid">${Array.from({length:c.encounters.total},(_,i)=>`<div class="enc ${i<c.encounters.completed?'ed':'ep'}" onclick="toggleEnc('${c.id}',${i+1})">${i+1}</div>`).join('')}</div></div></div>`;
+  }
+  else if(S.tab==='encontros'){
+    const encs=c.encounters.list||[];
+    const encsSorted=[...encs].sort((a,b)=>new Date(b.date)-new Date(a.date));
+    body=`<button class="btn btn-p btn-s" style="margin-bottom:16px" onclick="openEncounterModal('${c.id}')">+ Registrar Encontro</button>
+    ${encsSorted.length?encsSorted.map((enc,i)=>`<div class="card" style="margin-bottom:12px">
+      <div class="ch">
+        <div>
+          <h4 style="margin:0">${fmtDate(enc.date)}</h4>
+          <p style="margin:4px 0 0 0;font-size:12px;color:var(--muted)">👥 ${enc.attendees.join(', ')||'Sem participantes'}</p>
+        </div>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-o btn-s" onclick="openEncounterModal('${c.id}','${i}')">✏️ Editar</button>
+          <button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="deleteEncounter('${c.id}',${i})">🗑️</button>
+        </div>
+      </div>
+      <div class="cb">
+        <p style="margin:0;color:var(--text)">${enc.description||'Sem descrição'}</p>
+        ${enc.attachments && enc.attachments.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">📎 ${enc.attachments.length} anexo(s)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${enc.attachments.map((a,ai)=>`<span style="background:#F3F4F6;padding:4px 8px;border-radius:4px;font-size:11px;cursor:pointer" onclick="downloadEncFile('${c.id}',${i},${ai})">📄 ${a.name.substring(0,20)}${a.name.length>20?'...':''}</span>`).join('')}
+          </div>
+        </div>`:''}
+        ${enc.notes?`<div style="margin-top:8px;padding:8px;background:#F9FAFB;border-radius:4px;font-size:12px;border-left:2px solid var(--muted)"><strong>Notas:</strong> ${enc.notes}</div>`:''}
+      </div>
+    </div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--muted)">Nenhum encontro registrado ainda.</div>'}`;
+  }
+  else if(S.tab==='artes'){
+    const arts=c.arts||[];
+    const pendentes=arts.filter(a=>a.status==='pendente');
+    const aprovadas=arts.filter(a=>a.status==='aprovado');
+    const rejeitadas=arts.filter(a=>a.status==='rejeitado');
+    body=`<div style="margin-bottom:16px"><button class="btn btn-p" onclick="openArtModal('${c.id}')">+ Adicionar Arte</button></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+      ${arts.map(art=>`
+        <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:white;box-shadow:var(--shadow)">
+          <div style="position:relative;overflow:hidden;background:#f0f0f0;height:180px">
+            <img src="${art.image}" style="width:100%;height:100%;object-fit:cover">
+            <div style="position:absolute;top:8px;right:8px;background:${art.status==='pendente'?'#FEF3C7':art.status==='aprovado'?'#DCFCE7':'#FEE2E2'};color:${art.status==='pendente'?'#B45309':art.status==='aprovado'?'#166534':'#DC2626'};padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600">${art.status==='pendente'?'⏳ Pendente':art.status==='aprovado'?'✅ Aprovado':'❌ Rejeitado'}</div>
+          </div>
+          <div style="padding:16px">
+            <h4 style="margin:0 0 6px 0;font-size:13px;font-weight:600">${art.title}</h4>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${{instagram:'📷 Instagram',linkedin:'💼 LinkedIn',facebook:'👥 Facebook',tiktok:'🎵 TikTok'}[art.platform]||art.platform} · ${new Date(art.createdAt).toLocaleDateString('pt-BR')}</div>
+            ${art.description?`<p style="margin:0 0 12px 0;font-size:12px;color:var(--muted);line-height:1.4">${art.description}</p>`:''}
+            ${art.feedback?`<div style="padding:8px;background:#FEE2E2;border-left:3px solid var(--red);font-size:11px;margin-bottom:12px;color:var(--red)"><strong>Feedback:</strong> ${art.feedback}</div>`:''}
+            <button class="btn btn-o btn-s" style="width:100%;border-color:var(--red);color:var(--red)" onclick="deleteArt('${c.id}','${art.id}')">🗑️ Remover</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    ${arts.length===0?`<div style="text-align:center;padding:40px;background:#F9FAFB;border-radius:12px;border:1px dashed var(--border);color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">📱</div><p style="margin:0">Nenhuma arte enviada ainda. Clique em "+ Adicionar Arte".</p></div>`:''}`;
+  }
+  else if(S.tab==='portal'){
+    const res=c.results||[];
+    const latestMonth=res.length?res[0]:{prospects:0,leads:0,meetings:0,sales:0};
+    const CARD_COLORS=['#5B6EFF','#A855F7','#3B82F6','#06B6D4','#EC4899','#F59E0B','#10B981','#EF4444'];
+    const CARD_ICONS=['🎯','👥','💼','📊','🚀','📱','🎨','💡'];
+
+    body=`<div style="margin-bottom:24px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Resumo do Seu Mês</h3>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);gap:12px">
+      <div class="stat"><div class="stat-num" style="color:#5B6EFF">${latestMonth.prospects||0}</div><div class="stat-lbl">Prospecções</div></div>
+      <div class="stat"><div class="stat-num" style="color:#A855F7">${latestMonth.meetings||0}</div><div class="stat-lbl">Reuniões</div></div>
+      <div class="stat"><div class="stat-num" style="color:#10B981">${latestMonth.sales||0}</div><div class="stat-lbl">Vendas</div></div>
+      <div class="stat"><div class="stat-num" style="color:#F59E0B">R$ ${(latestMonth.sales||0)*5000}</div><div class="stat-lbl">Faturamento Est.</div></div>
+    </div></div>
+
+    <div style="margin-bottom:24px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Suas Entregas</h3>
+    <div class="grid2">${c.deliverables.map((d,i)=>{
+      const color=CARD_COLORS[i%CARD_COLORS.length];
+      const icon=CARD_ICONS[i%CARD_ICONS.length];
+      const statusText={concluido:'✅ Concluído',andamento:'🔄 Em Andamento',pendente:'⏳ Pendente',atrasado:'❌ Atrasado'}[d.status];
+      return`<div style="border-radius:12px;background:linear-gradient(135deg,${color},${color}dd);color:white;padding:20px;cursor:pointer;transition:transform .2s,box-shadow .2s;overflow:hidden;position:relative" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 24px rgba(0,0,0,.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="position:absolute;top:12px;right:12px;font-size:24px">${icon}</div>
+        <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;width:80%">${d.name}</h4>
+        <p style="margin:0 0 12px 0;font-size:12px;opacity:.9">${d.product}</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;padding-top:8px;border-top:1px solid rgba(255,255,255,.2)">
+          <span style="opacity:.8">${statusText}</span>
+          <span style="font-weight:600">${d.dueDate?fmtDate(d.dueDate):'—'}</span>
+        </div>
+      </div>`;
+    }).join('')}</div></div>`;
+  }
+  else if(S.tab==='resultados'){
+    const res=c.results||[];
+    const totP=res.reduce((s,r)=>s+(r.prospects||0),0);
+    const totL=res.reduce((s,r)=>s+(r.leads||0),0);
+    const totM=res.reduce((s,r)=>s+(r.meetings||0),0);
+    const totS=res.reduce((s,r)=>s+(r.sales||0),0);
+    body=`
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="res-card"><div class="res-num" style="color:#0077B5">${totP}</div><div class="res-lbl">Prospecções Enviadas</div></div>
+      <div class="res-card"><div class="res-num" style="color:#7C5CBF">${totL}</div><div class="res-lbl">Leads Gerados</div></div>
+      <div class="res-card"><div class="res-num" style="color:#E8622A">${totM}</div><div class="res-lbl">Reuniões</div></div>
+      <div class="res-card"><div class="res-num" style="color:#057642">${totS}</div><div class="res-lbl">Vendas / Fechamentos</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><h3>📈 Histórico Mensal</h3><button class="btn btn-p btn-s" onclick="openResultModal('${c.id}')">+ Registrar Mês</button></div>
+      <div class="tw"><table><thead><tr><th>Mês</th><th>Prospecções</th><th>Leads</th><th>Reuniões</th><th>Vendas</th><th></th></tr></thead><tbody>
+        ${res.length?res.map((r,i)=>`<tr>
+          <td><strong>${r.month}</strong></td>
+          <td>${r.prospects||0}</td>
+          <td>${r.leads||0}</td>
+          <td>${r.meetings||0}</td>
+          <td><span style="font-weight:700;color:var(--green)">${r.sales||0}</span></td>
+          <td><span style="font-size:10px;cursor:pointer;color:var(--red);padding:4px" onclick="delResult('${c.id}',${i})">✕</span></td>
+        </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Nenhum resultado registrado ainda. Clique em "+ Registrar Mês" para começar.</td></tr>'}
+      </tbody></table></div>
+    </div>`;
+  }
+  else if(S.tab==='contrato'){
+    const pmLabels={pix:'PIX',boleto:'Boleto',cartao:'Cartão de Crédito',transferencia:'Transferência','':'—'};
+    const hasFile=c.contractFile?'✅ Arquivo anexado':'Sem arquivo';
+    body=`<div class="card"><div class="ch"><h3>📋 Dados do Contrato</h3><button class="btn btn-p btn-s" onclick="saveContrato('${c.id}')">💾 Salvar</button></div>
+    <div class="cb">
+      <span class="sec-h">📎 Arquivo do Contrato</span>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px;background:#F9FAFB;border:1px solid var(--border);border-radius:8px">
+        <div style="flex:1">
+          <input type="file" id="contract-file" accept=".pdf,.doc,.docx,.jpg,.png" style="display:none">
+          <div style="font-size:12px;color:var(--text)"><strong>${hasFile}</strong></div>
+          <div style="font-size:10px;color:var(--muted)">PDF, Word, imagem</div>
+        </div>
+        <button class="btn btn-o btn-s" onclick="document.getElementById('contract-file').click()">📤 Enviar</button>
+        ${c.contractFile?`<button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="delContractFile('${c.id}')">🗑️ Remover</button>`:''}</div>
+      <span class="sec-h">Informações Contratuais</span>
+      <div class="fgrid3" style="margin-bottom:16px">
+        <div class="fg"><label>Produto(s)</label><input id="ct-pr" value="${c.products.join(', ')}"></div>
+        <div class="fg"><label>Status do Contrato</label>
+          <select id="ct-cs">
+            <option value="ativo" ${c.contractStatus==='ativo'?'selected':''}>Ativo</option>
+            <option value="vencido" ${c.contractStatus==='vencido'?'selected':''}>Vencido</option>
+            <option value="finalizado" ${c.contractStatus==='finalizado'?'selected':''}>Finalizado</option>
+          </select>
+        </div>
+        <div class="fg"><label>Vencimento</label><input id="ct-cd" type="date" value="${c.contractDue?new Date(c.contractDue).toISOString().split('T')[0]:''}"></div>
+        <div class="fg"><label>Data de Início</label><input id="ct-sd" type="date" value="${c.startDate||''}"></div>
+        <div class="fg"><label>Valor do Contrato</label><input id="ct-val" placeholder="R$ 0,00" value="${c.contractValue||''}"></div>
+        <div class="fg"><label>Forma de Pagamento</label>
+          <select id="ct-pm">
+            <option value="">— Selecionar —</option>
+            <option value="pix" ${c.paymentMethod==='pix'?'selected':''}>PIX</option>
+            <option value="boleto" ${c.paymentMethod==='boleto'?'selected':''}>Boleto</option>
+            <option value="cartao" ${c.paymentMethod==='cartao'?'selected':''}>Cartão de Crédito</option>
+            <option value="transferencia" ${c.paymentMethod==='transferencia'?'selected':''}>Transferência</option>
+          </select>
+        </div>
+        <div class="fg"><label>Status do Pagamento</label>
+          <select id="ct-ps">
+            <option value="em-dia" ${c.paymentStatus==='em-dia'?'selected':''}>Em dia</option>
+            <option value="atrasado" ${c.paymentStatus==='atrasado'?'selected':''}>Atrasado</option>
+            <option value="cancelado" ${c.paymentStatus==='cancelado'?'selected':''}>Cancelado</option>
+          </select>
+        </div>
+        <div class="fg"><label>Responsável Principal da Carteira</label>
+          <select id="ct-mo">
+            <option value="">— Selecionar —</option>
+            ${TEAM_NAMES().map(n=>`<option value="${n}" ${c.mainOwner===n?'selected':''}>${n.split(' ')[0]} ${n.split(' ').slice(-1)[0]}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <span class="sec-h">Dados da Empresa</span>
+      <div class="fgrid" style="margin-bottom:8px">
+        <div class="fg"><label>Nicho / Área de Atuação</label><input id="ct-ni" value="${c.nicho||''}" placeholder="Ex: Advocacia, Engenharia..."></div>
+        <div class="fg"><label>CNPJ / CPF</label><input id="ct-cnpj" value="${c.cnpj||''}" placeholder="00.000.000/0001-00"></div>
+        <div class="fg" style="grid-column:1/-1"><label>Endereço</label><input id="ct-addr" value="${c.address||''}" placeholder="Rua, número, cidade, estado"></div>
+      </div>
+    </div></div>`;
+  }
+  else if(S.tab==='pessoal'){
+    body=`<div class="card"><div class="ch"><h3>👤 Dados Pessoais</h3><button class="btn btn-p btn-s" onclick="savePessoal('${c.id}')">💾 Salvar</button></div>
+    <div class="cb">
+      <span class="sec-h">Contato</span>
+      <div class="fgrid" style="margin-bottom:16px">
+        <div class="fg"><label>Nome completo</label><input id="fp-n" value="${c.name}"></div>
+        <div class="fg"><label>E-mail</label><input id="fp-e" type="email" value="${c.email||''}"></div>
+        <div class="fg"><label>Telefone / WhatsApp</label><input id="fp-p" value="${c.phone||''}"></div>
+        <div class="fg"><label>LinkedIn (URL)</label><input id="fp-l" value="${c.linkedin||''}"></div>
+      </div>
+    </div></div>`;
+  }
+  else if(S.tab==='notas'){
+    body=`<div class="card"><div class="ch"><h3>📝 Notas</h3><button class="btn btn-p btn-s" onclick="saveNotas('${c.id}')">💾 Salvar</button></div>
+    <div class="cb"><textarea class="nf" id="cn" style="min-height:200px" placeholder="Observações, feedbacks, próximos passos...">${c.notes||''}</textarea></div></div>`;
+  }
+
+  const daysRemaining=getContractDaysRemaining(c.contractDue);
+  return`<div class="back" onclick="nav('clients',{clientId:null})">← Voltar</div>
+  <div class="dh">
+    <div class="av av-l" style="background:${c.color}">${c.initials}</div>
+    <div class="dinfo">
+      <h2>${c.name}</h2>
+      <p>${c.email||'Sem e-mail'} ${c.phone?'· '+c.phone:''}</p>
+      <div class="tags" style="margin-top:6px">
+        ${c.products.map(pr=>`<span class="tag">${pr}</span>`).join('')}
+        <span class="pill pill-${c.contractStatus}">${{ativo:'Ativo',vencido:'Vencido',finalizado:'Finalizado'}[c.contractStatus]}</span>
+      </div>
+    </div>
+    <div style="margin-left:auto;text-align:right;display:flex;gap:20px;align-items:center">
+      <div style="padding:16px 20px;background:#F0F9FF;border-radius:12px;border:2px solid var(--primary);min-width:200px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Status do Contrato</div>
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span class="pill pill-${c.contractStatus}" style="font-weight:600">${{ativo:'✅ Ativo',vencido:'⚠️ Vencido',finalizado:'🏁 Finalizado'}[c.contractStatus]}</span>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:var(--primary);margin-top:8px">${daysRemaining}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:42px;font-weight:900;color:${c.color};line-height:1">${p}%</div>
+        <div style="font-size:10px;color:var(--muted)">concluído</div>
+        <div style="width:110px;margin-top:6px"><div class="pb-track"><div class="pb-fill" style="width:${p}%;background:${c.color}"></div></div></div>
+        <button class="btn btn-p btn-s" onclick="genClientLink('${c.id}')" style="margin-top:8px">🔗 Portal</button>
+      </div>
+    </div>
+  </div>
+  <div class="tabs">${tabHtml}</div>${body}`;
+}
+
+// ────────────────────────────────────────────────────────────
+// PORTFOLIO — POR PRODUTO
+// ────────────────────────────────────────────────────────────
+function rPortfolio(){
+  const products=[...new Set(D.clients.flatMap(c=>c.products))];
+  let list=D.clients.filter(c=>c.products.includes(S.portProd));
+  list=list.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  const ativos=list.filter(c=>c.contractStatus==='ativo');
+  const vencidos=list.filter(c=>c.contractStatus==='vencido');
+  const done=list.flatMap(c=>c.deliverables.filter(d=>d.product===S.portProd&&d.status==='concluido')).length;
+  const totalProd=list.flatMap(c=>c.deliverables.filter(d=>d.product===S.portProd)).length;
+  const doneAll=list.flatMap(c=>c.deliverables.filter(d=>d.status==='concluido')).length;
+  const totalAll=list.flatMap(c=>c.deliverables).length;
+
+  const cards=list.map(c=>{
+    const dels=c.deliverables.filter(d=>d.product===S.portProd);
+    const p=dels.length?Math.round(dels.filter(d=>d.status==='concluido').length/dels.length*100):0;
+    return`<div class="cc" onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})">
+      <div class="cc-top">
+        <div class="av av-s" style="background:${c.color}">${c.initials}</div>
+        <div style="flex:1"><div class="cname">${c.name}</div>
+          <div class="tags"><span class="pill pill-${c.contractStatus}" style="font-size:9px;padding:1px 6px">${{ativo:'Ativo',vencido:'Vencido',finalizado:'Finalizado'}[c.contractStatus]}</span>
+          </div>
+          ${c.assignees[0]?`<div style="font-size:10px;color:var(--muted);margin-top:3px">👤 ${c.assignees[0].split(' ')[0]}</div>`:''}
+        </div>
+        <div style="font-size:18px;font-weight:800;color:${c.color}">${p}%</div>
+      </div>
+      <div class="psec"><div class="pb-track"><div class="pb-fill" style="width:${p}%;background:${c.color}"></div></div>
+        <div class="srow">
+          <span style="color:var(--green)">✅${dels.filter(d=>d.status==='concluido').length}</span>
+          <span style="color:var(--yellow)">🔄${dels.filter(d=>d.status==='andamento').length}</span>
+          <span style="color:var(--gray)">⏳${dels.filter(d=>d.status==='pendente').length}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return`<div class="filter-bar">
+    ${products.map(p=>`<span class="fc ${S.portProd===p?'active':''}" onclick="S.portProd='${p}';render()">${p}</span>`).join('')}
+  </div>
+  <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+    <div class="stat"><div class="stat-num">${list.length}</div><div class="stat-lbl">Total na Carteira</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--green)">${ativos.length}</div><div class="stat-lbl">Ativos</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--red)">${vencidos.length}</div><div class="stat-lbl">Vencidos</div></div>
+    <div class="stat"><div class="stat-num">${totalAll?Math.round(doneAll/totalAll*100):0}%</div><div class="stat-lbl">Progresso Geral</div></div>
+  </div>
+  <div class="sh"><h2>Carteira: ${S.portProd} (${list.length} clientes)</h2></div>
+  <div class="grid2">${cards}</div>`;
+}
+function getWeeklyPendencies(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const weekEnd=new Date(today);weekEnd.setDate(weekEnd.getDate()+7);
+  const grouped={};
+  D.clients.forEach(c=>{
+    c.deliverables.forEach(d=>{
+      if(d.status!=='pendente'&&d.status!=='atrasado')return;
+      const days=getDaysUntil(d.dueDate);
+      if(d.status==='atrasado'||days!==null&&days>=0&&days<=7){
+        const assignee=d.responsible||'Sem responsável';
+        if(!grouped[assignee])grouped[assignee]={};
+        if(!grouped[assignee][c.id])grouped[assignee][c.id]={client:c,deliverables:[]};
+        grouped[assignee][c.id].deliverables.push(d);
+      }
+    });
+  });
+  return grouped;
+}
+
+// ────────────────────────────────────────────────────────────
+// WEEKLY PENDING
+// ────────────────────────────────────────────────────────────
+function rWeeklyPending(){
+  const grouped=getWeeklyPendencies();
+  const assignees=Object.keys(grouped).sort();
+  const getDayColor=d=>{const days=getDaysUntil(d.dueDate);if(days<0)return'var(--red)';if(days<=2)return'var(--red)';if(days<=5)return'var(--yellow)';return'var(--green)'};
+  const getDayBg=d=>{const days=getDaysUntil(d.dueDate);if(days<0)return'var(--rbg)';if(days<=2)return'var(--rbg)';if(days<=5)return'var(--ybg)';return'var(--gbg)'};
+  const getDayLabel=d=>{const days=getDaysUntil(d.dueDate);if(days<0)return`${Math.abs(days)}d atrasado`;if(days===0)return'Hoje';if(days===1)return'Amanhã';return`${days}d`;};
+
+  const html=assignees.map(assignee=>{
+    const clientsObj=grouped[assignee];
+    const clientIds=Object.keys(clientsObj);
+    const clientCards=clientIds.map(cid=>{
+      const info=clientsObj[cid];
+      const c=info.client;
+      const dels=info.deliverables.sort((a,b)=>getDaysUntil(a.dueDate)-getDaysUntil(b.dueDate));
+      return `<div style="margin-left:20px;margin-bottom:12px">
+        <div style="padding:8px 12px;background:#F9FAFB;border-radius:6px;border-left:3px solid ${c.color};margin-bottom:8px">
+          <div style="font-weight:600;color:var(--text)">${c.name}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${dels.length} pendente${dels.length!==1?'s':''}</div>
+        </div>
+        ${dels.map(d=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 12px;background:white;border:1px solid var(--border);border-radius:6px;margin-bottom:6px">
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:500;color:var(--text)">${d.name}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">${d.product}</div>
+          </div>
+          <div style="padding:3px 8px;background:${getDayBg(d)};color:${getDayColor(d)};border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">📅 ${getDayLabel(d)}</div>
+        </div>`).join('')}
+      </div>`;
+    }).join('');
+    return `<div class="card" style="margin-bottom:16px">
+      <div class="ch" style="background:#F9FAFB">
+        <h3 style="margin:0">👤 ${assignee}</h3>
+        <span style="font-size:11px;color:var(--muted);background:white;padding:2px 8px;border-radius:12px">${Object.values(clientsObj).flatMap(o=>o.deliverables).length} pendentes</span>
+      </div>
+      <div class="cb" style="padding:12px">${clientCards}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+    <div class="stat"><div class="stat-num" style="color:var(--red)">${Object.values(grouped).flatMap(a=>Object.values(a).flatMap(c=>c.deliverables.filter(d=>getDaysUntil(d.dueDate)<0))).length}</div><div class="stat-lbl">Atrasadas</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--yellow)">${Object.values(grouped).flatMap(a=>Object.values(a).flatMap(c=>c.deliverables.filter(d=>{const dy=getDaysUntil(d.dueDate);return dy!==null&&dy>=0&&dy<=3}))).length}</div><div class="stat-lbl">Críticas (≤3d)</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--green)">${Object.values(grouped).flatMap(a=>Object.values(a).flatMap(c=>c.deliverables)).length}</div><div class="stat-lbl">Total Pendentes</div></div>
+  </div>
+  ${html||'<div style="padding:40px;text-align:center;color:var(--muted)">Nenhuma pendência para esta semana! ✨</div>'}`;
+}
+
+// ────────────────────────────────────────────────────────────
+// POR FUNCIONÁRIA
+// ────────────────────────────────────────────────────────────
+function rFunc(){
+  const cards=D.team.map(m=>{
+    const myClients=D.clients.filter(c=>c.assignees.includes(m.name)&&c.contractStatus==='ativo');
+    const myDels=myClients.flatMap(c=>c.deliverables.filter(d=>d.responsible===m.name));
+    const doneDels=myDels.filter(d=>d.status==='concluido').length;
+    const pendDels=myDels.filter(d=>d.status==='pendente').length;
+    const goingDels=myDels.filter(d=>d.status==='andamento').length;
+    const capPct=Math.min(Math.round(myClients.length/m.capacity*100),100);
+    const capColor=capPct<70?'var(--green)':capPct<90?'var(--yellow)':'var(--red)';
+    const perfPct=myDels.length?Math.round(doneDels/myDels.length*100):0;
+    const bday=m.birthday?new Date(m.birthday):null;
+    const age=bday?Math.floor((new Date()-bday)/(365.25*24*3600*1000)):null;
+
+    return`<div class="card">
+      <div class="ch">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="av av-s" style="background:${m.color}">${m.initials}</div>
+          <div><strong style="font-size:13px">${m.name}</strong><br><span style="font-size:11px;color:var(--muted)">${m.role} · ${m.dept}</span></div>
+        </div>
+        <button class="btn btn-o btn-s" onclick="nav('team')">Perfil →</button>
+      </div>
+      <div class="cb">
+        <div class="grid2" style="gap:10px;margin-bottom:14px">
+          <div style="background:#F9FAFB;border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;font-weight:800;color:var(--primary)">${myClients.length}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Clientes</div>
+          </div>
+          <div style="background:#F9FAFB;border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;font-weight:800;color:${capColor}">${capPct}%</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Capacidade</div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px">DISPONIBILIDADE (${myClients.length}/${m.capacity} clientes)</div>
+        <div class="cap-bar"><div class="cap-fill" style="width:${capPct}%;background:${capColor}"></div></div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);margin:12px 0 5px">DESEMPENHO (${perfPct}% das entregas concluídas)</div>
+        <div class="cap-bar"><div class="cap-fill" style="width:${perfPct}%;background:var(--green)"></div></div>
+        <div class="srow" style="margin-top:6px">
+          <span style="color:var(--green)">✅ ${doneDels} concluídas</span>
+          <span style="color:var(--yellow)">🔄 ${goingDels}</span>
+          <span style="color:var(--gray)">⏳ ${pendDels}</span>
+        </div>
+        ${myClients.length?`
+        <div class="sec-div" style="margin-top:12px">Clientes</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
+          ${myClients.map(c=>`<span class="tag" style="cursor:pointer;font-size:11px" onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})">${c.name.split(' ')[0]} ${c.name.split(' ')[1]||''}</span>`).join('')}
+        </div>`:`<div style="font-size:12px;color:var(--muted);margin-top:10px">Nenhum cliente atribuído. <a href="#" onclick="nav('clients')" style="color:var(--primary)">Atribuir clientes</a></div>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  const totalClients=D.clients.filter(c=>c.contractStatus==='ativo').length;
+  const assigned=D.clients.filter(c=>c.assignees.length>0&&c.contractStatus==='ativo').length;
+  const unassigned=totalClients-assigned;
+
+  return`
+  <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+    <div class="stat"><div class="stat-num">${D.team.length}</div><div class="stat-lbl">Funcionárias</div></div>
+    <div class="stat"><div class="stat-num">${assigned}</div><div class="stat-lbl">Clientes Atribuídos</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--yellow)">${unassigned}</div><div class="stat-lbl">Sem Responsável</div></div>
+    <div class="stat"><div class="stat-num">${totalClients>0?Math.round(assigned/totalClients*100):0}%</div><div class="stat-lbl">Cobertura</div></div>
+  </div>
+  ${unassigned>0?`<div class="card" style="margin-bottom:18px;border-color:var(--border)"><div class="ch" style="background:#FFFBEB"><h3>⚠️ ${unassigned} clientes sem responsável atribuído</h3><button class="btn btn-o btn-s" onclick="nav('clients')">Atribuir agora →</button></div></div>`:''}
+  <div class="sh"><h2>Visão por Funcionária</h2></div>
+  <div class="grid2">${cards}</div>`;
+}
+
+// ────────────────────────────────────────────────────────────
+// TEAM
+// ────────────────────────────────────────────────────────────
+function rTeam(){
+  const previewCards=D.team.map(m=>{
+    const myClients=D.clients.filter(c=>c.assignees.includes(m.name)&&c.contractStatus==='ativo');
+    const myDels=myClients.flatMap(c=>c.deliverables.filter(d=>d.responsible===m.name));
+    const doneDels=myDels.filter(d=>d.status==='concluido').length;
+    const pendDels=myDels.filter(d=>d.status==='pendente').length;
+    const goingDels=myDels.filter(d=>d.status==='andamento').length;
+    const capPct=Math.min(Math.round(myClients.length/m.capacity*100),100);
+    const capColor=capPct<70?'var(--green)':capPct<90?'var(--yellow)':'var(--red)';
+    const perfPct=myDels.length?Math.round(doneDels/myDels.length*100):0;
+    return`<div class="card">
+      <div class="ch">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="av av-s" style="background:${m.color}">${m.initials}</div>
+          <div><strong style="font-size:13px">${m.name}</strong><br><span style="font-size:11px;color:var(--muted)">${m.role} · ${m.dept}</span></div>
+        </div>
+      </div>
+      <div class="cb">
+        <div class="grid2" style="gap:10px;margin-bottom:14px">
+          <div style="background:#F9FAFB;border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;font-weight:800;color:var(--primary)">${myClients.length}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Clientes</div>
+          </div>
+          <div style="background:#F9FAFB;border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;font-weight:800;color:${capColor}">${capPct}%</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Capacidade</div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px">DISPONIBILIDADE (${myClients.length}/${m.capacity} clientes)</div>
+        <div class="cap-bar"><div class="cap-fill" style="width:${capPct}%;background:${capColor}"></div></div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);margin:12px 0 5px">DESEMPENHO (${perfPct}% das entregas concluídas)</div>
+        <div class="cap-bar"><div class="cap-fill" style="width:${perfPct}%;background:var(--green)"></div></div>
+        <div class="srow" style="margin-top:6px">
+          <span style="color:var(--green)">✅ ${doneDels} concluídas</span>
+          <span style="color:var(--yellow)">🔄 ${goingDels}</span>
+          <span style="color:var(--gray)">⏳ ${pendDels}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  if(!S.teamAuth){
+    return`<div style="position:relative">
+      ${previewCards?`<div class="sh"><h2>Time (${D.team.length} pessoas)</h2></div><div class="grid2">${previewCards}</div>`:''}
+      <div class="overlay" style="background:rgba(0,0,0,.3);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;position:fixed;inset:0">
+        <div class="modal" style="max-width:400px">
+          <div class="modal-hd" style="border-bottom:none;padding:28px 24px 0"><h3>🔐 Acesso Restrito</h3></div>
+          <div class="modal-body" style="text-align:center">
+            <p style="color:var(--muted);margin-bottom:24px">Esta seção é acessível apenas para Mari e Naiara. Digite a senha para editar.</p>
+            <div class="fg" style="margin-bottom:20px"><label>Senha</label><input id="team-pwd" type="password" placeholder="Digite a senha..." style="text-align:center;font-size:14px" onkeypress="if(event.key==='Enter')verifyTeamPwd()"></div>
+          </div>
+          <div class="modal-ft">
+            <button class="btn btn-p" onclick="verifyTeamPwd()" style="width:100%">Acessar</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+  const cards=D.team.map(m=>{
+    const myClients=D.clients.filter(c=>c.assignees.includes(m.name)&&c.contractStatus==='ativo');
+    const bday=m.birthday?new Date(m.birthday+' ').toLocaleDateString('pt-BR'):'—';
+    return`<div class="card">
+      <div class="ch">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="av av-m" style="background:${m.color}">${m.initials}</div>
+          <div><strong style="font-size:14px">${m.name}</strong><br>
+            <input class="fi" value="${m.role}" placeholder="Cargo" onchange="updM('${m.id}','role',this.value)" style="font-size:11px">
+          </div>
+        </div>
+      </div>
+      <div class="cb">
+        <div class="fgrid" style="margin-bottom:12px">
+          <div class="fg"><label>Departamento</label><input value="${m.dept||''}" placeholder="—" onchange="updM('${m.id}','dept',this.value)"></div>
+          <div class="fg"><label>Nascimento</label><input type="date" value="${m.birthday||''}" onchange="updM('${m.id}','birthday',this.value)"></div>
+          <div class="fg"><label>E-mail</label><input value="${m.email||''}" placeholder="—" onchange="updM('${m.id}','email',this.value)"></div>
+          <div class="fg"><label>Telefone</label><input value="${m.phone||''}" placeholder="—" onchange="updM('${m.id}','phone',this.value)"></div>
+        </div>
+        <div class="fg" style="margin-bottom:12px">
+          <label>Capacidade máx. de clientes</label>
+          <input type="number" value="${m.capacity||10}" min="1" max="50" onchange="updM('${m.id}','capacity',parseInt(this.value))">
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Clientes (${myClients.length})</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">
+          ${myClients.length?myClients.map(c=>`<span class="tag" style="cursor:pointer" onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})">${c.name.split(' ')[0]}</span>`).join(''):'<span style="font-size:11px;color:var(--muted)">Nenhum</span>'}
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📌 Informações Pessoais (Privado - Mari & Naiara)</div>
+        <div style="background:#F9FAFB;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">
+          <div class="fg" style="margin-bottom:10px">
+            <label style="font-size:10px">Histórico Profissional / Notas Pessoais</label>
+            <textarea placeholder="Formação, experiência anterior, habilidades, desafios pessoais..." onchange="updM('${m.id}','personalInfo',this.value)" style="min-height:80px;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:6px">${m.personalInfo||''}</textarea>
+          </div>
+          <div class="fgrid">
+            <div class="fg">
+              <label style="font-size:10px">Data Importante</label>
+              <input type="date" value="${m.importantDate||''}" placeholder="Data importante" onchange="updM('${m.id}','importantDate',this.value)" style="font-size:12px;padding:8px">
+            </div>
+            <div class="fg">
+              <label style="font-size:10px">Descrição da Data</label>
+              <input type="text" value="${m.importantDateNote||''}" placeholder="Ex: Aniversário da filha, Formatura..." onchange="updM('${m.id}','importantDateNote',this.value)" style="font-size:12px;padding:8px">
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Notas de 1:1 / Desenvolvimento</div>
+        <textarea class="nf" placeholder="Anotações de reuniões, feedbacks, sugestões de desenvolvimento..." onchange="updM('${m.id}','notes',this.value)">${m.notes||''}</textarea>
+      </div>
+    </div>`;
+  }).join('');
+
+  return`<div class="sh"><h2>Time (${D.team.length} pessoas)</h2><button class="btn btn-p btn-s" onclick="addMember()">+ Adicionar</button></div>
+  <div class="grid2">${cards}</div>`;
+}
+
+// ────────────────────────────────────────────────────────────
+// ACTIONS
+// ────────────────────────────────────────────────────────────
+function verifyTeamPwd(){
+  const pwd=$('team-pwd')?.value||'';
+  if(pwd===TEAM_PASSWORD){
+    S.teamAuth=true;
+    render();
+    toast('✅ Acesso liberado!');
+  }else{
+    toast('❌ Senha incorreta!');
+    const el=$('team-pwd');
+    if(el){el.value='';el.focus();}
+  }
+}
+function cycleDel(cid,did){const d=D.clients.find(c=>c.id===cid).deliverables.find(d=>d.id===did);d.status=CS(d.status);save();render()}
+function updDel(cid,did,f,v){D.clients.find(c=>c.id===cid).deliverables.find(d=>d.id===did)[f]=v;save()}
+function cycleWeek(cid,m,wk){const c=D.clients.find(c=>c.id===cid);c.monthlyContent[m][wk]=CS(c.monthlyContent[m][wk]);save();render()}
+function toggleEnc(cid,n){const c=D.clients.find(c=>c.id===cid);c.encounters.completed=c.encounters.completed>=n?n-1:n;if(c.encounters.completed<0)c.encounters.completed=0;save();render()}
+function addMonth(cid){const m=prompt('Nome do mês (ex: Junho 2026):');if(!m)return;D.clients.find(c=>c.id===cid).monthlyContent[m]={'1ª Semana':'pendente','2ª Semana':'pendente','3ª Semana':'pendente','4ª Semana':'pendente'};save();render()}
+function addWeek(cid,m){const c=D.clients.find(c=>c.id===cid);const n=Object.keys(c.monthlyContent[m]).length+1;c.monthlyContent[m][n+'ª Semana']='pendente';save();render()}
+function savePessoal(cid){
+  const c=D.clients.find(c=>c.id===cid);
+  c.name=$('fp-n').value;c.email=$('fp-e').value;c.phone=$('fp-p').value;
+  c.linkedin=$('fp-l').value;
+  c.initials=initials(c.name);save();toast('✅ Dados salvos!');render();
+}
+function saveContrato(cid){
+  const c=D.clients.find(c=>c.id===cid);
+  c.products=$('ct-pr').value.split(',').map(p=>p.trim()).filter(Boolean);
+  c.contractStatus=$('ct-cs').value;
+  const cdv=$('ct-cd').value;c.contractDue=cdv?new Date(cdv).getTime():null;
+  c.startDate=$('ct-sd').value;
+  c.contractValue=$('ct-val').value;
+  c.paymentMethod=$('ct-pm').value;
+  c.paymentStatus=$('ct-ps').value;
+  c.mainOwner=$('ct-mo').value;
+  c.nicho=$('ct-ni').value;
+  c.cnpj=$('ct-cnpj').value;
+  c.address=$('ct-addr').value;
+
+  const fileInput=$('contract-file');
+  if(fileInput&&fileInput.files.length>0){
+    const file=fileInput.files[0];
+    const reader=new FileReader();
+    reader.onload=function(e){
+      c.contractFile={name:file.name,type:file.type,data:e.target.result};
+      save();toast('✅ Contrato e arquivo salvos!');render();
+    };
+    reader.readAsDataURL(file);
+  }else{
+    save();toast('✅ Contrato salvo!');render();
+  }
+}
+function delContractFile(cid){
+  if(!confirm('Remover arquivo do contrato?'))return;
+  const c=D.clients.find(c=>c.id===cid);
+  c.contractFile=null;
+  save();toast('🗑️ Arquivo removido');render();
+}
+function saveNotas(cid){D.clients.find(c=>c.id===cid).notes=$('cn').value;save();toast('✅ Notas salvas!')}
+function updM(mid,f,v){const m=D.team.find(m=>m.id===mid);if(m){m[f]=v;save()}}
+function openResultModal(cid){
+  const html=`<div class="overlay" id="rm-overlay" onclick="if(event.target===this)closeResultModal()">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-hd"><h3>📈 Registrar Resultados do Mês</h3><button class="btn btn-o btn-s" onclick="closeResultModal()">✕ Fechar</button></div>
+      <div class="modal-body">
+        <div class="fgrid">
+          <div class="fg" style="grid-column:1/-1"><label>Mês de Referência *</label><input id="rm-month" placeholder="Ex: Maio 2026"></div>
+          <div class="fg"><label>Prospecções Enviadas</label><input id="rm-prospects" type="number" min="0" value="0"></div>
+          <div class="fg"><label>Leads Gerados</label><input id="rm-leads" type="number" min="0" value="0"></div>
+          <div class="fg"><label>Reuniões Realizadas</label><input id="rm-meetings" type="number" min="0" value="0"></div>
+          <div class="fg"><label>Vendas / Fechamentos</label><input id="rm-sales" type="number" min="0" value="0"></div>
+        </div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-o" onclick="closeResultModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveResult('${cid}')">💾 Salvar Resultado</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function closeResultModal(){const el=$('rm-overlay');if(el)el.remove();}
+function saveResult(cid){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c.results)c.results=[];
+  const month=$('rm-month').value.trim();
+  if(!month){toast('⚠️ Informe o mês!');return;}
+  c.results.unshift({month,prospects:+($('rm-prospects').value)||0,leads:+($('rm-leads').value)||0,meetings:+($('rm-meetings').value)||0,sales:+($('rm-sales').value)||0});
+  save();closeResultModal();toast('✅ Resultado salvo!');render();
+}
+function delResult(cid,idx){
+  if(!confirm('Remover este registro?'))return;
+  const c=D.clients.find(c=>c.id===cid);c.results.splice(idx,1);save();toast('🗑️ Removido');render();
+}
+function addClient(){
+  const tnames=TEAM_NAMES();
+  const html=`<div class="overlay" id="nc-overlay" onclick="if(event.target===this)closeNC()">
+    <div class="modal">
+      <div class="modal-hd"><h3>➕ Novo Cliente</h3><button class="btn btn-o btn-s" onclick="closeNC()">✕ Fechar</button></div>
+      <div class="modal-body">
+        <span class="sec-h">Identificação</span>
+        <div class="fgrid" style="margin-bottom:4px">
+          <div class="fg" style="grid-column:1/-1"><label>Nome completo *</label><input id="nc-n" placeholder="Nome do cliente"></div>
+          <div class="fg"><label>E-mail</label><input id="nc-e" type="email" placeholder="email@exemplo.com"></div>
+          <div class="fg"><label>Telefone / WhatsApp</label><input id="nc-p" placeholder="(11) 99999-9999"></div>
+          <div class="fg"><label>LinkedIn (URL)</label><input id="nc-l" placeholder="https://linkedin.com/in/..."></div>
+          <div class="fg"><label>Nicho / Área de Atuação</label><input id="nc-ni" placeholder="Ex: Advocacia, Engenharia, Saúde..."></div>
+          <div class="fg"><label>CNPJ / CPF</label><input id="nc-cnpj" placeholder="00.000.000/0001-00"></div>
+          <div class="fg" style="grid-column:1/-1"><label>Endereço</label><input id="nc-addr" placeholder="Cidade, Estado"></div>
+        </div>
+        <span class="sec-h">Contrato</span>
+        <div class="fgrid3" style="margin-bottom:4px">
+          <div class="fg"><label>Data de Início</label><input id="nc-sd" type="date"></div>
+          <div class="fg"><label>Vencimento</label><input id="nc-cd" type="date"></div>
+          <div class="fg"><label>Valor do Contrato</label><input id="nc-val" placeholder="R$ 0,00"></div>
+          <div class="fg"><label>Forma de Pagamento</label>
+            <select id="nc-pm">
+              <option value="">— Selecionar —</option>
+              <option value="pix">PIX</option>
+              <option value="boleto">Boleto</option>
+              <option value="cartao">Cartão de Crédito</option>
+              <option value="transferencia">Transferência</option>
+            </select>
+          </div>
+          <div class="fg"><label>Status do Contrato</label>
+            <select id="nc-cs">
+              <option value="ativo">Ativo</option>
+              <option value="vencido">Vencido</option>
+              <option value="finalizado">Finalizado</option>
+            </select>
+          </div>
+          <div class="fg"><label>Status do Pagamento</label>
+            <select id="nc-ps">
+              <option value="em-dia">Em dia</option>
+              <option value="atrasado">Atrasado</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+        </div>
+        <span class="sec-h">Produto & Responsável</span>
+        <div class="fgrid" style="margin-bottom:4px">
+          <div class="fg">
+            <label>Produto(s)</label>
+            <div style="display:flex;flex-direction:column;gap:8px;padding:8px;background:#F9FAFB;border-radius:8px;border:1px solid var(--border)">
+              <label style="font-size:13px;text-transform:none;letter-spacing:0;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="nc-gp" checked> Gestão de Perfil</label>
+              <label style="font-size:13px;text-transform:none;letter-spacing:0;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="nc-ic"> Implementação Comercial</label>
+            </div>
+          </div>
+          <div class="fg"><label>Responsável Principal</label>
+            <select id="nc-as">
+              <option value="">— Selecionar —</option>
+              ${tnames.map(n=>`<option value="${n}">${n.split(' ')[0]} ${n.split(' ').slice(-1)[0]}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <span class="sec-h">Observações Iniciais</span>
+        <div class="fg"><textarea id="nc-notes" placeholder="Feedbacks, próximos passos, detalhes importantes..."></textarea></div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-o" onclick="closeNC()">Cancelar</button>
+        <button class="btn btn-p" onclick="confirmNC()">➕ Adicionar Cliente</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function closeNC(){const el=$('nc-overlay');if(el)el.remove();}
+function confirmNC(){
+  const name=$('nc-n').value.trim();
+  if(!name){toast('⚠️ Informe o nome do cliente!');return;}
+  const prods=[];
+  if($('nc-gp').checked)prods.push('Gestão de Perfil');
+  if($('nc-ic').checked)prods.push('Implementação Comercial');
+  if(!prods.length)prods.push('Gestão de Perfil');
+  const i=D.clients.length;
+  const cdv=$('nc-cd').value;
+  const c=mkClient(name,i,prods,$('nc-cs').value,cdv?new Date(cdv).getTime():null,$('nc-as').value?[$('nc-as').value]:[]);
+  c.email=$('nc-e').value;c.phone=$('nc-p').value;c.linkedin=$('nc-l').value;
+  c.nicho=$('nc-ni').value;c.cnpj=$('nc-cnpj').value;c.address=$('nc-addr').value;
+  c.startDate=$('nc-sd').value;c.contractValue=$('nc-val').value;
+  c.paymentMethod=$('nc-pm').value;c.paymentStatus=$('nc-ps').value;
+  c.notes=$('nc-notes').value;
+  D.clients.push(c);save();closeNC();
+  nav('clients',{clientId:c.id,tab:'entregas'});toast('✅ Cliente adicionado!');
+}
+function addMember(){
+  const name=prompt('Nome da funcionária:');if(!name)return;
+  const i=D.team.length;
+  D.team.push({id:name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')+'_'+Date.now(),name,role:'',dept:'',email:'',phone:'',birthday:'',color:color(i+3),initials:initials(name),notes:'',capacity:10});
+  save();render();toast('✅ Adicionada!');
+}
+function openEncounterModal(cid,encIdx){
+  const c=D.clients.find(c=>c.id===cid);
+  const isEdit=encIdx!==undefined;
+  const enc=isEdit?c.encounters.list[encIdx]:{date:new Date().toISOString().split('T')[0],description:'',attendees:[],attachments:[],notes:''};
+  const tnames=TEAM_NAMES();
+  const html=`<div class="overlay" id="em-overlay" onclick="if(event.target===this)closeEncounterModal()">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-hd"><h3>${isEdit?'✏️ Editar':'🤝 Registrar'} Encontro</h3><button class="btn btn-o btn-s" onclick="closeEncounterModal()">✕</button></div>
+      <div class="modal-body">
+        <div class="fgrid">
+          <div class="fg"><label>Data do Encontro *</label><input id="em-date" type="date" value="${enc.date||''}"></div>
+        </div>
+        <div class="fg"><label>Participantes</label>
+          <div style="display:flex;flex-direction:column;gap:8px;padding:8px;background:#F9FAFB;border-radius:8px;border:1px solid var(--border)">
+            ${tnames.map((n,i)=>`<label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="em-att-${i}" ${enc.attendees.includes(n)?'checked':''}> ${n.split(' ')[0]}</label>`).join('')}
+          </div>
+        </div>
+        <div class="fg" style="grid-column:1/-1"><label>Descrição do Encontro</label><textarea id="em-desc" style="height:80px" placeholder="Assuntos discutidos, decisões tomadas, próximos passos...">${enc.description||''}</textarea></div>
+        <div class="fg" style="grid-column:1/-1"><label>Notas Adicionais</label><textarea id="em-notes" style="height:60px" placeholder="Observações importantes...">${enc.notes||''}</textarea></div>
+        <div class="fg" style="grid-column:1/-1"><label>📎 Anexos</label>
+          <input type="file" id="em-file" multiple accept=".pdf,.doc,.docx,.jpg,.png,.jpeg" style="display:none">
+          <button class="btn btn-o btn-s" style="width:100%;margin-bottom:8px" onclick="document.getElementById('em-file').click()">+ Adicionar Arquivo(s)</button>
+          ${enc.attachments && enc.attachments.length?`<div style="display:flex;flex-direction:column;gap:6px">
+            ${enc.attachments.map((a,ai)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:#F3F4F6;border-radius:4px;font-size:12px">
+              <span>📄 ${a.name}</span>
+              <span style="cursor:pointer;color:var(--red);padding:2px 6px" onclick="removeEncAttachment('${cid}',${isEdit?encIdx:'new'},${ai})">✕</span>
+            </div>`).join('')}
+          </div>`:'<div style="font-size:11px;color:var(--muted)">Nenhum arquivo anexado</div>'}
+        </div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-o" onclick="closeEncounterModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveEncounter('${cid}',${isEdit?encIdx:'null'})">💾 Salvar Encontro</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+  const fileInput=$('em-file');
+  if(fileInput){
+    fileInput.addEventListener('change',function(){
+      const files=this.files;
+      const c=D.clients.find(c=>c.id===cid);
+      const encList=c.encounters.list;
+      const activeEnc=isEdit?encList[encIdx]:{};
+      if(!activeEnc.attachments)activeEnc.attachments=[];
+      Array.from(files).forEach(f=>{
+        const reader=new FileReader();
+        reader.onload=e=>{
+          activeEnc.attachments.push({name:f.name,type:f.type,data:e.target.result});
+          render();openEncounterModal(cid,isEdit?encIdx:undefined);
+        };
+        reader.readAsDataURL(f);
+      });
+    });
+  }
+}
+function closeEncounterModal(){const el=$('em-overlay');if(el)el.remove();}
+function removeEncAttachment(cid,encIdx,attIdx){
+  const c=D.clients.find(c=>c.id===cid);
+  if(encIdx!=='null'){
+    c.encounters.list[encIdx].attachments.splice(attIdx,1);
+  }
+  render();openEncounterModal(cid,encIdx==='null'?undefined:encIdx);
+}
+function saveEncounter(cid,encIdx){
+  const c=D.clients.find(c=>c.id===cid);
+  const date=$('em-date').value;
+  if(!date){toast('⚠️ Informe a data do encontro!');return;}
+  const tnames=TEAM_NAMES();
+  const attendees=[];
+  tnames.forEach((n,i)=>{if($(`em-att-${i}`)?.checked)attendees.push(n);});
+  const description=$('em-desc').value.trim();
+  const notes=$('em-notes').value.trim();
+  const encounter={date,description,attendees,notes,attachments:encIdx!=='null'&&encIdx!==undefined?c.encounters.list[encIdx].attachments:[]};
+  if(encIdx!=='null'&&encIdx!==undefined){
+    c.encounters.list[encIdx]=encounter;
+  }else{
+    if(!c.encounters.list)c.encounters.list=[];
+    c.encounters.list.push(encounter);
+  }
+  save();closeEncounterModal();toast('✅ Encontro salvo!');render();
+}
+function deleteEncounter(cid,encIdx){
+  if(!confirm('Remover este encontro?'))return;
+  const c=D.clients.find(c=>c.id===cid);
+  c.encounters.list.splice(encIdx,1);
+  save();toast('🗑️ Encontro removido');render();
+}
+function downloadEncFile(cid,encIdx,fileIdx){
+  const c=D.clients.find(c=>c.id===cid);
+  const file=c.encounters.list[encIdx].attachments[fileIdx];
+  if(file&&file.data){
+    const link=document.createElement('a');
+    link.href=file.data;
+    link.download=file.name;
+    link.click();
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// CLIENT PORTAL — LINK & MANAGEMENT
+// ────────────────────────────────────────────────────────────
+function genClientLink(cid){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c)return;
+  const baseUrl=window.location.origin+window.location.pathname;
+  const clientLink=`${baseUrl}#client/${cid}`;
+  const html=`<div class="overlay" onclick="if(event.target===this)this.remove()">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-hd"><h3>🔗 Link do Portal do Cliente</h3><button class="btn btn-o btn-s" onclick="this.closest('.overlay').remove()">✕</button></div>
+      <div class="modal-body">
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Copie e envie este link para <strong>${c.name}</strong> acessar seu portal exclusivo:</p>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <input type="text" id="client-link-input" value="${clientLink}" readonly style="flex:1;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:#F9FAFB">
+          <button class="btn btn-p btn-s" onclick="navigator.clipboard.writeText('${clientLink}');toast('✅ Link copiado!');document.querySelector('.overlay').remove()">📋 Copiar</button>
+        </div>
+        <div style="padding:12px;background:#F9FAFB;border-radius:8px;border-left:3px solid var(--primary);font-size:12px">
+          <strong>💡 Dica:</strong> O cliente verá apenas suas informações, entregas e artes para aprovação. Envie este link por WhatsApp ou e-mail.
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+
+function openTokenModal(cid){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c)return;
+  const baseUrl=window.location.origin+window.location.pathname;
+  const portalUrl=`${baseUrl}#portal/${c.token}`;
+  const html=`<div class="overlay" id="tm-overlay" onclick="if(event.target===this)closeTokenModal()">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-hd"><h3>🔐 Código de Acesso do Portal</h3><button class="btn btn-o btn-s" onclick="closeTokenModal()">✕</button></div>
+      <div class="modal-body">
+        <div style="margin-bottom:20px">
+          <p style="color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Código do Cliente</p>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="token-input" value="${c.token}" readonly style="flex:1;padding:11px;border:2px solid var(--primary);border-radius:8px;font-size:13px;font-family:monospace;font-weight:600;background:#EFF6FF">
+            <button class="btn btn-p btn-s" onclick="navigator.clipboard.writeText('${c.token}');toast('✅ Código copiado!')">📋 Copiar</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px;padding:14px;background:#FFFBEB;border-radius:8px;border-left:3px solid var(--yellow)">
+          <p style="color:var(--yellow);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;font-weight:600">Link Direto do Portal</p>
+          <div style="display:flex;gap:8px">
+            <input type="text" value="${portalUrl}" readonly style="flex:1;padding:9px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:white;word-break:break-all">
+            <button class="btn btn-o btn-s" onclick="navigator.clipboard.writeText('${portalUrl}');toast('✅ Link copiado!')">📋</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px;padding:14px;background:#F0FDF4;border-radius:8px;border-left:3px solid var(--green)">
+          <p style="color:var(--green);font-size:12px;margin:0 0 8px;font-weight:600">📱 Como Usar:</p>
+          <ol style="margin:0;padding-left:20px;color:var(--text);font-size:12px;line-height:1.6">
+            <li>Compartilhe o código ou o link acima com ${c.name}</li>
+            <li>${c.name} acessa o portal usando seu código</li>
+            <li>${c.name} vê apenas seus dados, entregas e artes</li>
+          </ol>
+        </div>
+
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-o" style="flex:1" onclick="closeTokenModal()">Fechar</button>
+          <button class="btn btn-o" style="flex:1;border-color:var(--red);color:var(--red)" onclick="regenerateClientToken('${cid}')">🔄 Gerar Novo Código</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+
+function closeTokenModal(){const el=$('tm-overlay');if(el)el.remove();}
+
+function regenerateClientToken(cid){
+  if(!confirm('Gerar um novo código? O código anterior não funcionará mais.'))return;
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c)return;
+  c.token=generateToken();
+  save();
+  toast('✅ Novo código gerado!');
+  setTimeout(()=>openTokenModal(cid),500);
+}
+
+function openArtModal(cid){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c)return;
+  const isEdit=false;
+  const html=`<div class="overlay" id="art-overlay" onclick="if(event.target===this)closeArtModal()">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-hd"><h3>📱 Adicionar Arte</h3><button class="btn btn-o btn-s" onclick="closeArtModal()">✕</button></div>
+      <div class="modal-body">
+        <div class="fgrid">
+          <div class="fg"><label>Título da Arte *</label><input id="art-title" placeholder="Ex: Post Instagram #5"></div>
+          <div class="fg"><label>Rede Social *</label>
+            <select id="art-platform">
+              <option value="">— Selecionar —</option>
+              <option value="instagram">Instagram</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="facebook">Facebook</option>
+              <option value="tiktok">TikTok</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg" style="grid-column:1/-1"><label>Descrição</label><textarea id="art-desc" style="height:80px" placeholder="Descrição do conteúdo..."></textarea></div>
+        <div class="fg" style="grid-column:1/-1"><label>📸 Imagem da Arte *</label>
+          <input type="file" id="art-file" accept=".jpg,.jpeg,.png" style="display:none">
+          <button class="btn btn-o btn-s" style="width:100%;margin-bottom:8px" onclick="document.getElementById('art-file').click()">+ Enviar Imagem</button>
+          <div id="art-preview"></div>
+        </div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-o" onclick="closeArtModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveArt('${cid}')">✅ Enviar para Aprovação</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+  const fileInput=$('art-file');
+  if(fileInput){
+    fileInput.addEventListener('change',function(){
+      if(!this.files.length)return;
+      const f=this.files[0];
+      const reader=new FileReader();
+      reader.onload=e=>{
+        const preview=$('art-preview');
+        preview.innerHTML=`<img src="${e.target.result}" style="max-width:100%;border-radius:8px;max-height:200px;display:block;margin-bottom:8px"><button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="$('art-file').value='';$('art-preview').innerHTML=''">🗑️ Remover</button>`;
+        window.artImageData=e.target.result;
+      };
+      reader.readAsDataURL(f);
+    });
+  }
+}
+
+function closeArtModal(){const el=$('art-overlay');if(el)el.remove();window.artImageData=null;}
+
+function saveArt(cid){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c)return;
+  const title=$('art-title')?.value?.trim();
+  const platform=$('art-platform')?.value;
+  const desc=$('art-desc')?.value?.trim();
+  if(!title||!platform||!window.artImageData){toast('⚠️ Preencha título, rede social e imagem!');return;}
+  if(!c.arts)c.arts=[];
+  c.arts.push({
+    id:'art_'+Date.now(),
+    title,platform,description:desc||'',
+    image:window.artImageData,
+    status:'pendente',
+    createdAt:new Date().toISOString(),
+    feedback:''
+  });
+  save();closeArtModal();toast('✅ Arte enviada para aprovação!');render();
+}
+
+function deleteArt(cid,artId){
+  if(!confirm('Remover esta arte?'))return;
+  const c=D.clients.find(c=>c.id===cid);
+  if(c)c.arts=c.arts.filter(a=>a.id!==artId);
+  save();toast('🗑️ Arte removida');render();
+}
+
+// ────────────────────────────────────────────────────────────
+// CLIENT VIEW (Portal do Cliente)
+// ────────────────────────────────────────────────────────────
+function openClientView(cid){
+  S.clientId=cid;
+  S.view='clientView';
+  $('ttitle').textContent='Portal do Cliente';
+  document.querySelectorAll('.ni').forEach(el=>el.classList.remove('active'));
+  render();
+}
+
+function rClientView(){
+  const c=getC();
+  if(!c)return'<div style="padding:40px;text-align:center">Cliente não encontrado</div>';
+
+  const p=prog(c);
+  const daysRemaining=getContractDaysRemaining(c.contractDue);
+
+  // Tabs para cliente
+  const clientTabs={info:'ℹ️ Meus Dados',entregas:'📦 Minhas Entregas',artes:'📱 Artes Pendentes',encontros:'🤝 Encontros'};
+  const tabHtml=Object.entries(clientTabs).map(([k,v])=>`<div class="tab ${S.clientViewTab===k?'active':''}" onclick="S.clientViewTab='${k}';render()">${v}</div>`).join('');
+
+  if(!S.clientViewTab)S.clientViewTab='info';
+  let body='';
+
+  if(S.clientViewTab==='info'){
+    body=`<div class="card">
+      <div class="ch"><h3>ℹ️ Informações da Conta</h3></div>
+      <div class="cb">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Nome</div>
+            <div style="font-size:14px;font-weight:600;color:var(--text)">${c.name}</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">E-mail</div>
+            <div style="font-size:14px;font-weight:600;color:var(--text)">${c.email||'—'}</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Telefone</div>
+            <div style="font-size:14px;font-weight:600;color:var(--text)">${c.phone||'—'}</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">LinkedIn</div>
+            <div style="font-size:14px;font-weight:600;color:var(--text)">${c.linkedin?`<a href="${c.linkedin}" target="_blank" style="color:var(--primary)">Perfil →</a>`:'—'}</div>
+          </div>
+        </div>
+
+        <div class="sec-div">Contrato</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;background:#F9FAFB;padding:16px;border-radius:8px;margin-bottom:20px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Produtos</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              ${c.products.map(pr=>`<span class="tag">${pr}</span>`).join('')}
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Status</div>
+            <span class="pill pill-${c.contractStatus}">${{ativo:'✅ Ativo',vencido:'⚠️ Vencido',finalizado:'🏁 Finalizado'}[c.contractStatus]}</span>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Vencimento</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">${daysRemaining}</div>
+          </div>
+        </div>
+
+        <div class="sec-div">Progresso Geral</div>
+        <div style="display:flex;align-items:flex-end;gap:20px;background:#F9FAFB;padding:16px;border-radius:8px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Conclusão</div>
+            <div style="font-size:42px;font-weight:900;color:${c.color}">${p}%</div>
+          </div>
+          <div style="flex:1">
+            <div class="pb-track" style="height:8px"><div class="pb-fill" style="width:${p}%;background:${c.color}"></div></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:8px">${c.deliverables.filter(d=>d.status==='concluido').length} de ${c.deliverables.length} entregas completadas</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+  else if(S.clientViewTab==='entregas'){
+    const dels=c.deliverables;
+    const concluidas=dels.filter(d=>d.status==='concluido').length;
+    const pendentes=dels.filter(d=>d.status==='pendente'||d.status==='atrasado');
+
+    body=`<div class="card" style="margin-bottom:16px">
+      <div class="ch" style="background:#F9FAFB"><h3>📦 Minhas Entregas</h3></div>
+      <div class="cb">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+          <div style="background:#DCFCE7;padding:16px;border-radius:8px;text-align:center">
+            <div style="font-size:24px;font-weight:800;color:var(--green)">${concluidas}</div>
+            <div style="font-size:11px;color:var(--green);text-transform:uppercase;margin-top:4px">Concluídas</div>
+          </div>
+          <div style="background:var(--ybg);padding:16px;border-radius:8px;text-align:center">
+            <div style="font-size:24px;font-weight:800;color:var(--yellow)">${dels.filter(d=>d.status==='andamento').length}</div>
+            <div style="font-size:11px;color:var(--yellow);text-transform:uppercase;margin-top:4px">Em Andamento</div>
+          </div>
+          <div style="background:var(--rbg);padding:16px;border-radius:8px;text-align:center">
+            <div style="font-size:24px;font-weight:800;color:var(--red)">${pendentes.length}</div>
+            <div style="font-size:11px;color:var(--red);text-transform:uppercase;margin-top:4px">Pendentes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    ${[...new Set(dels.map(d=>d.product))].map(prod=>{
+      const prodDels=dels.filter(d=>d.product===prod);
+      const prodConcluidas=prodDels.filter(d=>d.status==='concluido').length;
+      return `<div class="card" style="margin-bottom:16px">
+        <div class="ch"><h3>📦 ${prod}</h3>
+          <span style="font-size:11px;color:var(--muted)">${prodConcluidas}/${prodDels.length}</span>
+        </div>
+        <div class="tw"><table><thead><tr><th>Entrega</th><th>Status</th><th>Data de Vencimento</th></tr></thead><tbody>
+          ${prodDels.map(d=>{
+            const status=getDelStatusByDate(d);
+            const statusBg=SC(status);
+            const dayStr=getDaysUntil(d.dueDate)===null?'—':getDaysUntil(d.dueDate)<0?`${Math.abs(getDaysUntil(d.dueDate))}d atrasado`:getDaysUntil(d.dueDate)===0?'Hoje':getDaysUntil(d.dueDate)===1?'Amanhã':`${getDaysUntil(d.dueDate)}d`;
+            return `<tr>
+              <td><strong>${d.name}</strong></td>
+              <td><span class="badge ${statusBg}">${SL(status)}</span></td>
+              <td style="font-size:11px;color:var(--muted)">${fmtDate(d.dueDate)} <span style="margin-left:4px">${dayStr}</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody></table></div>
+      </div>`;
+    }).join('')}`;
+  }
+  else if(S.clientViewTab==='artes'){
+    const arts=c.arts||[];
+    const pendentes=arts.filter(a=>a.status==='pendente');
+    const aprovadas=arts.filter(a=>a.status==='aprovado');
+
+    body=`${pendentes.length?`<div class="card" style="margin-bottom:16px;border-color:#FDE68A;border-left:4px solid #FDE68A">
+      <div class="ch" style="background:#FFFBEB"><h3>⏳ Aguardando Aprovação (${pendentes.length})</h3></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding:16px">
+        ${pendentes.map(art=>`
+          <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:white;box-shadow:var(--shadow)">
+            <div style="position:relative;overflow:hidden;background:#f0f0f0;height:160px">
+              <img src="${art.image}" style="width:100%;height:100%;object-fit:cover">
+              <div style="position:absolute;top:8px;right:8px;background:var(--ybg);color:var(--yellow);padding:4px 8px;border-radius:6px;font-size:10px;font-weight:600">⏳ Pendente</div>
+            </div>
+            <div style="padding:14px">
+              <h4 style="margin:0 0 4px 0;font-size:13px;font-weight:600">${art.title}</h4>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${{instagram:'📷 Instagram',linkedin:'💼 LinkedIn',facebook:'👥 Facebook',tiktok:'🎵 TikTok'}[art.platform]||art.platform}</div>
+              ${art.description?`<p style="margin:0;font-size:12px;color:var(--muted);line-height:1.4">${art.description}</p>`:''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`:''}
+    ${aprovadas.length?`<div class="card" style="border-color:#B5DFC9;border-left:4px solid var(--green)">
+      <div class="ch" style="background:var(--gbg)"><h3>✅ Aprovadas (${aprovadas.length})</h3></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding:16px">
+        ${aprovadas.map(art=>`
+          <div style="border:1px solid #B5DFC9;border-radius:12px;overflow:hidden;background:#F9FDFB;box-shadow:var(--shadow)">
+            <div style="position:relative;overflow:hidden;background:#f0f0f0;height:160px">
+              <img src="${art.image}" style="width:100%;height:100%;object-fit:cover">
+              <div style="position:absolute;top:8px;right:8px;background:var(--gbg);color:var(--green);padding:4px 8px;border-radius:6px;font-size:10px;font-weight:600">✅ Aprovada</div>
+            </div>
+            <div style="padding:14px">
+              <h4 style="margin:0 0 4px 0;font-size:13px;font-weight:600">${art.title}</h4>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${{instagram:'📷 Instagram',linkedin:'💼 LinkedIn',facebook:'👥 Facebook',tiktok:'🎵 TikTok'}[art.platform]||art.platform}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`:''}
+    ${!arts.length?`<div style="text-align:center;padding:40px;background:#F9FAFB;border-radius:12px;border:1px dashed var(--border);color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">📱</div><p style="margin:0">Nenhuma arte neste momento. Acompanhe as novas criações aqui!</p></div>`:''}`;
+  }
+  else if(S.clientViewTab==='encontros'){
+    const encs=c.encounters.list||[];
+    const encsSorted=[...encs].sort((a,b)=>new Date(b.date)-new Date(a.date));
+    body=`${encsSorted.length?encsSorted.map((enc,i)=>`<div class="card" style="margin-bottom:12px">
+      <div class="ch">
+        <div>
+          <h4 style="margin:0">${fmtDate(enc.date)}</h4>
+          <p style="margin:4px 0 0 0;font-size:12px;color:var(--muted)">👥 ${enc.attendees.join(', ')||'Sem participantes'}</p>
+        </div>
+      </div>
+      <div class="cb">
+        <p style="margin:0;color:var(--text)">${enc.description||'Sem descrição'}</p>
+        ${enc.attachments && enc.attachments.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">📎 ${enc.attachments.length} anexo(s)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${enc.attachments.map((a,ai)=>`<span style="background:#F3F4F6;padding:4px 8px;border-radius:4px;font-size:11px;cursor:pointer" onclick="downloadEncFile('${c.id}',${i},${ai})">📄 ${a.name.substring(0,20)}${a.name.length>20?'...':''}</span>`).join('')}
+          </div>
+        </div>`:''}
+        ${enc.notes?`<div style="margin-top:8px;padding:8px;background:#F9FAFB;border-radius:4px;font-size:12px;border-left:2px solid var(--muted)"><strong>Notas:</strong> ${enc.notes}</div>`:''}
+      </div>
+    </div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--muted)">Nenhum encontro registrado ainda.</div>'}`;
+  }
+
+  return`<div class="back" onclick="S.view='clients';S.clientId=null;render()">← Voltar</div>
+  <div class="dh" style="background:linear-gradient(135deg,${c.color},${c.color}dd);color:white;border:none;margin-bottom:18px">
+    <div class="av av-l" style="background:rgba(255,255,255,.2);border:2px solid white">${c.initials}</div>
+    <div class="dinfo">
+      <h2 style="color:white;margin:0">${c.name}</h2>
+      <p style="color:rgba(255,255,255,.9);margin:0">${c.email||'—'} ${c.phone?'· '+c.phone:''}</p>
+    </div>
+    <div style="margin-left:auto;text-align:right">
+      <div style="font-size:48px;font-weight:900;color:rgba(255,255,255,.9)">${p}%</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.8)">de progresso</div>
+    </div>
+  </div>
+  <div class="tabs">${tabHtml}</div>
+  ${body}`;
+}
+
+// ────────────────────────────────────────────────────────────
+// CLIENT VIEW — EXCLUSIVE PORTAL
+// ────────────────────────────────────────────────────────────
+function detectClientMode(){
+  const hash=window.location.hash;
+  if(hash.startsWith('#client/')){
+    const cid=hash.replace('#client/','');
+    return cid;
+  }
+  return null;
+}
+
+function rClientViewExternal(){
+  const clientId=detectClientMode();
+  if(!clientId){render();return;}
+  const c=D.clients.find(c=>c.id===clientId);
+  if(!c){document.getElementById('view').innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Cliente não encontrado ou link expirado.</div>';return;}
+  // Hide admin UI elements when in client mode
+  document.getElementById('sidebar').style.display='none';
+  document.querySelector('.topbar').style.display='none';
+  document.getElementById('main').style.marginLeft='0';
+  document.getElementById('main').style.minHeight='100vh';
+  document.getElementById('main').style.background='var(--bg)';
+  const res=c.results||[];
+  const latestMonth=res.length?res[0]:{prospects:0,leads:0,meetings:0,sales:0};
+  const CARD_COLORS=['#5B6EFF','#A855F7','#3B82F6','#06B6D4','#EC4899','#F59E0B','#10B981','#EF4444'];
+  const CARD_ICONS=['🎯','👥','💼','📊','🚀','📱','🎨','💡'];
+  const arts=c.arts||[];
+  const pendArts=arts.filter(a=>a.status==='pendente');
+  let html=`
+  <div style="padding:40px;max-width:1000px;margin:0 auto">
+    <div style="margin-bottom:32px">
+      <h1 style="color:var(--text);margin-bottom:8px;font-size:28px">👋 Bem-vindo ao seu Portal, ${c.name.split(' ')[0]}!</h1>
+      <p style="color:var(--muted);font-size:14px">Acompanhe suas entregas e aprove as artes de suas redes sociais</p>
+    </div>
+
+    <div style="margin-bottom:32px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">📊 Resumo do Seu Mês</h3>
+    <div class="grid4" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      <div class="stat"><div class="stat-num" style="color:#5B6EFF">${latestMonth.prospects||0}</div><div class="stat-lbl">Prospecções</div></div>
+      <div class="stat"><div class="stat-num" style="color:#A855F7">${latestMonth.meetings||0}</div><div class="stat-lbl">Reuniões</div></div>
+      <div class="stat"><div class="stat-num" style="color:#10B981">${latestMonth.sales||0}</div><div class="stat-lbl">Vendas</div></div>
+      <div class="stat"><div class="stat-num" style="color:#F59E0B">R$ ${(latestMonth.sales||0)*5000}</div><div class="stat-lbl">Faturamento Est.</div></div>
+    </div></div>
+
+    <div style="margin-bottom:32px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">📦 Suas Entregas</h3>
+    <div class="grid2" style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px">
+      ${c.deliverables.map((d,i)=>{
+        const color=CARD_COLORS[i%CARD_COLORS.length];
+        const icon=CARD_ICONS[i%CARD_ICONS.length];
+        const statusText={concluido:'✅ Concluído',andamento:'🔄 Em Andamento',pendente:'⏳ Pendente',atrasado:'❌ Atrasado'}[d.status];
+        return`<div style="border-radius:12px;background:linear-gradient(135deg,${color},${color}dd);color:white;padding:20px;cursor:pointer;transition:transform .2s,box-shadow .2s;overflow:hidden;position:relative" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 24px rgba(0,0,0,.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+          <div style="position:absolute;top:12px;right:12px;font-size:24px">${icon}</div>
+          <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;width:80%">${d.name}</h4>
+          <p style="margin:0 0 12px 0;font-size:12px;opacity:.9">${d.product}</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;padding-top:8px;border-top:1px solid rgba(255,255,255,.2)">
+            <span style="opacity:.8">${statusText}</span>
+            <span style="font-weight:600">${d.dueDate?fmtDate(d.dueDate):'—'}</span>
+          </div>
+        </div>`;
+      }).join('')}</div></div>
+
+    <div style="margin-bottom:32px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">📱 Artes para Aprovação ${pendArts.length?`<span style="background:var(--red);color:white;font-size:11px;padding:2px 8px;border-radius:99px;margin-left:8px">${pendArts.length}</span>`:''}</h3>
+    ${pendArts.length?`
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+      ${pendArts.map(art=>`
+        <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:white;box-shadow:var(--shadow);transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'">
+          <div style="position:relative;overflow:hidden;background:#f0f0f0;height:180px">
+            <img src="${art.image}" style="width:100%;height:100%;object-fit:cover">
+            <div style="position:absolute;top:8px;right:8px;background:#FDE68A;color:#B45309;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600">${{instagram:'📷 IG',linkedin:'💼 LinkedIn',facebook:'👥 FB',tiktok:'🎵 TikTok'}[art.platform]||art.platform}</div>
+          </div>
+          <div style="padding:16px">
+            <h4 style="margin:0 0 6px 0;font-size:13px;font-weight:600">${art.title}</h4>
+            ${art.description?`<p style="margin:0 0 12px 0;font-size:12px;color:var(--muted);line-height:1.4">${art.description}</p>`:''}
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-s" style="flex:1;background:#DCFCE7;color:#166534;border:none;font-weight:600" onclick="approveArt('${c.id}','${art.id}')">✅ Aprovar</button>
+              <button class="btn btn-s" style="flex:1;background:#FEE2E2;color:#DC2626;border:none;font-weight:600" onclick="rejectArt('${c.id}','${art.id}')">❌ Rejeitar</button>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    `:`<div style="text-align:center;padding:32px;background:#F9FAFB;border-radius:12px;border:1px dashed var(--border);color:var(--muted)">
+      <div style="font-size:32px;margin-bottom:8px">✅</div>
+      <p style="margin:0">Nenhuma arte aguardando aprovação no momento!</p>
+    </div>`}
+    </div>
+  </div>`;
+  document.getElementById('view').innerHTML=html;
+}
+
+function approveArt(cid,artId){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c)return;
+  const art=c.arts.find(a=>a.id===artId);
+  if(!art)return;
+  art.status='aprovado';
+  save();toast('✅ Arte aprovada!');rClientViewExternal();
+}
+
+function rejectArt(cid,artId){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c)return;
+  const art=c.arts.find(a=>a.id===artId);
+  if(!art)return;
+  const feedback=prompt('Feedback para o cliente (opcional):');
+  if(feedback!==null){
+    art.status='rejeitado';
+    art.feedback=feedback;
+    save();toast('❌ Arte rejeitada');rClientViewExternal();
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// CLIENT PORTAL — TOKEN AUTHENTICATION
+// ────────────────────────────────────────────────────────────
+function validateClientEmail(email){
+  return D.clients.find(c=>c.email.toLowerCase()===email.toLowerCase())||null;
+}
+
+function validateClientPassword(client,password){
+  // Convert birthday to DD/MM/YYYY format for password validation
+  if(!client.birthday) return false;
+  const formatBirthday=(dateStr)=>{
+    // If birthday is YYYY-MM-DD format
+    if(dateStr.includes('-')){
+      const [y,m,d]=dateStr.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    // If already in DD/MM/YYYY format
+    return dateStr;
+  };
+  const birthdayPassword=formatBirthday(client.birthday);
+  return password.trim()===birthdayPassword;
+}
+
+function loginClientPortal(email,password){
+  const client=validateClientEmail(email);
+  if(!client){
+    toast('❌ Email não encontrado');
+    return false;
+  }
+  if(!validateClientPassword(client,password)){
+    toast('❌ Senha incorreta');
+    return false;
+  }
+  S.isClientPortal=true;
+  S.authenticatedClientId=client.id;
+  S.authenticatedEmail=email;
+  sessionStorage.setItem('clientPortalAuth',JSON.stringify({clientId:client.id,email:email}));
+  document.getElementById('sidebar').style.display='none';
+  document.querySelector('.topbar').style.display='none';
+  document.getElementById('main').style.marginLeft='0';
+  document.getElementById('main').style.minHeight='100vh';
+  render();
+  return true;
+}
+
+function logoutClientPortal(){
+  S.isClientPortal=false;
+  S.authenticatedClientId=null;
+  S.authenticatedEmail=null;
+  sessionStorage.removeItem('clientPortalAuth');
+  document.getElementById('sidebar').style.display='flex';
+  document.querySelector('.topbar').style.display='flex';
+  document.getElementById('main').style.marginLeft='240px';
+  window.location.hash='#portal';
+}
+
+function rLoginPortal(){
+  return`<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--primary),var(--primary-dark));padding:20px">
+    <div style="background:white;border-radius:16px;box-shadow:0 24px 48px rgba(0,0,0,.2);width:100%;max-width:400px;padding:40px;text-align:center">
+      <svg width="80" height="80" viewBox="0 0 200 72" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin:0 auto 20px;display:block">
+        <circle cx="13" cy="10" r="6" fill="#0077B5"/>
+        <circle cx="27" cy="5" r="4.5" fill="#0077B5" opacity=".65"/>
+        <circle cx="8" cy="24" r="3.5" fill="#0077B5" opacity=".4"/>
+        <text x="36" y="47" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="38" fill="#0077B5" letter-spacing="-1">All In</text>
+      </svg>
+      <h1 style="font-size:24px;font-weight:700;margin:0 0 8px;color:var(--text)">Portal do Cliente</h1>
+      <p style="color:var(--muted);margin:0 0 32px;font-size:14px">Acompanhe suas entregas e andamentos aqui</p>
+      <div class="fg" style="gap:12px">
+        <input type="email" class="mini" id="emailInput" placeholder="Seu email" style="width:100%;padding:12px;font-size:13px;border-radius:8px" onkeypress="if(event.key==='Enter')loginPortalFromInput()"/>
+        <div style="position:relative;display:flex;align-items:center">
+          <input type="password" class="mini" id="passwordInput" placeholder="Sua senha (data de nascimento)" style="width:100%;padding:12px;font-size:13px;border-radius:8px;padding-right:40px" onkeypress="if(event.key==='Enter')loginPortalFromInput()"/>
+          <button onclick="togglePasswordVisibility()" style="position:absolute;right:12px;background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:0;width:auto;height:auto">👁️</button>
+        </div>
+        <button class="btn btn-p" onclick="loginPortalFromInput()" style="width:100%;padding:12px">🔓 Entrar</button>
+      </div>
+      <p style="color:var(--muted);font-size:12px;margin-top:20px">Primeira senha é sua data de nascimento (DD/MM/AAAA)<br/>Não tem acesso? Converse com Mari.</p>
+    </div>
+  </div>`;
+}
+
+function togglePasswordVisibility(){
+  const pwInput=document.getElementById('passwordInput');
+  if(pwInput.type==='password'){
+    pwInput.type='text';
+  }else{
+    pwInput.type='password';
+  }
+}
+
+function loginPortalFromInput(){
+  const email=document.getElementById('emailInput').value.trim();
+  const password=document.getElementById('passwordInput').value;
+  if(!email){
+    toast('⚠️ Digite seu email');
+    return;
+  }
+  if(!password){
+    toast('⚠️ Digite sua senha');
+    return;
+  }
+  loginClientPortal(email,password);
+}
+
+function rClientPortalAuth(){
+  const c=D.clients.find(c=>c.id===S.authenticatedClientId);
+  if(!c){
+    logoutClientPortal();
+    return'';
+  }
+  const res=c.results||[];
+  const latestMonth=res.length?res[0]:{prospects:0,leads:0,meetings:0,sales:0};
+  const CARD_COLORS=['#5B6EFF','#A855F7','#3B82F6','#06B6D4','#EC4899','#F59E0B','#10B981','#EF4444'];
+  const CARD_ICONS=['🎯','👥','💼','📊','🚀','📱','🎨','💡'];
+  const arts=c.arts||[];
+  const pendArts=arts.filter(a=>a.status==='pendente');
+  const encs=(c.encounters.list||[]).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
+  return`
+  <div style="padding:40px;max-width:1000px;margin:0 auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px">
+      <div>
+        <h1 style="color:var(--text);margin-bottom:8px;font-size:28px">👋 Bem-vindo, ${c.name.split(' ')[0]}!</h1>
+        <p style="color:var(--muted);font-size:14px">Acompanhe suas entregas, resultados e encontros com nosso time</p>
+      </div>
+      <button class="btn btn-o" onclick="logoutClientPortal()" style="padding:9px 16px">🚪 Sair</button>
+    </div>
+
+    <div style="margin-bottom:32px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">📊 Resumo do Seu Mês</h3>
+    <div class="grid4" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      <div class="stat"><div class="stat-num" style="color:#5B6EFF">${latestMonth.prospects||0}</div><div class="stat-lbl">Prospecções</div></div>
+      <div class="stat"><div class="stat-num" style="color:#A855F7">${latestMonth.meetings||0}</div><div class="stat-lbl">Reuniões</div></div>
+      <div class="stat"><div class="stat-num" style="color:#10B981">${latestMonth.sales||0}</div><div class="stat-lbl">Vendas</div></div>
+      <div class="stat"><div class="stat-num" style="color:#F59E0B">R$ ${(latestMonth.sales||0)*5000}</div><div class="stat-lbl">Faturamento Est.</div></div>
+    </div></div>
+
+    <div style="margin-bottom:32px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">📦 Suas Entregas</h3>
+    <div class="grid2" style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px">
+      ${c.deliverables.map((d,i)=>{
+        const color=CARD_COLORS[i%CARD_COLORS.length];
+        const icon=CARD_ICONS[i%CARD_ICONS.length];
+        const statusText={concluido:'✅ Concluído',andamento:'🔄 Em Andamento',pendente:'⏳ Pendente',atrasado:'❌ Atrasado'}[d.status];
+        return`<div style="border-radius:12px;background:linear-gradient(135deg,${color},${color}dd);color:white;padding:20px;transition:transform .2s,box-shadow .2s;overflow:hidden;position:relative" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 24px rgba(0,0,0,.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+          <div style="position:absolute;top:12px;right:12px;font-size:24px">${icon}</div>
+          <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;width:80%">${d.name}</h4>
+          <p style="margin:0 0 12px 0;font-size:12px;opacity:.9">${d.product}</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;padding-top:8px;border-top:1px solid rgba(255,255,255,.2)">
+            <span style="opacity:.8">${statusText}</span>
+            <span style="font-weight:600">${d.dueDate?fmtDate(d.dueDate):'—'}</span>
+          </div>
+        </div>`;
+      }).join('')}</div></div>
+
+    ${pendArts.length?`<div style="margin-bottom:32px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">📱 Artes para Aprovação <span style="background:var(--red);color:white;font-size:11px;padding:2px 8px;border-radius:99px;margin-left:8px">${pendArts.length}</span></h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+      ${pendArts.map(art=>`
+        <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:white;box-shadow:var(--shadow);transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'">
+          <div style="position:relative;overflow:hidden;background:#f0f0f0;height:180px">
+            <img src="${art.image}" style="width:100%;height:100%;object-fit:cover">
+            <div style="position:absolute;top:8px;right:8px;background:#FDE68A;color:#B45309;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600">${{instagram:'📷 IG',linkedin:'💼 LinkedIn',facebook:'👥 FB',tiktok:'🎵 TikTok'}[art.platform]||art.platform}</div>
+          </div>
+          <div style="padding:16px">
+            <h4 style="margin:0 0 6px 0;font-size:13px;font-weight:600">${art.title}</h4>
+            ${art.description?`<p style="margin:0 0 12px 0;font-size:12px;color:var(--muted);line-height:1.4">${art.description}</p>`:''}
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-s" style="flex:1;background:#DCFCE7;color:#166534;border:none;font-weight:600" onclick="approveArt('${c.id}','${art.id}')">✅ Aprovar</button>
+              <button class="btn btn-s" style="flex:1;background:#FEE2E2;color:#DC2626;border:none;font-weight:600" onclick="rejectArt('${c.id}','${art.id}')">❌ Rejeitar</button>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div></div>`:''}
+
+    ${encs.length?`<div style="margin-bottom:32px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">🤝 Últimos Encontros</h3>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${encs.map(enc=>`
+        <div class="card" style="margin:0;padding:16px;display:flex;gap:14px;align-items:flex-start">
+          <div style="font-size:32px">👥</div>
+          <div style="flex:1">
+            <h4 style="margin:0 0 4px 0;font-size:13px;font-weight:600">${fmtDate(enc.date)}</h4>
+            <p style="margin:0 0 6px 0;font-size:11px;color:var(--muted)">${enc.attendees.join(', ')||'Sem participantes'}</p>
+            <p style="margin:0;font-size:12px;color:var(--text)">${enc.description||'Sem descrição'}</p>
+            ${enc.attachments && enc.attachments.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">📎 ${enc.attachments.length} anexo(s)</div>`:''}
+          </div>
+        </div>
+      `).join('')}
+    </div></div>`:''}
+
+    <div style="text-align:center;padding:24px;background:var(--gbg);border-radius:12px;border:1px solid #B5DFC9;color:var(--green)">
+      <p style="margin:0;font-size:12px">📞 Dúvidas? Entre em contato conosco!</p>
+    </div>
+  </div>`;
+}
+
+// ────────────────────────────────────────────────────────────
+// INIT
+// ────────────────────────────────────────────────────────────
+function handleNavigation(){
+  const hash=window.location.hash;
+  // Handle portal login page
+  if(hash==='#portal'){
+    S.isClientPortal=true;
+    S.authenticatedClientId=null;
+    S.authenticatedEmail=null;
+    document.getElementById('sidebar').style.display='none';
+    document.querySelector('.topbar').style.display='none';
+    document.getElementById('main').style.marginLeft='0';
+    document.getElementById('main').style.minHeight='100vh';
+    render();
+    return;
+  }
+  // Check for persisted client session
+  const sessionAuth=sessionStorage.getItem('clientPortalAuth');
+  if(sessionAuth){
+    try{
+      const auth=JSON.parse(sessionAuth);
+      if(auth.clientId && auth.email){
+        S.isClientPortal=true;
+        S.authenticatedClientId=auth.clientId;
+        S.authenticatedEmail=auth.email;
+        document.getElementById('sidebar').style.display='none';
+        document.querySelector('.topbar').style.display='none';
+        document.getElementById('main').style.marginLeft='0';
+        document.getElementById('main').style.minHeight='100vh';
+        render();
+        return;
+      }
+    }catch(e){}
+  }
+  // Original external portal mode
+  if(detectClientMode()){
+    rClientViewExternal();
+  }else{
+    render();
+  }
+}
+handleNavigation();
+window.addEventListener('hashchange',handleNavigation);
+</script>
+</body>
+</html>
