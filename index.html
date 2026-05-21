@@ -137,6 +137,104 @@ input.mini:focus{outline:none;border-color:var(--primary)}
 .res-num{font-size:30px;font-weight:800;line-height:1}
 .res-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
 @media(max-width:900px){#sidebar{width:56px}.ni span:not(.ni-icon){display:none}.sb-logo span,.sb-footer,.sb-logo h2{display:none}#main{margin-left:56px}.stats-grid{grid-template-columns:repeat(2,1fr)}.fgrid{grid-template-columns:1fr}}
+
+/* ============ PORTAL PREMIUM STYLES ============ */
+.portal-wrapper{display:flex;min-height:100vh;background:#F5F7FA}
+.portal-sidebar{width:260px;background:linear-gradient(180deg,#082C74 0%,#0A3A8E 100%);display:flex;flex-direction:column;padding:24px 16px;box-shadow:2px 0 8px rgba(0,0,0,.1)}
+.portal-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px;padding:0 8px}
+.portal-logo-icon{font-size:24px}
+.portal-logo-text{color:white;font-size:16px;font-weight:700}
+.portal-nav{flex:1;display:flex;flex-direction:column;gap:8px}
+.portal-nav-item{display:flex;align-items:center;gap:12px;padding:12px;color:rgba(255,255,255,.7);cursor:pointer;border-radius:10px;font-size:13px;font-weight:500;transition:all .2s;border-left:3px solid transparent}
+.portal-nav-item:hover{background:rgba(255,255,255,.1);color:white}
+.portal-nav-item.active{background:rgba(255,255,255,.15);color:white;border-left-color:#4A90E2}
+.portal-nav-icon{font-size:16px;width:18px}
+.portal-footer{margin-top:auto;padding-top:16px;border-top:1px solid rgba(255,255,255,.1)}
+.portal-support{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:14px}
+.portal-support h4{color:white;font-size:12px;font-weight:600;margin-bottom:6px}
+.portal-support p{color:rgba(255,255,255,.7);font-size:11px;margin-bottom:10px;line-height:1.3}
+.portal-support-btn{width:100%;padding:8px;background:#4A90E2;color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;transition:background .2s}
+.portal-support-btn:hover{background:#3A7FD8}
+.portal-content{flex:1;display:flex;flex-direction:column}
+.portal-header{background:white;border-bottom:1px solid #E2E8F0;padding:0 32px;height:70px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.portal-header-title{font-size:15px;font-weight:600;color:#1E293B}
+.portal-header-right{display:flex;align-items:center;gap:20px}
+.portal-bell{cursor:pointer;font-size:18px;opacity:.6;transition:opacity .2s}
+.portal-bell:hover{opacity:1}
+.portal-user{display:flex;align-items:center;gap:12px;cursor:pointer}
+.portal-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#0D3D9B,#4A90E2);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:13px}
+.portal-user-info{display:flex;flex-direction:column;gap:2px}
+.portal-user-name{font-size:12px;font-weight:600;color:#1E293B}
+.portal-user-role{font-size:11px;color:#64748B}
+.portal-dropdown{font-size:12px;color:#64748B}
+.portal-main{padding:32px;flex:1;overflow-y:auto}
+.portal-container{max-width:1600px;margin:0 auto}
+.portal-hero{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px}
+.portal-hero h1{font-size:28px;font-weight:700;margin-bottom:8px;color:#1E293B}
+.portal-hero p{font-size:13px;color:#64748B;line-height:1.5}
+.portal-filter{display:flex;align-items:center;gap:8px;padding:8px 14px;background:white;border:1px solid #E2E8F0;border-radius:10px;cursor:pointer;font-size:12px;color:#64748B;transition:all .2s}
+.portal-filter:hover{border-color:#0D3D9B;background:#F8FAFF}
+.portal-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
+.portal-metric{background:white;border:1px solid #E2E8F0;border-radius:12px;padding:20px;box-shadow:0 2px 4px rgba(0,0,0,.04);transition:all .2s}
+.portal-metric:hover{border-color:#0D3D9B;box-shadow:0 4px 12px rgba(13,61,155,.08)}
+.portal-metric-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.portal-metric-icon{font-size:24px}
+.portal-metric-trend{display:flex;align-items:center;gap:4px;font-size:11px;color:#17B26A;font-weight:600}
+.portal-metric-number{font-size:32px;font-weight:700;color:#0D3D9B;margin-bottom:4px}
+.portal-metric-label{font-size:12px;color:#64748B;font-weight:500}
+.portal-grid{display:grid;grid-template-columns:1fr 320px;gap:24px}
+.portal-card{background:white;border:1px solid #E2E8F0;border-radius:12px;padding:24px;box-shadow:0 2px 4px rgba(0,0,0,.04)}
+.portal-card-header{font-size:15px;font-weight:600;color:#1E293B;margin-bottom:20px}
+.portal-timeline{display:flex;flex-direction:column;gap:2px}
+.portal-timeline-item{display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid #EEF2F7;transition:background .2s}
+.portal-timeline-item:last-child{border-bottom:none}
+.portal-timeline-item:hover{background:#F8FAFF}
+.portal-timeline-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;border:2px solid #E2E8F0}
+.portal-timeline-dot.completed{background:#17B26A;border-color:#17B26A}
+.portal-timeline-dot.pending{background:#F59E0B;border-color:#F59E0B}
+.portal-timeline-dot.in-progress{background:#4A90E2;border-color:#4A90E2}
+.portal-timeline-content{flex:1}
+.portal-timeline-title{font-size:12px;font-weight:600;color:#1E293B;margin-bottom:2px}
+.portal-timeline-desc{font-size:11px;color:#64748B}
+.portal-timeline-status{font-size:10px;font-weight:600;padding:4px 8px;border-radius:6px;white-space:nowrap}
+.portal-timeline-status.completed{background:#DCFCE7;color:#166534}
+.portal-timeline-status.pending{background:#FEF3C7;color:#92400E}
+.portal-timeline-status.in-progress{background:#DBEAFE;color:#0C4A6E}
+.portal-btn-action{background:none;border:none;color:#4A90E2;cursor:pointer;font-weight:600;font-size:11px;transition:color .2s}
+.portal-btn-action:hover{color:#0D3D9B}
+.portal-sidebar-card{background:white;border:1px solid #E2E8F0;border-radius:12px;padding:18px;box-shadow:0 2px 4px rgba(0,0,0,.04);margin-bottom:16px}
+.portal-sidebar-card-title{font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.portal-meeting-date{font-size:24px;font-weight:700;color:#0D3D9B;margin-bottom:4px}
+.portal-meeting-month{font-size:11px;color:#64748B;margin-bottom:12px;font-weight:500}
+.portal-meeting-name{font-size:12px;font-weight:600;color:#1E293B;margin-bottom:6px}
+.portal-meeting-time{font-size:11px;color:#64748B;margin-bottom:2px}
+.portal-meeting-attendees{font-size:10px;color:#64748B;margin-bottom:12px;padding-top:12px;border-top:1px solid #EEF2F7}
+.portal-btn-link{display:inline-block;color:#0D3D9B;text-decoration:none;font-size:11px;font-weight:600;cursor:pointer;transition:color .2s}
+.portal-btn-link:hover{color:#082C74}
+.portal-actions{display:flex;flex-direction:column;gap:8px}
+.portal-action-btn{padding:10px;background:#F8FAFF;border:1px solid #E2E8F0;border-radius:8px;color:#0D3D9B;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s}
+.portal-action-btn:hover{background:#EFF6FF;border-color:#0D3D9B}
+.portal-tip{background:linear-gradient(135deg,#EFF6FF 0%,#F0F7FF 100%);border:1px solid #DBEAFE;border-radius:12px;padding:16px}
+.portal-tip-label{font-size:10px;font-weight:700;color:#0D3D9B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.portal-tip-text{font-size:11px;color:#0C4A6E;line-height:1.5}
+.portal-login-container{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0D3D9B,#082C74);padding:20px}
+.portal-login-card{background:white;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);width:100%;max-width:400px;padding:50px 40px;text-align:center}
+.portal-login-logo{margin-bottom:30px}
+.portal-login-logo svg{width:80px;margin:0 auto;display:block}
+.portal-login-title{font-size:24px;font-weight:700;margin:20px 0 8px;color:#1E293B}
+.portal-login-subtitle{color:#64748B;font-size:13px;margin-bottom:32px;line-height:1.5}
+.portal-login-form{display:flex;flex-direction:column;gap:12px}
+.portal-login-group{text-align:left}
+.portal-login-label{display:block;font-size:11px;font-weight:600;color:#64748B;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.portal-login-input{width:100%;padding:12px 14px;border:1px solid #E2E8F0;border-radius:10px;font-size:12px;font-family:inherit;transition:all .2s}
+.portal-login-input:focus{outline:none;border-color:#0D3D9B;box-shadow:0 0 0 3px rgba(13,61,155,.1)}
+.portal-password-container{position:relative}
+.portal-password-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:#64748B;padding:0}
+.portal-btn-login{width:100%;padding:12px;background:linear-gradient(135deg,#0D3D9B,#4A90E2);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;margin-top:12px}
+.portal-btn-login:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(13,61,155,.3)}
+.portal-login-forgot{margin-top:20px}
+.portal-login-forgot a{color:#0D3D9B;text-decoration:none;font-size:11px;font-weight:500;transition:all .2s}
+.portal-login-forgot a:hover{text-decoration:underline;color:#082C74}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -158,6 +256,9 @@ input.mini:focus{outline:none;border-color:var(--primary)}
     <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Pendências da Semana</span></div>
     <div class="ni" onclick="nav('func')"><span class="ni-icon">👩‍💼</span><span>Por Funcionária</span></div>
     <div class="ni" onclick="nav('team')"><span class="ni-icon">🤝</span><span>Time</span></div>
+    <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
+      <div class="ni" onclick="window.open(window.location.origin+window.location.pathname+'#portal','_blank')" style="background:rgba(0,160,220,.15);border:1px solid rgba(0,160,220,.3)"><span class="ni-icon">🌐</span><span>Portal do Cliente</span></div>
+    </div>
   </nav>
   <div class="sb-footer">Mariana Souza<br>ALL IN — Estrategista LinkedIn</div>
 </aside>
@@ -321,7 +422,7 @@ const DEFAULT={
 // ────────────────────────────────────────────────────────────
 // STATE & PERSISTENCE
 // ────────────────────────────────────────────────────────────
-let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null};
+let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0};
 let D=(()=>{try{const s=localStorage.getItem('allin');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT))}catch{return JSON.parse(JSON.stringify(DEFAULT))}})();
 const save=()=>localStorage.setItem('allin',JSON.stringify(D));
 const getC=()=>D.clients.find(c=>c.id===S.clientId);
@@ -550,8 +651,7 @@ function rClients(){
             <div style="color:var(--muted);font-size:10px;margin-bottom:2px">Contrato</div>
             <div style="font-weight:600;color:var(--text)">${daysRemaining}</div>
           </div>
-          <button class="btn btn-o btn-s" style="white-space:nowrap" onclick="event.stopPropagation();openTokenModal('${c.id}')" title="Código do Portal">🔐</button>
-          <button class="btn btn-o btn-s" style="white-space:nowrap" onclick="event.stopPropagation();openClientView('${c.id}')">Ver →</button>
+          <button class="btn btn-p btn-s" style="white-space:nowrap" onclick="event.stopPropagation();window.open(window.location.origin+window.location.pathname+'#portal/${c.token}','_blank')" title="Abrir Portal do Cliente">🌐 Portal</button>
         </div>
       </div>
       ${pends.length?`<div class="alert-s" style="margin-top:0;border-top:none">${pends.slice(0,2).map(d=>`<div class="drow"><span class="dname" style="font-size:11px">${d.name}</span><span class="dresp" style="font-size:10px">${d.responsible||'—'}</span></div>`).join('')}${pends.length>2?`<div style="font-size:9px;color:var(--muted);padding:4px 12px">+${pends.length-2} pendentes</div>`:''}</div>`:''}
@@ -1356,6 +1456,16 @@ function confirmNC(){
   c.notes=$('nc-notes').value;
   D.clients.push(c);save();closeNC();
   nav('clients',{clientId:c.id,tab:'entregas'});toast('✅ Cliente adicionado!');
+  // Abrir email de boas-vindas com as credenciais
+  if(c.email && c.birthday){
+    const firstName=c.name.split(' ')[0];
+    const portalUrl=window.location.origin+window.location.pathname+'#portal';
+    const formatBd=(bd)=>{if(!bd)return'sua data de nascimento';if(bd.includes('-')){const[y,m,d]=bd.split('-');return`${d}/${m}/${y}`;}return bd;};
+    const senha=formatBd(c.birthday);
+    const subject=encodeURIComponent('Seu acesso ao Portal All In');
+    const body=encodeURIComponent(`Olá, ${firstName}!\n\nSeu acesso ao Portal All In está pronto. Acesse abaixo:\n\n🌐 Link: ${portalUrl}\n📧 Email: ${c.email}\n🔑 Senha: ${senha}\n\nNo portal você acompanha suas entregas, resultados e próximas reuniões.\n\nQualquer dúvida, estou à disposição!\n\nAbraços,\nMari`);
+    setTimeout(()=>{window.open(`mailto:${c.email}?subject=${subject}&body=${body}`);},800);
+  }
 }
 function addMember(){
   const name=prompt('Nome da funcionária:');if(!name)return;
@@ -1998,25 +2108,35 @@ function logoutClientPortal(){
 }
 
 function rLoginPortal(){
-  return`<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--primary),var(--primary-dark));padding:20px">
-    <div style="background:white;border-radius:16px;box-shadow:0 24px 48px rgba(0,0,0,.2);width:100%;max-width:400px;padding:40px;text-align:center">
-      <svg width="80" height="80" viewBox="0 0 200 72" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin:0 auto 20px;display:block">
-        <circle cx="13" cy="10" r="6" fill="#0077B5"/>
-        <circle cx="27" cy="5" r="4.5" fill="#0077B5" opacity=".65"/>
-        <circle cx="8" cy="24" r="3.5" fill="#0077B5" opacity=".4"/>
-        <text x="36" y="47" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="38" fill="#0077B5" letter-spacing="-1">All In</text>
-      </svg>
-      <h1 style="font-size:24px;font-weight:700;margin:0 0 8px;color:var(--text)">Portal do Cliente</h1>
-      <p style="color:var(--muted);margin:0 0 32px;font-size:14px">Acompanhe suas entregas e andamentos aqui</p>
-      <div class="fg" style="gap:12px">
-        <input type="email" class="mini" id="emailInput" placeholder="Seu email" style="width:100%;padding:12px;font-size:13px;border-radius:8px" onkeypress="if(event.key==='Enter')loginPortalFromInput()"/>
-        <div style="position:relative;display:flex;align-items:center">
-          <input type="password" class="mini" id="passwordInput" placeholder="Sua senha (data de nascimento)" style="width:100%;padding:12px;font-size:13px;border-radius:8px;padding-right:40px" onkeypress="if(event.key==='Enter')loginPortalFromInput()"/>
-          <button onclick="togglePasswordVisibility()" style="position:absolute;right:12px;background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:0;width:auto;height:auto">👁️</button>
-        </div>
-        <button class="btn btn-p" onclick="loginPortalFromInput()" style="width:100%;padding:12px">🔓 Entrar</button>
+  return`<div class="portal-login-container">
+    <div class="portal-login-card">
+      <div class="portal-login-logo">
+        <svg viewBox="0 0 200 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="13" cy="10" r="8" fill="#0D3D9B"/>
+          <circle cx="27" cy="5" r="6" fill="#0D3D9B" opacity=".7"/>
+          <circle cx="8" cy="24" r="5" fill="#0D3D9B" opacity=".5"/>
+          <text x="50" y="50" font-family="Arial, sans-serif" font-weight="900" font-size="42" fill="#0D3D9B" letter-spacing="-1">ALL IN</text>
+        </svg>
       </div>
-      <p style="color:var(--muted);font-size:12px;margin-top:20px">Primeira senha é sua data de nascimento (DD/MM/AAAA)<br/>Não tem acesso? Converse com Mari.</p>
+      <h2 class="portal-login-title">Portal do Cliente</h2>
+      <p class="portal-login-subtitle">Acompanhe suas entregas, resultados e encontros com nosso time</p>
+      <form class="portal-login-form" onsubmit="loginPortalFromInput();return false">
+        <div class="portal-login-group">
+          <label class="portal-login-label">Email</label>
+          <input type="email" class="portal-login-input" id="emailInput" placeholder="seu.email@empresa.com.br" required onkeypress="if(event.key==='Enter')loginPortalFromInput()"/>
+        </div>
+        <div class="portal-login-group">
+          <label class="portal-login-label">Senha</label>
+          <div class="portal-password-container">
+            <input type="password" class="portal-login-input" id="passwordInput" placeholder="••••••••••" required onkeypress="if(event.key==='Enter')loginPortalFromInput()"/>
+            <button type="button" class="portal-password-toggle" onclick="togglePasswordVisibility()">👁️</button>
+          </div>
+        </div>
+        <button type="submit" class="portal-btn-login">🔓 Entrar no Portal</button>
+      </form>
+      <div class="portal-login-forgot">
+        <a href="#" onclick="openForgotPasswordModal();return false">Esqueci minha senha</a>
+      </div>
     </div>
   </div>`;
 }
@@ -2044,91 +2164,344 @@ function loginPortalFromInput(){
   loginClientPortal(email,password);
 }
 
-function rClientPortalAuth(){
-  const c=D.clients.find(c=>c.id===S.authenticatedClientId);
-  if(!c){
-    logoutClientPortal();
-    return'';
+function openForgotPasswordModal(){
+  const email=prompt('Digite seu email para recuperar a senha:');
+  if(!email)return;
+
+  const client=validateClientEmail(email);
+  if(!client){
+    toast('❌ Email não encontrado');
+    return;
   }
+
+  if(!client.birthday){
+    toast('⚠️ Nenhuma data de nascimento registrada. Converse com Mari.');
+    return;
+  }
+
+  // Show birthday in a friendly way
+  const [day,month,year]=client.birthday.includes('/')?client.birthday.split('/'):['','',''];
+  const monthNames=['','janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const monthName=monthNames[parseInt(month)] || month;
+  const readableDate=`${day} de ${monthName} de ${year}`;
+
+  alert(`Olá ${client.name}!\n\nSua primeira senha é sua data de nascimento:\n\n${client.birthday}\n\n(${readableDate})\n\nUse este código para acessar o portal.`);
+}
+
+function navPortal(view){S.portalView=view;S.portalMonthIdx=0;render();}
+function navPortalMonth(idx){S.portalMonthIdx=idx;render();}
+function togglePortalMonthDropdown(){
+  const dd=$('portal-month-dd');
+  if(!dd)return;
+  dd.style.display=dd.style.display==='block'?'none':'block';
+}
+document.addEventListener('click',function(e){
+  const dd=$('portal-month-dd');
+  if(dd&&dd.style.display==='block'&&!e.target.closest('.portal-month-picker'))dd.style.display='none';
+});
+
+function rPortalDashboard(c){
   const res=c.results||[];
-  const latestMonth=res.length?res[0]:{prospects:0,leads:0,meetings:0,sales:0};
-  const CARD_COLORS=['#5B6EFF','#A855F7','#3B82F6','#06B6D4','#EC4899','#F59E0B','#10B981','#EF4444'];
-  const CARD_ICONS=['🎯','👥','💼','📊','🚀','📱','🎨','💡'];
-  const arts=c.arts||[];
-  const pendArts=arts.filter(a=>a.status==='pendente');
-  const encs=(c.encounters.list||[]).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
+  const idx=Math.min(S.portalMonthIdx,Math.max(res.length-1,0));
+  const sel=res.length?res[idx]:{prospects:0,leads:0,meetings:0,sales:0,month:''};
+  const prev=res.length?res[idx+1]:null;
+  // tendência comparando com mês anterior
+  const trend=(cur,prv)=>{
+    if(!prv||prv===0)return'';
+    const diff=Math.round(((cur-prv)/prv)*100);
+    if(diff===0)return'<span style="font-size:11px;color:#64748B">= igual</span>';
+    return diff>0
+      ?`<span style="font-size:11px;color:#17B26A;font-weight:600">↑ ${diff}%</span>`
+      :`<span style="font-size:11px;color:#DC2626;font-weight:600">↓ ${Math.abs(diff)}%</span>`;
+  };
+  const getStatusDot=(s)=>({concluido:'completed',andamento:'in-progress',pendente:'pending',atrasado:'pending'}[s]||'pending');
+  const getStatusText=(s)=>({concluido:'Concluído',andamento:'Em andamento',pendente:'Pendente',atrasado:'Atrasado'}[s]||s);
+  const recent=c.deliverables.slice(0,6);
+  // seletor de mês
+  const mesLabel=sel.month||new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const monthPicker=res.length===0
+    ?`<div class="portal-filter">📅 ${new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</div>`
+    :`<div class="portal-month-picker" style="position:relative">
+        <div style="display:flex;align-items:center;gap:4px">
+          <button onclick="navPortalMonth(${idx+1})" ${idx>=res.length-1?'disabled':''} style="background:none;border:none;cursor:pointer;color:${idx>=res.length-1?'#CBD5E1':'#0D3D9B'};font-size:18px;padding:0 4px;line-height:1">‹</button>
+          <div class="portal-filter" onclick="togglePortalMonthDropdown()" style="cursor:pointer;user-select:none;min-width:160px;justify-content:center">
+            📅 ${mesLabel}${res.length>1?' ▾':''}
+          </div>
+          <button onclick="navPortalMonth(${idx-1})" ${idx<=0?'disabled':''} style="background:none;border:none;cursor:pointer;color:${idx<=0?'#CBD5E1':'#0D3D9B'};font-size:18px;padding:0 4px;line-height:1">›</button>
+        </div>
+        ${res.length>1?`<div id="portal-month-dd" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:white;border:1px solid #E2E8F0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:999;min-width:200px;overflow:hidden">
+          ${res.map((r,i)=>`<div onclick="navPortalMonth(${i});togglePortalMonthDropdown()" style="padding:10px 16px;font-size:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;${i===idx?'background:#EFF6FF;color:#0D3D9B;font-weight:600;':''}${i<res.length-1?'border-bottom:1px solid #F1F5F9;':''}" onmouseover="if(${i!==idx})this.style.background='#F8FAFF'" onmouseout="if(${i!==idx})this.style.background='white'">
+            <span>${r.month||'—'}</span>
+            ${i===idx?'<span style="font-size:10px;background:#0D3D9B;color:white;padding:2px 6px;border-radius:99px">atual</span>':''}
+          </div>`).join('')}
+        </div>`:''}
+      </div>`;
   return`
-  <div style="padding:40px;max-width:1000px;margin:0 auto">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px">
+    <div class="portal-hero">
       <div>
-        <h1 style="color:var(--text);margin-bottom:8px;font-size:28px">👋 Bem-vindo, ${c.name.split(' ')[0]}!</h1>
-        <p style="color:var(--muted);font-size:14px">Acompanhe suas entregas, resultados e encontros com nosso time</p>
+        <h1>Olá, ${c.name.split(' ')[0]}! 👋</h1>
+        <p>Acompanhe suas entregas, resultados e encontros com nosso time</p>
       </div>
-      <button class="btn btn-o" onclick="logoutClientPortal()" style="padding:9px 16px">🚪 Sair</button>
+      ${monthPicker}
     </div>
+    ${res.length===0?`<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:14px 18px;margin-bottom:24px;font-size:12px;color:#92400E">📊 Nenhum resultado registrado ainda. Os dados mensais aparecerão aqui quando lançados.</div>`:''}
+    <div class="portal-metrics">
+      <div class="portal-metric">
+        <div class="portal-metric-header"><div class="portal-metric-icon">👥</div>${trend(sel.prospects||0,prev&&prev.prospects)}</div>
+        <div class="portal-metric-number">${sel.prospects||0}</div>
+        <div class="portal-metric-label">Prospecções</div>
+      </div>
+      <div class="portal-metric">
+        <div class="portal-metric-header"><div class="portal-metric-icon">🎯</div>${trend(sel.leads||0,prev&&prev.leads)}</div>
+        <div class="portal-metric-number">${sel.leads||0}</div>
+        <div class="portal-metric-label">Leads</div>
+      </div>
+      <div class="portal-metric">
+        <div class="portal-metric-header"><div class="portal-metric-icon">🤝</div>${trend(sel.meetings||0,prev&&prev.meetings)}</div>
+        <div class="portal-metric-number">${sel.meetings||0}</div>
+        <div class="portal-metric-label">Reuniões</div>
+      </div>
+      <div class="portal-metric">
+        <div class="portal-metric-header"><div class="portal-metric-icon">✅</div>${trend(sel.sales||0,prev&&prev.sales)}</div>
+        <div class="portal-metric-number">${sel.sales||0}</div>
+        <div class="portal-metric-label">Vendas</div>
+      </div>
+    </div>
+    <div class="portal-grid">
+      <div class="portal-card">
+        <div class="portal-card-header">Entregas recentes</div>
+        <div class="portal-timeline">
+          ${recent.length?recent.map(d=>`
+            <div class="portal-timeline-item">
+              <div class="portal-timeline-dot ${getStatusDot(d.status)}"></div>
+              <div class="portal-timeline-content">
+                <div class="portal-timeline-title">${d.name}</div>
+                <div class="portal-timeline-desc">${d.product||'Implementação Comercial'}</div>
+              </div>
+              <div class="portal-timeline-status ${getStatusDot(d.status)}">${getStatusText(d.status)}</div>
+            </div>`).join(''):'<p style="color:#64748B;font-size:12px;padding:12px 0">Nenhuma entrega registrada.</p>'}
+        </div>
+        ${c.deliverables.length>6?`<div style="text-align:center;margin-top:14px"><button class="portal-action-btn" onclick="navPortal('entregas')" style="width:100%">Ver todas as entregas →</button></div>`:''}
+      </div>
+      <div>
+        <div class="portal-sidebar-card">
+          <div class="portal-sidebar-card-title">📅 Próxima Reunião</div>
+          ${(()=>{const encs=(c.encounters&&c.encounters.list||[]).sort((a,b)=>new Date(b.date)-new Date(a.date));const next=encs[0];if(!next)return'<p style="font-size:12px;color:#64748B">Nenhuma reunião registrada</p>';const d=new Date(next.date);return`<div class="portal-meeting-date">${d.getDate()}</div><div class="portal-meeting-month">${d.toLocaleDateString('pt-BR',{month:'long'})}</div><div class="portal-meeting-name">${next.description||'Acompanhamento'}</div>${next.attendees&&next.attendees.length?`<div class="portal-meeting-attendees">👥 Com: ${next.attendees.join(', ')}</div>`:''}<a href="#" class="portal-btn-link" onclick="navPortal('reunioes');return false">Ver todas →</a>`;})()}
+        </div>
+        <div class="portal-sidebar-card">
+          <div class="portal-sidebar-card-title">⚡ Ações Rápidas</div>
+          <div class="portal-actions">
+            <button class="portal-action-btn" onclick="navPortal('entregas')">📦 Ver entregas</button>
+            <button class="portal-action-btn" onclick="navPortal('reunioes')">🤝 Ver reuniões</button>
+            <button class="portal-action-btn" onclick="navPortal('relatorios')">📈 Ver relatórios</button>
+          </div>
+        </div>
+        <div class="portal-tip">
+          <div class="portal-tip-label">💡 Dica All In</div>
+          <div class="portal-tip-text">Mantenha suas entregas sempre atualizadas para melhores resultados.</div>
+        </div>
+        <div style="margin-top:24px">
+          <button class="portal-action-btn" onclick="logoutClientPortal()" style="width:100%;background:#FEE2E2;color:#DC2626;border:1px solid #FECACA">🚪 Sair</button>
+        </div>
+      </div>
+    </div>`;
+}
 
-    <div style="margin-bottom:32px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">📊 Resumo do Seu Mês</h3>
-    <div class="grid4" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
-      <div class="stat"><div class="stat-num" style="color:#5B6EFF">${latestMonth.prospects||0}</div><div class="stat-lbl">Prospecções</div></div>
-      <div class="stat"><div class="stat-num" style="color:#A855F7">${latestMonth.meetings||0}</div><div class="stat-lbl">Reuniões</div></div>
-      <div class="stat"><div class="stat-num" style="color:#10B981">${latestMonth.sales||0}</div><div class="stat-lbl">Vendas</div></div>
-      <div class="stat"><div class="stat-num" style="color:#F59E0B">R$ ${(latestMonth.sales||0)*5000}</div><div class="stat-lbl">Faturamento Est.</div></div>
-    </div></div>
+function rPortalEntregas(c){
+  const getStatusDot=(s)=>({concluido:'completed',andamento:'in-progress',pendente:'pending',atrasado:'pending'}[s]||'pending');
+  const getStatusText=(s)=>({concluido:'Concluído',andamento:'Em andamento',pendente:'Pendente',atrasado:'Atrasado'}[s]||s);
+  const concluidas=c.deliverables.filter(d=>d.status==='concluido');
+  const andamento=c.deliverables.filter(d=>d.status==='andamento');
+  const pendentes=c.deliverables.filter(d=>d.status==='pendente'||d.status==='atrasado');
+  const renderGrupo=(titulo,lista,cor)=>lista.length?`
+    <div style="margin-bottom:28px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="width:10px;height:10px;border-radius:50%;background:${cor}"></div>
+        <span style="font-size:13px;font-weight:700;color:#1E293B">${titulo}</span>
+        <span style="font-size:11px;color:#64748B;background:#F1F5F9;padding:2px 8px;border-radius:99px">${lista.length}</span>
+      </div>
+      <div class="portal-card" style="padding:0">
+        ${lista.map(d=>`
+          <div class="portal-timeline-item" style="padding:16px 20px">
+            <div class="portal-timeline-dot ${getStatusDot(d.status)}"></div>
+            <div class="portal-timeline-content">
+              <div class="portal-timeline-title">${d.name}</div>
+              <div class="portal-timeline-desc">${d.product||'Implementação Comercial'}${d.dueDate?` · Prazo: ${new Date(d.dueDate).toLocaleDateString('pt-BR')}`:''}${d.assignee?` · ${d.assignee}`:''}</div>
+            </div>
+            <div class="portal-timeline-status ${getStatusDot(d.status)}">${getStatusText(d.status)}</div>
+          </div>`).join('')}
+      </div>
+    </div>`:'';
+  return`
+    <div class="portal-hero" style="margin-bottom:24px">
+      <div>
+        <h1>📦 Suas Entregas</h1>
+        <p>${c.deliverables.length} entrega(s) no total · ${concluidas.length} concluída(s) · ${andamento.length} em andamento · ${pendentes.length} pendente(s)</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;margin-bottom:28px">
+      <div class="portal-metric" style="flex:1;padding:16px">
+        <div class="portal-metric-icon">✅</div>
+        <div class="portal-metric-number" style="font-size:24px;color:#17B26A">${concluidas.length}</div>
+        <div class="portal-metric-label">Concluídas</div>
+      </div>
+      <div class="portal-metric" style="flex:1;padding:16px">
+        <div class="portal-metric-icon">🔄</div>
+        <div class="portal-metric-number" style="font-size:24px;color:#4A90E2">${andamento.length}</div>
+        <div class="portal-metric-label">Em andamento</div>
+      </div>
+      <div class="portal-metric" style="flex:1;padding:16px">
+        <div class="portal-metric-icon">⏳</div>
+        <div class="portal-metric-number" style="font-size:24px;color:#F59E0B">${pendentes.length}</div>
+        <div class="portal-metric-label">Pendentes</div>
+      </div>
+    </div>
+    ${renderGrupo('Em andamento',andamento,'#4A90E2')}
+    ${renderGrupo('Pendentes',pendentes,'#F59E0B')}
+    ${renderGrupo('Concluídas',concluidas,'#17B26A')}
+    ${c.deliverables.length===0?'<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhuma entrega registrada ainda.</div>':''}`;
+}
 
-    <div style="margin-bottom:32px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">📦 Suas Entregas</h3>
-    <div class="grid2" style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px">
-      ${c.deliverables.map((d,i)=>{
-        const color=CARD_COLORS[i%CARD_COLORS.length];
-        const icon=CARD_ICONS[i%CARD_ICONS.length];
-        const statusText={concluido:'✅ Concluído',andamento:'🔄 Em Andamento',pendente:'⏳ Pendente',atrasado:'❌ Atrasado'}[d.status];
-        return`<div style="border-radius:12px;background:linear-gradient(135deg,${color},${color}dd);color:white;padding:20px;transition:transform .2s,box-shadow .2s;overflow:hidden;position:relative" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 24px rgba(0,0,0,.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-          <div style="position:absolute;top:12px;right:12px;font-size:24px">${icon}</div>
-          <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;width:80%">${d.name}</h4>
-          <p style="margin:0 0 12px 0;font-size:12px;opacity:.9">${d.product}</p>
-          <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;padding-top:8px;border-top:1px solid rgba(255,255,255,.2)">
-            <span style="opacity:.8">${statusText}</span>
-            <span style="font-weight:600">${d.dueDate?fmtDate(d.dueDate):'—'}</span>
+function rPortalReunioes(c){
+  const encs=(c.encounters&&c.encounters.list||[]).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  return`
+    <div class="portal-hero" style="margin-bottom:24px">
+      <div>
+        <h1>🤝 Reuniões e Encontros</h1>
+        <p>${encs.length} encontro(s) registrado(s) com nosso time</p>
+      </div>
+    </div>
+    ${encs.length===0?`<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhum encontro registrado ainda.<br><span style="font-size:12px">Os encontros realizados com nosso time aparecerão aqui.</span></div>`:`
+    <div class="portal-card" style="padding:0">
+      ${encs.map(enc=>{
+        const d=new Date(enc.date);
+        const mes=d.toLocaleDateString('pt-BR',{month:'short'}).replace('.','');
+        return`<div style="display:flex;gap:20px;padding:20px;border-bottom:1px solid #EEF2F7;align-items:flex-start">
+          <div style="text-align:center;min-width:48px;background:#EFF6FF;border-radius:10px;padding:8px">
+            <div style="font-size:20px;font-weight:700;color:#0D3D9B;line-height:1">${d.getDate()}</div>
+            <div style="font-size:10px;color:#4A90E2;text-transform:uppercase;font-weight:600">${mes}</div>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:#1E293B;margin-bottom:4px">${enc.description||'Encontro registrado'}</div>
+            ${enc.attendees&&enc.attendees.length?`<div style="font-size:11px;color:#64748B;margin-bottom:6px">👥 Participantes: ${enc.attendees.join(', ')}</div>`:''}
+            ${enc.notes?`<div style="font-size:12px;color:#475569;background:#F8FAFF;padding:8px 12px;border-radius:8px;border-left:3px solid #4A90E2">${enc.notes}</div>`:''}
+            ${enc.attachments&&enc.attachments.length?`<div style="font-size:11px;color:#64748B;margin-top:6px">📎 ${enc.attachments.length} anexo(s)</div>`:''}
           </div>
         </div>`;
-      }).join('')}</div></div>
+      }).join('')}
+    </div>`}`;
+}
 
-    ${pendArts.length?`<div style="margin-bottom:32px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">📱 Artes para Aprovação <span style="background:var(--red);color:white;font-size:11px;padding:2px 8px;border-radius:99px;margin-left:8px">${pendArts.length}</span></h3>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
-      ${pendArts.map(art=>`
-        <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:white;box-shadow:var(--shadow);transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'">
-          <div style="position:relative;overflow:hidden;background:#f0f0f0;height:180px">
-            <img src="${art.image}" style="width:100%;height:100%;object-fit:cover">
-            <div style="position:absolute;top:8px;right:8px;background:#FDE68A;color:#B45309;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600">${{instagram:'📷 IG',linkedin:'💼 LinkedIn',facebook:'👥 FB',tiktok:'🎵 TikTok'}[art.platform]||art.platform}</div>
+function rPortalRelatorios(c){
+  const res=(c.results||[]);
+  const trendBadge=(cur,prv)=>{
+    if(prv==null||prv===undefined)return'';
+    const diff=Math.round(((cur-prv)/(prv||1))*100);
+    if(diff===0)return'<span style="font-size:10px;color:#64748B">= igual</span>';
+    return diff>0
+      ?`<span style="font-size:10px;color:#17B26A;font-weight:600">↑${diff}%</span>`
+      :`<span style="font-size:10px;color:#DC2626;font-weight:600">↓${Math.abs(diff)}%</span>`;
+  };
+  return`
+    <div class="portal-hero" style="margin-bottom:24px">
+      <div>
+        <h1>📈 Relatórios de Resultados</h1>
+        <p>Evolução dos seus resultados mês a mês — ${res.length} mês(es) registrado(s)</p>
+      </div>
+    </div>
+    ${res.length===0?`<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhum resultado registrado ainda.<br><span style="font-size:12px">Os relatórios mensais aparecerão aqui quando forem lançados.</span></div>`:`
+    <div style="display:flex;flex-direction:column;gap:16px">
+      ${res.map((r,i)=>{
+        const prv=res[i+1];
+        const isMost=i===0;
+        return`<div class="portal-card" style="${isMost?'border-left:4px solid #0D3D9B;':''}" >
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div>
+              <div style="font-size:15px;font-weight:700;color:#1E293B">${r.month||'—'}</div>
+              ${prv?`<div style="font-size:11px;color:#64748B;margin-top:2px">comparado a ${prv.month||'mês anterior'}</div>`:'<div style="font-size:11px;color:#94A3B8;margin-top:2px">primeiro registro</div>'}
+            </div>
+            ${isMost?'<span style="font-size:11px;background:#EFF6FF;color:#0D3D9B;padding:4px 10px;border-radius:99px;font-weight:600">✨ Mais recente</span>':''}
           </div>
-          <div style="padding:16px">
-            <h4 style="margin:0 0 6px 0;font-size:13px;font-weight:600">${art.title}</h4>
-            ${art.description?`<p style="margin:0 0 12px 0;font-size:12px;color:var(--muted);line-height:1.4">${art.description}</p>`:''}
-            <div style="display:flex;gap:6px">
-              <button class="btn btn-s" style="flex:1;background:#DCFCE7;color:#166534;border:none;font-weight:600" onclick="approveArt('${c.id}','${art.id}')">✅ Aprovar</button>
-              <button class="btn btn-s" style="flex:1;background:#FEE2E2;color:#DC2626;border:none;font-weight:600" onclick="rejectArt('${c.id}','${art.id}')">❌ Rejeitar</button>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+            <div style="text-align:center;padding:12px;background:#F8FAFF;border-radius:10px">
+              <div style="font-size:22px;font-weight:700;color:#0D3D9B">${r.prospects||0}</div>
+              <div style="font-size:10px;color:#64748B;margin-top:2px">👥 Prospecções</div>
+              <div style="margin-top:4px">${trendBadge(r.prospects||0,prv&&prv.prospects)}</div>
+            </div>
+            <div style="text-align:center;padding:12px;background:#F0FDF4;border-radius:10px">
+              <div style="font-size:22px;font-weight:700;color:#16A34A">${r.leads||0}</div>
+              <div style="font-size:10px;color:#64748B;margin-top:2px">🎯 Leads</div>
+              <div style="margin-top:4px">${trendBadge(r.leads||0,prv&&prv.leads)}</div>
+            </div>
+            <div style="text-align:center;padding:12px;background:#FFF7ED;border-radius:10px">
+              <div style="font-size:22px;font-weight:700;color:#EA580C">${r.meetings||0}</div>
+              <div style="font-size:10px;color:#64748B;margin-top:2px">🤝 Reuniões</div>
+              <div style="margin-top:4px">${trendBadge(r.meetings||0,prv&&prv.meetings)}</div>
+            </div>
+            <div style="text-align:center;padding:12px;background:#F0FDF4;border-radius:10px">
+              <div style="font-size:22px;font-weight:700;color:#16A34A">${r.sales||0}</div>
+              <div style="font-size:10px;color:#64748B;margin-top:2px">✅ Vendas</div>
+              <div style="margin-top:4px">${trendBadge(r.sales||0,prv&&prv.sales)}</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`}`;
+}
+
+function rClientPortalAuth(){
+  const c=D.clients.find(c=>c.id===S.authenticatedClientId);
+  if(!c){logoutClientPortal();return'';}
+  const pv=S.portalView||'dashboard';
+  const navItems=[
+    {id:'dashboard',icon:'📊',label:'Dashboard'},
+    {id:'entregas',icon:'📦',label:'Entregas'},
+    {id:'reunioes',icon:'🤝',label:'Reuniões'},
+    {id:'relatorios',icon:'📈',label:'Relatórios'},
+  ];
+  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',reunioes:'Reuniões',relatorios:'Relatórios'};
+  const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,reunioes:rPortalReunioes,relatorios:rPortalRelatorios};
+  const mainContent=(contentMap[pv]||rPortalDashboard)(c);
+  return`<div class="portal-wrapper">
+    <div class="portal-sidebar">
+      <div class="portal-logo">
+        <span class="portal-logo-icon">🔷</span>
+        <span class="portal-logo-text">All In</span>
+      </div>
+      <div class="portal-nav">
+        ${navItems.map(n=>`
+          <div class="portal-nav-item${pv===n.id?' active':''}" onclick="navPortal('${n.id}')" style="cursor:pointer">
+            <span class="portal-nav-icon">${n.icon}</span>
+            <span>${n.label}</span>
+          </div>`).join('')}
+      </div>
+      <div class="portal-footer">
+        <div class="portal-support">
+          <h4>Precisa de ajuda?</h4>
+          <p>Fale com nosso time de suporte</p>
+          <button class="portal-support-btn" onclick="logoutClientPortal()">🚪 Sair</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <div class="portal-header">
+        <div class="portal-header-title">${headerTitles[pv]||'Dashboard'}</div>
+        <div class="portal-header-right">
+          <div class="portal-bell">🔔</div>
+          <div class="portal-user">
+            <div class="portal-avatar">${c.name.substring(0,2).toUpperCase()}</div>
+            <div class="portal-user-info">
+              <div class="portal-user-name">${c.name.split(' ')[0]}</div>
+              <div class="portal-user-role">Cliente</div>
             </div>
           </div>
         </div>
-      `).join('')}
-    </div></div>`:''}
-
-    ${encs.length?`<div style="margin-bottom:32px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">🤝 Últimos Encontros</h3>
-    <div style="display:flex;flex-direction:column;gap:12px">
-      ${encs.map(enc=>`
-        <div class="card" style="margin:0;padding:16px;display:flex;gap:14px;align-items:flex-start">
-          <div style="font-size:32px">👥</div>
-          <div style="flex:1">
-            <h4 style="margin:0 0 4px 0;font-size:13px;font-weight:600">${fmtDate(enc.date)}</h4>
-            <p style="margin:0 0 6px 0;font-size:11px;color:var(--muted)">${enc.attendees.join(', ')||'Sem participantes'}</p>
-            <p style="margin:0;font-size:12px;color:var(--text)">${enc.description||'Sem descrição'}</p>
-            ${enc.attachments && enc.attachments.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">📎 ${enc.attachments.length} anexo(s)</div>`:''}
-          </div>
+      </div>
+      <div class="portal-main">
+        <div class="portal-container">
+          ${mainContent}
         </div>
-      `).join('')}
-    </div></div>`:''}
-
-    <div style="text-align:center;padding:24px;background:var(--gbg);border-radius:12px;border:1px solid #B5DFC9;color:var(--green)">
-      <p style="margin:0;font-size:12px">📞 Dúvidas? Entre em contato conosco!</p>
+      </div>
     </div>
   </div>`;
 }
@@ -2138,19 +2511,7 @@ function rClientPortalAuth(){
 // ────────────────────────────────────────────────────────────
 function handleNavigation(){
   const hash=window.location.hash;
-  // Handle portal login page
-  if(hash==='#portal'){
-    S.isClientPortal=true;
-    S.authenticatedClientId=null;
-    S.authenticatedEmail=null;
-    document.getElementById('sidebar').style.display='none';
-    document.querySelector('.topbar').style.display='none';
-    document.getElementById('main').style.marginLeft='0';
-    document.getElementById('main').style.minHeight='100vh';
-    render();
-    return;
-  }
-  // Check for persisted client session
+  // Check for persisted client session FIRST
   const sessionAuth=sessionStorage.getItem('clientPortalAuth');
   if(sessionAuth){
     try{
@@ -2167,6 +2528,35 @@ function handleNavigation(){
         return;
       }
     }catch(e){}
+  }
+  // Handle portal with token (auto-login)
+  if(hash.startsWith('#portal/')){
+    const token=hash.replace('#portal/','');
+    const client=D.clients.find(c=>c.token===token);
+    if(client){
+      S.isClientPortal=true;
+      S.authenticatedClientId=client.id;
+      S.authenticatedEmail=client.email;
+      sessionStorage.setItem('clientPortalAuth',JSON.stringify({clientId:client.id,email:client.email}));
+      document.getElementById('sidebar').style.display='none';
+      document.querySelector('.topbar').style.display='none';
+      document.getElementById('main').style.marginLeft='0';
+      document.getElementById('main').style.minHeight='100vh';
+      render();
+      return;
+    }
+  }
+  // Handle portal login page
+  if(hash==='#portal'){
+    S.isClientPortal=true;
+    S.authenticatedClientId=null;
+    S.authenticatedEmail=null;
+    document.getElementById('sidebar').style.display='none';
+    document.querySelector('.topbar').style.display='none';
+    document.getElementById('main').style.marginLeft='0';
+    document.getElementById('main').style.minHeight='100vh';
+    render();
+    return;
   }
   // Original external portal mode
   if(detectClientMode()){
