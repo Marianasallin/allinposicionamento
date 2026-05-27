@@ -397,21 +397,21 @@ const DEFAULT={
     mkClient('Ludimila Muller',18,['Gestão de Perfil'],'ativo',null,[]),
     mkClient('Maressa Ferreira Marra Toussaint',19,['Gestão de Perfil'],'ativo',null,[]),
     mkClient('Paulo Henrique Teixeira',20,['Gestão de Perfil'],'ativo',1774940400000,[]),
-    mkClient('Rafael Rodrigues',21,['Gestão de Perfil'],'vencido',1775804400000,[]),
-    mkClient('Elaine Lima',22,['Gestão de Perfil'],'ativo',null,[]),
-    mkClient('Silvia Zuffo',23,['Gestão de Perfil'],'vencido',1766473200000,[]),
-    mkClient('Guilherme Gomes — Uluhub',24,['Gestão de Perfil'],'vencido',1767078000000,[]),
-    mkClient('Ana Martins',25,['Gestão de Perfil'],'ativo',1778310000000,[]),
-    mkClient('Luciana Rezende',26,['Gestão de Perfil'],'vencido',1755759600000,[]),
-    mkClient('Fabrício Fidelis',27,['Gestão de Perfil'],'vencido',1761894000000,[]),
-    mkClient('Renata Rosendo de Lima Costa',28,['Gestão de Perfil'],'vencido',1771570800000,[]),
-    mkClient('Laura Bigaton',29,['Gestão de Perfil'],'ativo',1772348400000,[]),
+    mkClient('Rafael Rodrigues',21,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Elaine Lima',22,['Gestão de Perfil'],'inativo',null,[]),
+    mkClient('Silvia Zuffo',23,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Guilherme Gomes — Uluhub',24,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Ana Martins',25,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Luciana Rezende',26,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Fabrício Fidelis',27,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Renata Rosendo de Lima Costa',28,['Gestão de Perfil'],'ativo',null,[]),
+    mkClient('Laura Bigaton',29,['Gestão de Perfil'],'ativo',null,[]),
     mkClient('Luana Maciel',30,['Gestão de Perfil'],'ativo',1780988400000,[]),
     mkClient('Leticia Tonon',31,['Gestão de Perfil'],'ativo',null,['Nayara Calixto Justino Campos']),
     mkClient('Fernanda Gomes',32,['Gestão de Perfil'],'ativo',null,['Nayara Calixto Justino Campos']),
     mkClient('André Gandelman',33,['Gestão de Perfil'],'ativo',null,['Nayara Calixto Justino Campos']),
     mkClient('Rafael Souza',34,['Gestão de Perfil'],'ativo',null,['Nayara Calixto Justino Campos']),
-    mkClient('Magno Reis',35,['Gestão de Perfil'],'finalizado',1761894000000,[]),
+    mkClient('Magno Reis',35,['Gestão de Perfil'],'inativo',null,[]),
   ],
   team:[
     {id:'mariana-souza',name:'Mariana Souza',role:'CEO',dept:'Gestão',email:'',phone:'',birthday:'',color:'#0D3D9B',initials:'MS',notes:'',capacity:10,personalInfo:''},
@@ -423,6 +423,37 @@ const DEFAULT={
     {id:'nayara',name:'Nayara Calixto Justino Campos',role:'Assistente',dept:'Operações',email:'nayara@agenciaallin.com',phone:'31 972679915',birthday:'2001-04-16',color:'#0891B2',initials:'NC',notes:'',capacity:10},
   ]
 };
+
+// ────────────────────────────────────────────────────────────
+// CLICKUP DATA PATCHES — applied to DEFAULT on first load
+// ────────────────────────────────────────────────────────────
+{
+  const _cp={
+    'Leticia Petean':          {contractStatus:'ativo',contractDue:'2026-06-10',contractValue:'6197.5',paymentMethod:'Cartão Infinity Pay'},
+    'Marília Campos Carneiro': {contractStatus:'ativo',contractDue:'2026-06-10',email:'contato@chamadesenvolvimento.com.br',paymentMethod:'Boleto 1 vez',linkedin:'https://www.linkedin.com/in/mariliaccarneiro/',cnpj:'62.497.501/0001-82'},
+    'Marcelo Wietha':          {contractStatus:'ativo',contractDue:'2026-05-30',email:'marcelo@wietha.com.br',paymentMethod:'Cartão Crédito Sicoob',linkedin:'https://www.linkedin.com/in/marcelo-wietha/',cnpj:'353.180.070-15'},
+    'Tatiani Garcia De Faria': {contractStatus:'ativo',contractDue:'2026-06-10',contractValue:'2200',paymentMethod:'Boleto Mensal',email:'tatiani@gaau.com.br',phone:'+55 11 97178 4562',cnpj:'25.162.480/0001-18'},
+    'Daniela Anderson':        {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'2100',paymentMethod:'Boleto Mensal',email:'daniela.anderson1211@gmail.com',phone:'+55 19 98447 9996',cnpj:'262.564.198-39'},
+    'Leticia de Souza Medeiros Franco':{contractStatus:'ativo',contractDue:'2026-06-20',paymentMethod:'Boleto Mensal',cnpj:'055.325.176-73'},
+    'Felipe Elcio Dias':       {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'2300',paymentMethod:'Boleto Mensal',email:'andre@lets.events',cnpj:'41.832.891/0001-20'},
+    'Jose Ricardo':            {contractStatus:'ativo',contractDue:'2026-06-21'},
+    'Ludimila Muller':         {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'1800',paymentMethod:'Boleto Mensal',email:'ludimilamuller@contribox.com.br',phone:'+55 22 99221 9498',cnpj:'53.926.693/0001-04'},
+    'Maressa Ferreira Marra Toussaint':{contractStatus:'ativo',contractDue:'2026-06-15',contractValue:'1997',paymentMethod:'Boleto Mensal',email:'marra.rhconsultoria@gmail.com',cnpj:'585.362.190.0190'},
+    'Paulo Henrique Teixeira': {contractStatus:'ativo',contractDue:'2026-06-15',contractValue:'3100',paymentMethod:'Boleto Mensal',email:'paulohtl54@gmail.com',phone:'+55 16 99766 0814'},
+    'Rafael Rodrigues':        {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'1800',paymentMethod:'Boleto Mensal',email:'rrtreinamentos41@gmail.com',phone:'+55 31 99490 8949',cnpj:'17.003.821/0001-84'},
+    'Elaine Lima':             {contractStatus:'inativo'},
+    'Silvia Zuffo':            {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'1280',paymentMethod:'Boleto Mensal',email:'silvia@szuffo.com',phone:'+55 31 98407 7175',cnpj:'47.558.615/0001-00'},
+    'Guilherme Gomes — Uluhub':{contractStatus:'ativo',contractDue:'2026-06-15',contractValue:'2000',paymentMethod:'Boleto Mensal',email:'financeiro@uluhub.com.br',phone:'+55 3799358398',cnpj:'50.198.675/0001-65'},
+    'Ana Martins':             {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'1400',paymentMethod:'Boleto Mensal'},
+    'Luciana Rezende':         {contractStatus:'ativo',paymentMethod:'Permuta'},
+    'Fabrício Fidelis':        {contractStatus:'ativo',paymentMethod:'Permuta'},
+    'Renata Rosendo de Lima Costa':{contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'1800',paymentMethod:'PIX',email:'renatarlcosta@hotmail.com',phone:'+55 11 98781 5002'},
+    'Laura Bigaton':           {contractStatus:'ativo',contractDue:'2026-06-10',contractValue:'1800',paymentMethod:'PIX',email:'laurabigaton@hotmail.com',phone:'+55 31 98229 5674',cnpj:'52.000.352/0001-40',birthday:'05/03/1986'},
+    'Luana Maciel':            {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'1400',paymentMethod:'Boleto Mensal',email:'luanamoises04@gmail.com',phone:'+55 19 99139 5754',cnpj:'35.948.070/0001-50'},
+    'Magno Reis':              {contractStatus:'inativo',contractDue:'2026-06-25',contractValue:'2100',paymentMethod:'Boleto Mensal',email:'magnoreis.engconsult@icloud.com',phone:'+55 31 99715 5481',cnpj:'61.433.278/0001-47'},
+  };
+  DEFAULT.clients.forEach(c=>{const p=_cp[c.name];if(p)Object.assign(c,p);});
+}
 
 // ────────────────────────────────────────────────────────────
 // STATE & PERSISTENCE
@@ -438,6 +469,46 @@ const ADMIN_PASSWORD='Allin@Time';
 
 // MIGRATE TOKENS - Ensure all clients have tokens
 D.clients.forEach(c=>{if(!c.token)c.token=generateToken();});
+
+// MIGRATE CLICKUP DATA - Sync real client data from ClickUp into existing localStorage
+{
+  const _cu={
+    'Leticia Petean':          {contractStatus:'ativo',contractValue:'6197.5',paymentMethod:'Cartão Infinity Pay'},
+    'Marília Campos Carneiro': {contractStatus:'ativo',email:'contato@chamadesenvolvimento.com.br',paymentMethod:'Boleto 1 vez',linkedin:'https://www.linkedin.com/in/mariliaccarneiro/',cnpj:'62.497.501/0001-82'},
+    'Marcelo Wietha':          {contractStatus:'ativo',email:'marcelo@wietha.com.br',paymentMethod:'Cartão Crédito Sicoob',linkedin:'https://www.linkedin.com/in/marcelo-wietha/',cnpj:'353.180.070-15'},
+    'Tatiani Garcia De Faria': {contractStatus:'ativo',contractValue:'2200',paymentMethod:'Boleto Mensal',email:'tatiani@gaau.com.br',phone:'+55 11 97178 4562',cnpj:'25.162.480/0001-18'},
+    'Daniela Anderson':        {contractStatus:'ativo',contractValue:'2100',paymentMethod:'Boleto Mensal',email:'daniela.anderson1211@gmail.com',phone:'+55 19 98447 9996',cnpj:'262.564.198-39'},
+    'Leticia de Souza Medeiros Franco':{contractStatus:'ativo',paymentMethod:'Boleto Mensal',cnpj:'055.325.176-73'},
+    'Felipe Elcio Dias':       {contractStatus:'ativo',contractValue:'2300',paymentMethod:'Boleto Mensal',email:'andre@lets.events',cnpj:'41.832.891/0001-20'},
+    'Ludimila Muller':         {contractStatus:'ativo',contractValue:'1800',paymentMethod:'Boleto Mensal',email:'ludimilamuller@contribox.com.br',phone:'+55 22 99221 9498',cnpj:'53.926.693/0001-04'},
+    'Maressa Ferreira Marra Toussaint':{contractStatus:'ativo',contractValue:'1997',paymentMethod:'Boleto Mensal',email:'marra.rhconsultoria@gmail.com',cnpj:'585.362.190.0190'},
+    'Paulo Henrique Teixeira': {contractStatus:'ativo',contractValue:'3100',paymentMethod:'Boleto Mensal',email:'paulohtl54@gmail.com',phone:'+55 16 99766 0814'},
+    'Rafael Rodrigues':        {contractStatus:'ativo',contractValue:'1800',paymentMethod:'Boleto Mensal',email:'rrtreinamentos41@gmail.com',phone:'+55 31 99490 8949',cnpj:'17.003.821/0001-84'},
+    'Elaine Lima':             {contractStatus:'inativo'},
+    'Silvia Zuffo':            {contractStatus:'ativo',contractValue:'1280',paymentMethod:'Boleto Mensal',email:'silvia@szuffo.com',phone:'+55 31 98407 7175',cnpj:'47.558.615/0001-00'},
+    'Guilherme Gomes — Uluhub':{contractStatus:'ativo',contractValue:'2000',paymentMethod:'Boleto Mensal',email:'financeiro@uluhub.com.br',phone:'+55 3799358398',cnpj:'50.198.675/0001-65'},
+    'Ana Martins':             {contractStatus:'ativo',contractValue:'1400',paymentMethod:'Boleto Mensal'},
+    'Luciana Rezende':         {contractStatus:'ativo',paymentMethod:'Permuta'},
+    'Fabrício Fidelis':        {contractStatus:'ativo',paymentMethod:'Permuta'},
+    'Renata Rosendo de Lima Costa':{contractStatus:'ativo',contractValue:'1800',paymentMethod:'PIX',email:'renatarlcosta@hotmail.com',phone:'+55 11 98781 5002'},
+    'Laura Bigaton':           {contractStatus:'ativo',contractValue:'1800',paymentMethod:'PIX',email:'laurabigaton@hotmail.com',phone:'+55 31 98229 5674',cnpj:'52.000.352/0001-40',birthday:'05/03/1986'},
+    'Luana Maciel':            {contractStatus:'ativo',contractValue:'1400',paymentMethod:'Boleto Mensal',email:'luanamoises04@gmail.com',phone:'+55 19 99139 5754',cnpj:'35.948.070/0001-50'},
+    'Magno Reis':              {contractStatus:'inativo',contractValue:'2100',paymentMethod:'Boleto Mensal',email:'magnoreis.engconsult@icloud.com',phone:'+55 31 99715 5481',cnpj:'61.433.278/0001-47'},
+  };
+  const _isPlaceholder=e=>e&&e.includes('@allinposicionamento.com.br');
+  D.clients.forEach(c=>{
+    const p=_cu[c.name];
+    if(!p)return;
+    c.contractStatus=p.contractStatus;
+    if(p.email&&_isPlaceholder(c.email))c.email=p.email;
+    if(p.phone&&!c.phone)c.phone=p.phone;
+    if(p.contractValue&&!c.contractValue)c.contractValue=p.contractValue;
+    if(p.paymentMethod&&!c.paymentMethod)c.paymentMethod=p.paymentMethod;
+    if(p.linkedin&&!c.linkedin)c.linkedin=p.linkedin;
+    if(p.cnpj&&!c.cnpj)c.cnpj=p.cnpj;
+    if(p.birthday&&!c.birthday)c.birthday=p.birthday;
+  });
+}
 
 // MIGRATE TEAM - Ensure Mariana and Naiara exist
 if(!D.team.find(m=>m.id==='mariana-souza')){
