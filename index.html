@@ -439,6 +439,15 @@ const ADMIN_PASSWORD='Allin@Time';
 // MIGRATE TOKENS - Ensure all clients have tokens
 D.clients.forEach(c=>{if(!c.token)c.token=generateToken();});
 
+// MIGRATE TEAM - Ensure Mariana and Naiara exist
+if(!D.team.find(m=>m.id==='mariana-souza')){
+  D.team.unshift({id:'mariana-souza',name:'Mariana Souza',role:'CEO',dept:'Gestão',email:'',phone:'',birthday:'',color:'#0D3D9B',initials:'MS',notes:'',capacity:10,personalInfo:''});
+}
+if(!D.team.find(m=>m.id==='naiara-faria')){
+  const idx=D.team.findIndex(m=>m.id==='mariana-souza');
+  D.team.splice(idx+1,0,{id:'naiara-faria',name:'Naiara Faria',role:'Gestão',dept:'Gestão',email:'naiarafaria@outlook.com.br',phone:'',birthday:'',color:'#7C3AED',initials:'NF',notes:'',capacity:10,personalInfo:''});
+}
+
 // MIGRATE EMAIL & BIRTHDAY - Initialize for portal login
 D.clients.forEach((c,i)=>{
   // Set email if not already set (format: firstname.lastname@example.com)
