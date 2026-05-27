@@ -260,7 +260,10 @@ input.mini:focus{outline:none;border-color:var(--primary)}
       <div class="ni" onclick="window.open(window.location.origin+window.location.pathname+'#portal','_blank')" style="background:rgba(0,160,220,.15);border:1px solid rgba(0,160,220,.3)"><span class="ni-icon">🌐</span><span>Portal do Cliente</span></div>
     </div>
   </nav>
-  <div class="sb-footer">Mariana Souza<br>ALL IN — Estrategista LinkedIn</div>
+  <div class="sb-footer" id="sb-footer" style="cursor:pointer" onclick="logoutAdmin()">
+    <div id="sb-user-info">Mariana Souza<br><span style="font-size:10px;opacity:.7">ALL IN — Estrategista LinkedIn</span></div>
+    <div style="font-size:9px;opacity:.5;margin-top:4px">🔄 Trocar usuário</div>
+  </div>
 </aside>
 <div id="main">
   <div class="topbar"><h1 id="ttitle">Dashboard</h1><div id="tactions"></div></div>
@@ -422,13 +425,14 @@ const DEFAULT={
 // ────────────────────────────────────────────────────────────
 // STATE & PERSISTENCE
 // ────────────────────────────────────────────────────────────
-let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0};
+let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0,adminAuth:false,currentUser:null};
 let D=(()=>{try{const s=localStorage.getItem('allin');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT))}catch{return JSON.parse(JSON.stringify(DEFAULT))}})();
 const save=()=>localStorage.setItem('allin',JSON.stringify(D));
 const getC=()=>D.clients.find(c=>c.id===S.clientId);
 const getM=()=>D.team.find(m=>m.id===S.memberId);
 const TEAM_NAMES=()=>D.team.map(m=>m.name);
 const TEAM_PASSWORD='allin2026';
+const ADMIN_PASSWORD='Allin@Time';
 
 // MIGRATE TOKENS - Ensure all clients have tokens
 D.clients.forEach(c=>{if(!c.token)c.token=generateToken();});
@@ -467,6 +471,26 @@ function render(){
     if(S.authenticatedClientId){return $('view').innerHTML=rClientPortalAuth();}
     else{return $('view').innerHTML=rLoginPortal();}
   }
+  // Handle admin login
+  if(!S.adminAuth){
+    document.getElementById('sidebar').style.display='none';
+    document.querySelector('.topbar').style.display='none';
+    document.getElementById('main').style.marginLeft='0';
+    return $('view').innerHTML=rAdminLogin();
+  }
+  if(!S.currentUser){
+    document.getElementById('sidebar').style.display='none';
+    document.querySelector('.topbar').style.display='none';
+    document.getElementById('main').style.marginLeft='0';
+    return $('view').innerHTML=rProfileSelect();
+  }
+  // Restore normal layout
+  document.getElementById('sidebar').style.display='flex';
+  document.querySelector('.topbar').style.display='flex';
+  document.getElementById('main').style.marginLeft='240px';
+  // Update sidebar footer with current user
+  const sbFooter=$('sb-user-info');
+  if(sbFooter) sbFooter.innerHTML=`${S.currentUser.name}<br><span style="font-size:10px;opacity:.7">${S.currentUser.role||'ALL IN'}</span>`;
   // Normal admin views
   $('view').innerHTML={dash:rDash,clients:rClients,semana:rWeeklyPending,func:rFunc,team:rTeam,clientView:rClientView}[S.view]();
 }
@@ -1273,6 +1297,83 @@ function rTeam(){
 // ────────────────────────────────────────────────────────────
 // ACTIONS
 // ────────────────────────────────────────────────────────────
+// ── ADMIN LOGIN ──────────────────────────────────────────────
+function rAdminLogin(){
+  return`<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0A2D4E 0%,#0D3D9B 100%)">
+    <div style="background:white;border-radius:20px;padding:40px 36px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center">
+      <svg width="80" height="30" viewBox="0 0 200 72" fill="none" style="margin-bottom:8px">
+        <circle cx="13" cy="10" r="6" fill="#00A0DC"/>
+        <circle cx="27" cy="5" r="4.5" fill="#00A0DC" opacity=".65"/>
+        <circle cx="8" cy="24" r="3.5" fill="#00A0DC" opacity=".4"/>
+        <text x="36" y="47" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="38" fill="#0A2D4E" letter-spacing="-1">All In</text>
+        <line x1="36" y1="58" x2="198" y2="58" stroke="#00A0DC" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <h2 style="font-size:20px;font-weight:700;color:#1A1A2E;margin:16px 0 6px">Área da Equipe</h2>
+      <p style="color:#6B7280;font-size:13px;margin-bottom:28px">Digite a senha para acessar o sistema</p>
+      <div style="margin-bottom:20px;text-align:left">
+        <label style="font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Senha</label>
+        <input type="password" id="admin-pwd" placeholder="••••••••••" style="width:100%;padding:12px 14px;border:2px solid #E5E7EB;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;transition:border .2s" onfocus="this.style.borderColor='#0D3D9B'" onblur="this.style.borderColor='#E5E7EB'" onkeypress="if(event.key==='Enter')verifyAdminPwd()">
+      </div>
+      <button onclick="verifyAdminPwd()" style="width:100%;padding:13px;background:linear-gradient(135deg,#0D3D9B,#0077B5);color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">🔓 Entrar</button>
+    </div>
+  </div>`;
+}
+
+function rProfileSelect(){
+  const members=D.team.length?D.team:[{id:'default',name:'Mariana Souza',initials:'MS',color:'#0077B5',role:'Estrategista LinkedIn'}];
+  const cards=members.map(m=>`
+    <div onclick="selectProfile('${m.id}')" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 16px;background:white;border:2px solid #E5E7EB;border-radius:16px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='#0D3D9B';this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(13,61,155,.15)'" onmouseout="this.style.borderColor='#E5E7EB';this.style.transform='none';this.style.boxShadow='none'">
+      <div style="width:56px;height:56px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:white">${m.initials}</div>
+      <div style="text-align:center">
+        <div style="font-size:13px;font-weight:600;color:#1A1A2E">${m.name.split(' ')[0]}</div>
+        <div style="font-size:10px;color:#6B7280">${m.role||'ALL IN'}</div>
+      </div>
+    </div>`).join('');
+  return`<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0A2D4E 0%,#0D3D9B 100%)">
+    <div style="background:#F3F6F8;border-radius:20px;padding:36px;width:100%;max-width:600px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="text-align:center;margin-bottom:28px">
+        <div style="font-size:28px;margin-bottom:8px">👋</div>
+        <h2 style="font-size:20px;font-weight:700;color:#1A1A2E;margin:0 0 6px">Quem está entrando?</h2>
+        <p style="color:#6B7280;font-size:13px;margin:0">Selecione seu perfil para continuar</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:14px">${cards}</div>
+    </div>
+  </div>`;
+}
+
+function verifyAdminPwd(){
+  const pwd=$('admin-pwd')?.value||'';
+  if(pwd===ADMIN_PASSWORD||pwd===TEAM_PASSWORD){
+    S.adminAuth=true;
+    sessionStorage.setItem('adminAuth','true');
+    render();
+  }else{
+    toast('❌ Senha incorreta!');
+    const el=$('admin-pwd');
+    if(el){el.style.borderColor='#DC2626';el.value='';el.focus();setTimeout(()=>{el.style.borderColor='#E5E7EB';},1500);}
+  }
+}
+
+function selectProfile(memberId){
+  const m=D.team.find(m=>m.id===memberId)||(memberId==='default'?{id:'default',name:'Mariana Souza',initials:'MS',color:'#0077B5',role:'Estrategista LinkedIn'}:null);
+  if(!m)return;
+  S.currentUser=m;
+  sessionStorage.setItem('currentUser',JSON.stringify(m));
+  render();
+  toast(`✅ Bem-vinda, ${m.name.split(' ')[0]}!`);
+}
+
+function logoutAdmin(){
+  if(!confirm('Trocar de usuário?'))return;
+  S.currentUser=null;
+  S.adminAuth=false;
+  S.teamAuth=false;
+  sessionStorage.removeItem('adminAuth');
+  sessionStorage.removeItem('currentUser');
+  render();
+}
+
+// ── TEAM PASSWORD ─────────────────────────────────────────────
 function verifyTeamPwd(){
   const pwd=$('team-pwd')?.value||'';
   if(pwd===TEAM_PASSWORD){
@@ -2511,6 +2612,13 @@ function rClientPortalAuth(){
 // ────────────────────────────────────────────────────────────
 function handleNavigation(){
   const hash=window.location.hash;
+  // Restore admin session if exists
+  if(!S.isClientPortal){
+    const adminAuth=sessionStorage.getItem('adminAuth');
+    const currentUser=sessionStorage.getItem('currentUser');
+    if(adminAuth==='true') S.adminAuth=true;
+    if(currentUser){try{S.currentUser=JSON.parse(currentUser);}catch(e){}}
+  }
   // Check for persisted client session FIRST
   const sessionAuth=sessionStorage.getItem('clientPortalAuth');
   if(sessionAuth){
