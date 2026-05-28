@@ -322,22 +322,40 @@ function fridaysFrom(startDateStr){
   return res;
 }
 function monthsFrom(startDateStr){
-  // Returns months from max(startDate, June 2026) up to current month + 1
+  // Returns months from max(startDate, June 2026) up to 6 months ahead
   const minStart=new Date(2026,5,1);
   let start=startDateStr?new Date(startDateStr):new Date(2026,5,1);
   const sy=start<minStart?2026:start.getFullYear();
   const sm=start<minStart?5:start.getMonth();
   const cur=new Date();
-  // show up to current month +1 so next month is always visible
-  let endY=cur.getFullYear(),endM=cur.getMonth()+1;
-  if(endM>11){endM=0;endY++;}
+  // show up to 6 months ahead from today
+  const ahead=new Date(cur.getFullYear(),cur.getMonth()+6,1);
   const res=[];
   let y=sy,m=sm;
-  while(y<endY||(y===endY&&m<=endM)){
+  while(y<ahead.getFullYear()||(y===ahead.getFullYear()&&m<=ahead.getMonth())){
     res.push(new Date(y,m,1));
     m++;if(m>11){m=0;y++;}
   }
   return res;
+}
+function currentTrackingMonthKey(){
+  // Returns the current relevant month for GP reports (min: Junho 2026)
+  const d=new Date();
+  if(d.getFullYear()<2026||(d.getFullYear()===2026&&d.getMonth()<5))return'Junho 2026';
+  return thisMonthKey();
+}
+function getMonthlyAlertHtml(){
+  // Returns alert HTML if today is day 8-10 (2 days before monthly report deadline)
+  const day=new Date().getDate();
+  if(day<8||day>10)return'';
+  const daysLeft=10-day;
+  const mk=currentTrackingMonthKey();
+  const msg=daysLeft===0?`Hoje é o último dia para enviar o relatório mensal de <strong>${mk}</strong>!`
+    :`Falt${daysLeft===1?'a':'am'} <strong>${daysLeft} dia${daysLeft>1?'s':''}</strong> para a entrega do relatório mensal de <strong>${mk}</strong>.`;
+  return`<div style="background:#FEF3C7;border:1px solid #F0D88A;border-radius:8px;padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px;color:#92400E">
+    <span style="font-size:18px">⚠️</span>
+    <span>${msg} Certifique-se de enviar para todos os clientes!</span>
+  </div>`;
 }
 function getFridayOfWeek(dateStr){
   const d=new Date(dateStr+'T12:00:00');
@@ -957,6 +975,7 @@ function rDetail(){
       const cas=c.continuousActivities||[];
       const caColors={ativo:'#16A34A',pausado:'#D97706',inativo:'#9CA3AF'};
       const caBg={ativo:'#DCFCE7',pausado:'#FEF3C7',inativo:'#F3F4F6'};
+      body+=getMonthlyAlertHtml();
       body+=`<div class="card" style="margin-bottom:16px">
         <div class="ch"><h3>🔄 Atividades Contínuas</h3><span style="font-size:11px;color:var(--muted)">Clique para alterar status</span></div>
         <div class="cb" style="display:flex;flex-wrap:wrap;gap:10px">
@@ -1406,7 +1425,7 @@ function getWeeklyPendencies(){
 // ────────────────────────────────────────────────────────────
 function rWeeklyPending(){
   const wk=S.semanaWeekKey||thisWeekKey();
-  const mk=getMonthKey(new Date(wk+'T12:00:00'));
+  const mk=currentTrackingMonthKey();
   const wkDate=new Date(wk+'T12:00:00');
   const wkLabel=wkDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
   // Date picker value = Friday of selected week (yyyy-mm-dd)
@@ -1492,7 +1511,7 @@ function rWeeklyPending(){
 // ────────────────────────────────────────────────────────────
 function rFunc(){
   const wk=thisWeekKey();
-  const mk=thisMonthKey();
+  const mk=currentTrackingMonthKey();
   const cards=D.team.map(m=>{
     const myClients=D.clients.filter(c=>c.assignees.includes(m.name)&&c.contractStatus==='ativo');
     const gpClients=myClients.filter(c=>c.products.includes('Gestão de Perfil'));
@@ -1583,16 +1602,17 @@ function rMinhaSemana(){
   const wk=thisWeekKey();
   const wkDate=new Date(wk+'T12:00:00');
   const wkLabel=wkDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
-  const mk=thisMonthKey();
+  const mk=currentTrackingMonthKey();
   const semanaisDone=myClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
   const mensaisDone=myClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
   const totalLeads=myClients.reduce((sum,c)=>sum+(c.weeklyReports&&c.weeklyReports[wk]?c.weeklyReports[wk].leads||0:0),0);
 
   return`
+  ${getMonthlyAlertHtml()}
   <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
     <div class="stat-card"><div class="stat-val" style="color:var(--primary)">${semanaisDone}/${myClients.length}</div><div class="stat-label">Rel. Semanais enviados</div></div>
     <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalLeads}</div><div class="stat-label">Leads esta semana</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:#D97706">${mensaisDone}/${myClients.length}</div><div class="stat-label">Rel. Mensais enviados</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#D97706">${mensaisDone}/${myClients.length}</div><div class="stat-label">Rel. Mensais (${mk})</div></div>
   </div>
   <div class="card" style="margin-bottom:16px">
     <div class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8);border-radius:8px 8px 0 0">
