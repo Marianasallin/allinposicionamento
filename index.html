@@ -296,10 +296,11 @@ function generateToken(){const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnop
 // DEFAULT DELIVERABLES
 // ────────────────────────────────────────────────────────────
 function gpDels(){return[
-  {id:'gp1',name:'Publicar Conteúdo',product:'Gestão de Perfil',status:'andamento',responsible:'',dueDate:null},
-  {id:'gp2',name:'Preencher Planilha de Leads',product:'Gestão de Perfil',status:'pendente',responsible:'',dueDate:null},
-  {id:'gp3',name:'Enviar Histórico (Perfil)',product:'Gestão de Perfil',status:'pendente',responsible:'',dueDate:null},
-  {id:'gp4',name:'Gestão de Campanha',product:'Gestão de Perfil',status:'pendente',responsible:'',dueDate:null},
+  {id:'gp1',name:'Gestão do Perfil LinkedIn',product:'Gestão de Perfil',status:'andamento',responsible:'',dueDate:null,frequency:'Diário'},
+  {id:'gp2',name:'Gestão das Campanhas (Waalaxy)',product:'Gestão de Perfil',status:'andamento',responsible:'',dueDate:null,frequency:'Contínuo'},
+  {id:'gp3',name:'Relatório Semanal',product:'Gestão de Perfil',status:'andamento',responsible:'',dueDate:null,frequency:'Toda sexta'},
+  {id:'gp4',name:'Relatório Mensal',product:'Gestão de Perfil',status:'andamento',responsible:'',dueDate:null,frequency:'Até dia 10'},
+  {id:'gp5',name:'Leads gerados / encaminhados',product:'Gestão de Perfil',status:'andamento',responsible:'',dueDate:null,frequency:'Contínuo'},
 ]}
 function icDels(){return[
   {id:'ic1',name:'Onboarding',product:'Implementação Comercial',status:'pendente',responsible:'',dueDate:null},
@@ -477,6 +478,22 @@ const ADMIN_PASSWORD='Allin@Time';
 
 // MIGRATE TOKENS - Ensure all clients have tokens
 D.clients.forEach(c=>{if(!c.token)c.token=generateToken();});
+
+// MIGRATE GP DELIVERABLES — Replace old default GP deliverables with real ones (Mai/2026)
+{
+  const oldIds=new Set(['gp1','gp2','gp3','gp4']);
+  const newDels=gpDels();
+  D.clients.forEach(c=>{
+    if(!c.products.includes('Gestão de Perfil'))return;
+    const gpDels_cur=c.deliverables.filter(d=>d.product==='Gestão de Perfil');
+    // Only replace if client has old default GP deliverables (by checking IDs)
+    const hasOld=gpDels_cur.some(d=>oldIds.has(d.id)&&(d.name==='Publicar Conteúdo'||d.name==='Preencher Planilha de Leads'||d.name==='Enviar Histórico (Perfil)'||d.name==='Gestão de Campanha'));
+    if(hasOld){
+      // Keep non-GP deliverables (IC), replace GP ones
+      c.deliverables=c.deliverables.filter(d=>d.product!=='Gestão de Perfil').concat(newDels.map(d=>({...d})));
+    }
+  });
+}
 
 // MIGRATE ASSIGNEES — Update client portfolios based on team info (Mai/2026)
 {
@@ -881,7 +898,7 @@ function rDetail(){
         </div>
         <div class="tw"><table><thead><tr><th>Entrega</th><th>Data de Vencimento</th><th>Responsável</th><th>Status</th></tr></thead><tbody>
           ${dels.map(d=>`<tr>
-            <td>${d.name}</td>
+            <td><div style="display:flex;align-items:center;gap:6px">${d.name}${d.frequency?`<span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:99px;background:#EFF6FF;color:#3B82F6;white-space:nowrap">${d.frequency}</span>`:''}</div></td>
             <td><input type="date" class="mini" value="${d.dueDate||''}" onchange="updDel('${c.id}','${d.id}','dueDate',this.value)" style="width:130px"><span style="font-size:10px;color:var(--muted);margin-left:8px">${getDayStr(d)}</span></td>
             <td><select class="mini" onchange="updDel('${c.id}','${d.id}','responsible',this.value)">
               <option value="">— Selecionar —</option>
