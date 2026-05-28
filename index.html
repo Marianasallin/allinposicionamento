@@ -254,6 +254,7 @@ input.mini:focus{outline:none;border-color:var(--primary)}
     <div class="ni active" onclick="nav('dash')"><span class="ni-icon">📊</span><span>Dashboard</span></div>
     <div class="ni" onclick="nav('clients',{clientId:null})"><span class="ni-icon">👥</span><span>Clientes</span></div>
     <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Pendências da Semana</span></div>
+    <div class="ni" onclick="nav('minhasamana')"><span class="ni-icon">⚡</span><span>Minha Semana</span></div>
     <div class="ni" onclick="nav('func')"><span class="ni-icon">👩‍💼</span><span>Por Funcionária</span></div>
     <div class="ni" onclick="nav('team')"><span class="ni-icon">🤝</span><span>Time</span></div>
     <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
@@ -293,6 +294,17 @@ function toast(m){const t=$('toast');t.textContent=m;t.style.opacity='1';setTime
 function generateToken(){const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';let token='';for(let i=0;i<16;i++)token+=chars.charAt(Math.floor(Math.random()*chars.length));return token}
 
 // ────────────────────────────────────────────────────────────
+// REPORT HELPERS
+// ────────────────────────────────────────────────────────────
+function getCurrentFriday(){const d=new Date(),day=d.getDay(),diff=day===5?0:day<5?5-day:5+(7-day);d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d;}
+function getWeekKey(d){return d.toISOString().slice(0,10);}
+function getMonthKey(d){const ms=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];return ms[d.getMonth()]+' '+d.getFullYear();}
+function thisWeekKey(){return getWeekKey(getCurrentFriday());}
+function thisMonthKey(){return getMonthKey(new Date());}
+function lastNFridays(n){const f=getCurrentFriday(),res=[];for(let i=n-1;i>=0;i--){const d=new Date(f);d.setDate(d.getDate()-i*7);res.push(d);}return res;}
+function lastNMonths(n){const t=new Date(),res=[];for(let i=n-1;i>=0;i--){res.push(new Date(t.getFullYear(),t.getMonth()-i,1));}return res;}
+
+// ────────────────────────────────────────────────────────────
 // DEFAULT DELIVERABLES
 // ────────────────────────────────────────────────────────────
 function gpDels(){return[
@@ -319,7 +331,14 @@ function mkClient(name,i,products,contractStatus,contractDue,assignees,customDel
     contractDue:contractDue||null,assignees:assignees||[],deliverables:dels,
     monthlyContent:{'Maio 2026':{'1ª Semana':'pendente','2ª Semana':'pendente','3ª Semana':'pendente','4ª Semana':'pendente'}},
     encounters:{list:[]},arts:[],notes:'',email:'',phone:'',linkedin:'',startDate:'',birthday:'',
-    nicho:'',cnpj:'',address:'',contractValue:'',paymentMethod:'',paymentStatus:'em-dia',results:[],mainOwner:'',token:generateToken()}
+    nicho:'',cnpj:'',address:'',contractValue:'',paymentMethod:'',paymentStatus:'em-dia',results:[],mainOwner:'',token:generateToken(),
+    weeklyReports:{},
+    monthlyReports:{},
+    continuousActivities:products.includes('Gestão de Perfil')?[
+      {id:'ca1',name:'Gestão do Perfil LinkedIn',status:'ativo'},
+      {id:'ca2',name:'Gestão das Campanhas (Waalaxy)',status:'ativo'},
+      {id:'ca3',name:'Leads gerados / encaminhados',status:'ativo'},
+    ]:[]}
 }
 
 // ────────────────────────────────────────────────────────────
@@ -495,6 +514,19 @@ D.clients.forEach(c=>{if(!c.token)c.token=generateToken();});
   });
 }
 
+// MIGRATE REPORTS & CONTINUOUS — Add new fields to existing clients (Mai/2026)
+D.clients.forEach(c=>{
+  if(!c.weeklyReports)c.weeklyReports={};
+  if(!c.monthlyReports)c.monthlyReports={};
+  if(!c.continuousActivities){
+    c.continuousActivities=c.products&&c.products.includes('Gestão de Perfil')?[
+      {id:'ca1',name:'Gestão do Perfil LinkedIn',status:'ativo'},
+      {id:'ca2',name:'Gestão das Campanhas (Waalaxy)',status:'ativo'},
+      {id:'ca3',name:'Leads gerados / encaminhados',status:'ativo'},
+    ]:[];
+  }
+});
+
 // MIGRATE ASSIGNEES — Update client portfolios based on team info (Mai/2026)
 {
   const _asgn={
@@ -606,8 +638,8 @@ save();
 function nav(view,extra={}){
   if(S.view==='team')S.teamAuth=false;
   Object.assign(S,{view},extra);
-  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dash','clients','semana','func','team'][i]===view));
-  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',semana:'Pendências da Semana',func:'Por Funcionária',team:'Gestão de Time'};
+  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dash','clients','semana','minhasamana','func','team'][i]===view));
+  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',semana:'Pendências da Semana',minhasamana:'Minha Semana',func:'Por Funcionária',team:'Gestão de Time'};
   $('ttitle').textContent=titles[view]||view;
   render();
 }
@@ -638,7 +670,7 @@ function render(){
   const sbFooter=$('sb-user-info');
   if(sbFooter) sbFooter.innerHTML=`${S.currentUser.name}<br><span style="font-size:10px;opacity:.7">${S.currentUser.role||'ALL IN'}</span>`;
   // Normal admin views
-  $('view').innerHTML={dash:rDash,clients:rClients,semana:rWeeklyPending,func:rFunc,team:rTeam,clientView:rClientView}[S.view]();
+  $('view').innerHTML={dash:rDash,clients:rClients,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rFunc,team:rTeam,clientView:rClientView}[S.view]();
 }
 
 // ────────────────────────────────────────────────────────────
@@ -866,49 +898,122 @@ function rClients(){
 function rDetail(){
   const c=getC();if(!c)return'';
   const p=prog(c);
-  const tabs={entregas:'📦 Entregas',conteudo:'📅 Conteúdo Mensal',encontros:'🤝 Encontros',artes:'📱 Artes',portal:'👁️ Portal do Cliente',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
+  const tabs={entregas:'📦 Entregas',conteudo:'📅 Conteúdo Mensal',encontros:'🤝 Encontros',artes:'📱 Artes',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
   const tabHtml=Object.entries(tabs).map(([k,v])=>`<div class="tab ${S.tab===k?'active':''}" onclick="S.tab='${k}';render()">${v}</div>`).join('');
   const statusMap={ativo:'pill-ativo',vencido:'pill-vencido',finalizado:'pill-finalizado'};
   let body='';
 
   if(S.tab==='entregas'){
-    const filterKey='delFilter_'+c.id;const f=localStorage.getItem(filterKey)||'todas';
-    const prods=[...new Set(c.deliverables.map(d=>d.product))];
-    const getFiltered=dels=>{
-      if(f==='atrasadas')return dels.filter(d=>getDaysUntil(d.dueDate)<0);
-      if(f==='proximas')return dels.filter(d=>{const dy=getDaysUntil(d.dueDate);return dy!==null&&dy>=0&&dy<=7});
-      return dels;
-    };
-    const getDayStr=d=>{const dy=getDaysUntil(d.dueDate);if(dy===null)return'—';if(dy<0)return`${Math.abs(dy)}d atrasado`;if(dy===0)return'Hoje';if(dy===1)return'Amanhã';return`${dy}d`;};
-    body=`<div style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn ${f==='todas'?'btn-p':'btn-o'} btn-s" onclick="localStorage.setItem('delFilter_${c.id}','todas');render()">Todas</button>
-      <button class="btn ${f==='atrasadas'?'btn-p':'btn-o'} btn-s" onclick="localStorage.setItem('delFilter_${c.id}','atrasadas');render()">🔴 Atrasadas</button>
-      <button class="btn ${f==='proximas'?'btn-p':'btn-o'} btn-s" onclick="localStorage.setItem('delFilter_${c.id}','proximas');render()">⏰ Próximas (7 dias)</button>
-    </div>`;
-    body+=prods.map(prod=>{
-      let dels=c.deliverables.filter(d=>d.product===prod);dels=getFiltered(dels);
-      dels.sort((a,b)=>{const da=getDaysUntil(a.dueDate),db=getDaysUntil(b.dueDate);if(da===null&&db===null)return 0;if(da===null)return 1;if(db===null)return-1;return da-db;});
-      const pct=Math.round(c.deliverables.filter(d=>d.product===prod&&d.status==='concluido').length/c.deliverables.filter(d=>d.product===prod).length*100);
-      return`<div class="card" style="margin-bottom:16px">
-        <div class="ch"><h3>📦 ${prod}</h3>
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:11px;color:var(--muted)">${c.deliverables.filter(d=>d.product===prod&&d.status==='concluido').length}/${c.deliverables.filter(d=>d.product===prod).length}</span>
-            <div style="width:70px;background:#E5E7EB;border-radius:99px;height:5px"><div style="width:${pct}%;height:5px;border-radius:99px;background:${c.color}"></div></div>
-          </div>
+    const hasGP=c.products.includes('Gestão de Perfil');
+    const hasIC=c.products.includes('Implementação Comercial');
+    body='';
+
+    if(hasGP){
+      // SECTION 1: Continuous Activities
+      const cas=c.continuousActivities||[];
+      const caColors={ativo:'#16A34A',pausado:'#D97706',inativo:'#9CA3AF'};
+      const caBg={ativo:'#DCFCE7',pausado:'#FEF3C7',inativo:'#F3F4F6'};
+      body+=`<div class="card" style="margin-bottom:16px">
+        <div class="ch"><h3>🔄 Atividades Contínuas</h3><span style="font-size:11px;color:var(--muted)">Clique para alterar status</span></div>
+        <div class="cb" style="display:flex;flex-wrap:wrap;gap:10px">
+          ${cas.map(ca=>`<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:${caBg[ca.status]};border-radius:8px;cursor:pointer;border:1px solid ${caColors[ca.status]}20" onclick="cycleContinuous('${c.id}','${ca.id}')">
+            <span style="width:8px;height:8px;border-radius:50%;background:${caColors[ca.status]};display:inline-block"></span>
+            <span style="font-size:13px;font-weight:500;color:${caColors[ca.status]}">${ca.name}</span>
+            <span style="font-size:11px;color:${caColors[ca.status]};opacity:.8">${{ativo:'Ativo',pausado:'Pausado',inativo:'Inativo'}[ca.status]} ↻</span>
+          </div>`).join('')}
         </div>
-        <div class="tw"><table><thead><tr><th>Entrega</th><th>Data de Vencimento</th><th>Responsável</th><th>Status</th></tr></thead><tbody>
-          ${dels.map(d=>`<tr>
-            <td><div style="display:flex;align-items:center;gap:6px">${d.name}${d.frequency?`<span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:99px;background:#EFF6FF;color:#3B82F6;white-space:nowrap">${d.frequency}</span>`:''}</div></td>
-            <td><input type="date" class="mini" value="${d.dueDate||''}" onchange="updDel('${c.id}','${d.id}','dueDate',this.value)" style="width:130px"><span style="font-size:10px;color:var(--muted);margin-left:8px">${getDayStr(d)}</span></td>
-            <td><select class="mini" onchange="updDel('${c.id}','${d.id}','responsible',this.value)">
-              <option value="">— Selecionar —</option>
-              ${TEAM_NAMES().map(n=>`<option value="${n}" ${d.responsible===n?'selected':''}>${n.split(' ')[0]}</option>`).join('')}
-            </select></td>
-            <td><span class="badge ${getDelClassByDate(d)}" onclick="cycleDel('${c.id}','${d.id}')" title="Clique para alterar">${getDelStatusByDate(d)==='atrasado'?'❌ Atrasado':SL(d.status)} ↻</span></td>
-          </tr>`).join('')}
+      </div>`;
+
+      // SECTION 2: Relatório Semanal
+      const fridays=lastNFridays(8);
+      const wk=thisWeekKey();
+      body+=`<div class="card" style="margin-bottom:16px">
+        <div class="ch"><h3>📊 Relatório Semanal <span style="font-size:11px;font-weight:400;color:var(--muted)">— toda sexta</span></h3></div>
+        <div class="tw"><table><thead><tr><th>Semana (sexta)</th><th>Enviado?</th><th>Leads</th><th>Arquivo / Link</th></tr></thead><tbody>
+          ${fridays.map(fri=>{
+            const key=getWeekKey(fri);
+            const wr=(c.weeklyReports&&c.weeklyReports[key])||{done:false,file:null,link:'',leads:0};
+            const isCurrent=key===wk;
+            const label=fri.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+            const statusColor=wr.done?(wr.file||wr.link)?'#16A34A':'#D97706':'#9CA3AF';
+            const statusText=wr.done?(wr.file||wr.link)?'✅ Enviado':'⚠️ Sem arquivo':'⏳ Pendente';
+            return`<tr style="${isCurrent?'background:#EFF6FF;':''}">
+              <td><span style="font-size:12px;font-weight:${isCurrent?700:400}">${label}${isCurrent?' ← esta semana':''}</span></td>
+              <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                <input type="checkbox" onchange="toggleWeeklyReport('${c.id}','${key}',this.checked)" ${wr.done?'checked':''}>
+                <span style="font-size:11px;color:${statusColor}">${statusText}</span>
+              </label></td>
+              <td><input type="number" class="mini" min="0" value="${wr.leads||0}" style="width:65px" onblur="updateWeeklyLeads('${c.id}','${key}',this.value)" placeholder="0"></td>
+              <td style="display:flex;gap:6px;align-items:center">
+                ${wr.file?`<span style="font-size:11px;color:var(--primary);cursor:pointer" onclick="downloadRepFile('${c.id}','weekly','${key}')">📎 ${wr.file.name.substring(0,18)}...</span>`:''}
+                ${wr.link?`<a href="${wr.link}" target="_blank" style="font-size:11px;color:var(--primary)">🔗 Ver</a>`:''}
+                ${!wr.file?`<input class="mini" type="url" placeholder="Link..." style="width:110px" value="${wr.link||''}" onblur="updateWeekReportLink('${c.id}','${key}',this.value)">`:''}
+                <button class="btn btn-o btn-s" onclick="document.getElementById('wrf-${c.id}-${key}').click()" title="Upload arquivo">📎</button>
+                <input type="file" id="wrf-${c.id}-${key}" style="display:none" accept=".pdf,.jpg,.png,.doc,.docx" onchange="uploadReportFile('${c.id}','weekly','${key}',this)">
+              </td>
+            </tr>`;
+          }).join('')}
         </tbody></table></div>
       </div>`;
-    }).join('');
+
+      // SECTION 3: Relatório Mensal
+      const months=lastNMonths(6);
+      const currMonth=thisMonthKey();
+      body+=`<div class="card" style="margin-bottom:16px">
+        <div class="ch"><h3>📅 Relatório Mensal <span style="font-size:11px;font-weight:400;color:var(--muted)">— até dia 10</span></h3></div>
+        <div class="tw"><table><thead><tr><th>Mês</th><th>Enviado?</th><th>Arquivo / Link</th></tr></thead><tbody>
+          ${months.map(m=>{
+            const key=getMonthKey(m);
+            const mr=(c.monthlyReports&&c.monthlyReports[key])||{done:false,file:null,link:''};
+            const isCurrent=key===currMonth;
+            const statusColor=mr.done?(mr.file||mr.link)?'#16A34A':'#D97706':'#9CA3AF';
+            const statusText=mr.done?(mr.file||mr.link)?'✅ Enviado':'⚠️ Sem arquivo':'⏳ Pendente';
+            return`<tr style="${isCurrent?'background:#EFF6FF;':''}">
+              <td><span style="font-size:12px;font-weight:${isCurrent?700:400}">${key}${isCurrent?' ← este mês':''}</span></td>
+              <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                <input type="checkbox" onchange="toggleMonthlyReport('${c.id}','${key}',this.checked)" ${mr.done?'checked':''}>
+                <span style="font-size:11px;color:${statusColor}">${statusText}</span>
+              </label></td>
+              <td style="display:flex;gap:6px;align-items:center">
+                ${mr.file?`<span style="font-size:11px;color:var(--primary);cursor:pointer" onclick="downloadRepFile('${c.id}','monthly','${key}')">📎 ${mr.file.name.substring(0,18)}...</span>`:''}
+                ${mr.link?`<a href="${mr.link}" target="_blank" style="font-size:11px;color:var(--primary)">🔗 Ver</a>`:''}
+                ${!mr.file?`<input class="mini" type="url" placeholder="Link..." style="width:110px" value="${mr.link||''}" onblur="updateMonthReportLink('${c.id}','${key}',this.value)">`:''}
+                <button class="btn btn-o btn-s" onclick="document.getElementById('mrf-${c.id}-${key.replace(/\s/g,'_')}').click()" title="Upload">📎</button>
+                <input type="file" id="mrf-${c.id}-${key.replace(/\s/g,'_')}" style="display:none" accept=".pdf,.jpg,.png,.doc,.docx" onchange="uploadReportFile('${c.id}','monthly','${key}',this)">
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody></table></div>
+      </div>`;
+    }
+
+    // IC milestones (kept for IC clients)
+    if(hasIC){
+      const icDels=c.deliverables.filter(d=>d.product==='Implementação Comercial');
+      if(icDels.length){
+        const getDayStr=d=>{const dy=getDaysUntil(d.dueDate);if(dy===null)return'—';if(dy<0)return`${Math.abs(dy)}d atrasado`;if(dy===0)return'Hoje';if(dy===1)return'Amanhã';return`${dy}d`;};
+        const pct=Math.round(icDels.filter(d=>d.status==='concluido').length/icDels.length*100);
+        body+=`<div class="card">
+          <div class="ch"><h3>🏆 Implementação Comercial — Marcos</h3>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:11px;color:var(--muted)">${icDels.filter(d=>d.status==='concluido').length}/${icDels.length}</span>
+              <div style="width:70px;background:#E5E7EB;border-radius:99px;height:5px"><div style="width:${pct}%;height:5px;border-radius:99px;background:var(--primary)"></div></div>
+            </div>
+          </div>
+          <div class="tw"><table><thead><tr><th>Entrega</th><th>Vencimento</th><th>Responsável</th><th>Status</th></tr></thead><tbody>
+            ${icDels.map(d=>`<tr>
+              <td>${d.name}</td>
+              <td><input type="date" class="mini" value="${d.dueDate||''}" onchange="updDel('${c.id}','${d.id}','dueDate',this.value)" style="width:130px"><span style="font-size:10px;color:var(--muted);margin-left:8px">${getDayStr(d)}</span></td>
+              <td><select class="mini" onchange="updDel('${c.id}','${d.id}','responsible',this.value)">
+                <option value="">— Selecionar —</option>
+                ${TEAM_NAMES().map(n=>`<option value="${n}" ${d.responsible===n?'selected':''}>${n.split(' ')[0]}</option>`).join('')}
+              </select></td>
+              <td><span class="badge ${getDelClassByDate(d)}" onclick="cycleDel('${c.id}','${d.id}')" title="Clique para alterar">${getDelStatusByDate(d)==='atrasado'?'❌ Atrasado':SL(d.status)} ↻</span></td>
+            </tr>`).join('')}
+          </tbody></table></div>
+        </div>`;
+      }
+    }
   }
   else if(S.tab==='conteudo'){
     const months=Object.keys(c.monthlyContent);
@@ -1254,48 +1359,75 @@ function getWeeklyPendencies(){
 // WEEKLY PENDING
 // ────────────────────────────────────────────────────────────
 function rWeeklyPending(){
-  const grouped=getWeeklyPendencies();
-  const assignees=Object.keys(grouped).sort();
-  const getDayColor=d=>{const days=getDaysUntil(d.dueDate);if(days<0)return'var(--red)';if(days<=2)return'var(--red)';if(days<=5)return'var(--yellow)';return'var(--green)'};
-  const getDayBg=d=>{const days=getDaysUntil(d.dueDate);if(days<0)return'var(--rbg)';if(days<=2)return'var(--rbg)';if(days<=5)return'var(--ybg)';return'var(--gbg)'};
-  const getDayLabel=d=>{const days=getDaysUntil(d.dueDate);if(days<0)return`${Math.abs(days)}d atrasado`;if(days===0)return'Hoje';if(days===1)return'Amanhã';return`${days}d`;};
+  const wk=thisWeekKey();
+  const mk=thisMonthKey();
+  const wkDate=new Date(wk+'T12:00:00');
+  const wkLabel=wkDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
 
-  const html=assignees.map(assignee=>{
-    const clientsObj=grouped[assignee];
-    const clientIds=Object.keys(clientsObj);
-    const clientCards=clientIds.map(cid=>{
-      const info=clientsObj[cid];
-      const c=info.client;
-      const dels=info.deliverables.sort((a,b)=>getDaysUntil(a.dueDate)-getDaysUntil(b.dueDate));
-      return `<div style="margin-left:20px;margin-bottom:12px">
-        <div style="padding:8px 12px;background:#F9FAFB;border-radius:6px;border-left:3px solid ${c.color};margin-bottom:8px">
-          <div style="font-weight:600;color:var(--text)">${c.name}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">${dels.length} pendente${dels.length!==1?'s':''}</div>
-        </div>
-        ${dels.map(d=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 12px;background:white;border:1px solid var(--border);border-radius:6px;margin-bottom:6px">
-          <div style="flex:1">
-            <div style="font-size:12px;font-weight:500;color:var(--text)">${d.name}</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">${d.product}</div>
-          </div>
-          <div style="padding:3px 8px;background:${getDayBg(d)};color:${getDayColor(d)};border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">📅 ${getDayLabel(d)}</div>
-        </div>`).join('')}
-      </div>`;
-    }).join('');
-    return `<div class="card" style="margin-bottom:16px">
+  const totalClients=D.clients.filter(c=>c.contractStatus!=='inativo'&&c.products.includes('Gestão de Perfil'));
+
+  const allSemanaisDone=totalClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
+  const allMensaisDone=totalClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
+  const totalLeads=totalClients.reduce((sum,c)=>sum+(c.weeklyReports&&c.weeklyReports[wk]?c.weeklyReports[wk].leads||0:0),0);
+
+  const memberCards=D.team.filter(m=>m.id!=='mariana-souza'&&m.id!=='naiara-faria').map(member=>{
+    const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(member.name)&&c.contractStatus!=='inativo'&&c.products.includes('Gestão de Perfil'));
+    if(!myClients.length)return'';
+    const semDone=myClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
+    const menDone=myClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
+    const leads=myClients.reduce((s,c)=>s+(c.weeklyReports&&c.weeklyReports[wk]?c.weeklyReports[wk].leads||0:0),0);
+    const allOk=semDone===myClients.length&&menDone===myClients.length;
+
+    return`<div class="card" style="margin-bottom:16px">
       <div class="ch" style="background:#F9FAFB">
-        <h3 style="margin:0">👤 ${assignee}</h3>
-        <span style="font-size:11px;color:var(--muted);background:white;padding:2px 8px;border-radius:12px">${Object.values(clientsObj).flatMap(o=>o.deliverables).length} pendentes</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="av av-s" style="background:${member.color}">${member.initials}</div>
+          <div>
+            <h3 style="margin:0;font-size:14px">${member.name.split(' ')[0]} ${member.name.split(' ')[1]||''}</h3>
+            <div style="font-size:11px;color:var(--muted)">${myClients.length} clientes</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;align-items:center">
+          <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:${semDone===myClients.length?'#16A34A':'#D97706'}">${semDone}/${myClients.length}</div><div style="font-size:10px;color:var(--muted)">Semanais</div></div>
+          <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#3B82F6">${leads}</div><div style="font-size:10px;color:var(--muted)">Leads</div></div>
+          <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:${menDone===myClients.length?'#16A34A':'#D97706'}">${menDone}/${myClients.length}</div><div style="font-size:10px;color:var(--muted)">Mensais</div></div>
+          <span style="padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600;background:${allOk?'#DCFCE7':'#FEF3C7'};color:${allOk?'#16A34A':'#D97706'}">${allOk?'✅ Em dia':'⚠️ Pendências'}</span>
+        </div>
       </div>
-      <div class="cb" style="padding:12px">${clientCards}</div>
+      <div class="tw"><table>
+        <thead><tr><th>Cliente</th><th>Rel. Semanal</th><th>Leads</th><th>Rel. Mensal</th><th>Contínuos</th></tr></thead>
+        <tbody>
+          ${myClients.map(c=>{
+            const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,file:null,link:'',leads:0};
+            const mr=(c.monthlyReports&&c.monthlyReports[mk])||{done:false,file:null,link:''};
+            const cas=c.continuousActivities||[];
+            const activosCount=cas.filter(a=>a.status==='ativo').length;
+            const wrColor=wr.done?(wr.file||wr.link)?'#16A34A':'#D97706':'#9CA3AF';
+            const mrColor=mr.done?(mr.file||mr.link)?'#16A34A':'#D97706':'#9CA3AF';
+            const wrStatus=wr.done?(wr.file||wr.link)?'✅':'⚠️':'⏳';
+            const mrStatus=mr.done?(mr.file||mr.link)?'✅':'⚠️':'⏳';
+            return`<tr onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})" style="cursor:pointer">
+              <td><div style="font-weight:500;font-size:12px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
+              <td><span style="font-size:13px;color:${wrColor}">${wrStatus} ${wr.done?'Enviado':'Pendente'}</span>${wr.done&&!wr.file&&!wr.link?'<span style="font-size:10px;color:#D97706"> sem arquivo</span>':''}</td>
+              <td><span style="font-weight:600;color:#3B82F6">${wr.leads||0}</span></td>
+              <td><span style="font-size:13px;color:${mrColor}">${mrStatus} ${mr.done?'Enviado':'Pendente'}</span>${mr.done&&!mr.file&&!mr.link?'<span style="font-size:10px;color:#D97706"> sem arquivo</span>':''}</td>
+              <td><span style="font-size:11px;color:${activosCount===cas.length?'#16A34A':'#D97706'}">${activosCount}/${cas.length} ativos</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>
     </div>`;
   }).join('');
 
-  return `<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
-    <div class="stat"><div class="stat-num" style="color:var(--red)">${Object.values(grouped).flatMap(a=>Object.values(a).flatMap(c=>c.deliverables.filter(d=>getDaysUntil(d.dueDate)<0))).length}</div><div class="stat-lbl">Atrasadas</div></div>
-    <div class="stat"><div class="stat-num" style="color:var(--yellow)">${Object.values(grouped).flatMap(a=>Object.values(a).flatMap(c=>c.deliverables.filter(d=>{const dy=getDaysUntil(d.dueDate);return dy!==null&&dy>=0&&dy<=3}))).length}</div><div class="stat-lbl">Críticas (≤3d)</div></div>
-    <div class="stat"><div class="stat-num" style="color:var(--green)">${Object.values(grouped).flatMap(a=>Object.values(a).flatMap(c=>c.deliverables)).length}</div><div class="stat-lbl">Total Pendentes</div></div>
+  return`<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+    <div class="stat-card"><div class="stat-val">${allSemanaisDone}/${totalClients.length}</div><div class="stat-label">Rel. Semanais da semana</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalLeads}</div><div class="stat-label">Total de leads</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#D97706">${allMensaisDone}/${totalClients.length}</div><div class="stat-label">Rel. Mensais (${mk})</div></div>
   </div>
-  ${html||'<div style="padding:40px;text-align:center;color:var(--muted)">Nenhuma pendência para esta semana! ✨</div>'}`;
+  <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 16px;margin-bottom:20px;font-size:13px;color:#1D4ED8">
+    📅 <strong>Reunião de Sexta</strong> — Semana ${wkLabel} &nbsp;|&nbsp; ${D.clients.filter(c=>c.contractStatus!=='inativo').length} clientes ativos
+  </div>
+  ${memberCards||'<div class="card"><p style="color:var(--muted)">Nenhuma funcionária com clientes atribuídos.</p></div>'}`;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -1365,6 +1497,65 @@ function rFunc(){
   ${unassigned>0?`<div class="card" style="margin-bottom:18px;border-color:var(--border)"><div class="ch" style="background:#FFFBEB"><h3>⚠️ ${unassigned} clientes sem responsável atribuído</h3><button class="btn btn-o btn-s" onclick="nav('clients')">Atribuir agora →</button></div></div>`:''}
   <div class="sh"><h2>Visão por Funcionária</h2></div>
   <div class="grid2">${cards}</div>`;
+}
+
+// ────────────────────────────────────────────────────────────
+// MINHA SEMANA
+// ────────────────────────────────────────────────────────────
+function rMinhaSemana(){
+  const user=S.currentUser;
+  if(!user)return'<div class="card"><p>Faça login para ver sua semana.</p></div>';
+  const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(user.name)&&c.contractStatus!=='inativo'&&c.products.includes('Gestão de Perfil'));
+  const wk=thisWeekKey();
+  const wkDate=new Date(wk+'T12:00:00');
+  const wkLabel=wkDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const mk=thisMonthKey();
+  const semanaisDone=myClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
+  const mensaisDone=myClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
+  const totalLeads=myClients.reduce((sum,c)=>sum+(c.weeklyReports&&c.weeklyReports[wk]?c.weeklyReports[wk].leads||0:0),0);
+
+  return`
+  <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+    <div class="stat-card"><div class="stat-val" style="color:var(--primary)">${semanaisDone}/${myClients.length}</div><div class="stat-label">Rel. Semanais enviados</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalLeads}</div><div class="stat-label">Leads esta semana</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#D97706">${mensaisDone}/${myClients.length}</div><div class="stat-label">Rel. Mensais enviados</div></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8);border-radius:8px 8px 0 0">
+      <h3 style="margin:0;color:white">⚡ Minha Semana — Sexta ${wkLabel}</h3>
+      <span style="font-size:12px;color:rgba(255,255,255,.8)">${myClients.length} clientes</span>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>Cliente</th><th>Rel. Semanal</th><th>Leads</th><th>Arquivo/Link Semanal</th><th>Rel. Mensal (${mk})</th></tr></thead>
+      <tbody>
+        ${myClients.map(c=>{
+          const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,file:null,link:'',leads:0};
+          const mr=(c.monthlyReports&&c.monthlyReports[mk])||{done:false,file:null,link:''};
+          return`<tr>
+            <td><div style="font-weight:600;font-size:13px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
+            <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" onchange="toggleWeeklyReport('${c.id}','${wk}',this.checked)" ${wr.done?'checked':''}>
+              <span style="font-size:11px;color:${wr.done?'#16A34A':'#9CA3AF'}">${wr.done?'✅ Enviado':'⏳ Pendente'}</span>
+            </label></td>
+            <td><input type="number" class="mini" min="0" value="${wr.leads||0}" style="width:65px;text-align:center" onblur="updateWeeklyLeads('${c.id}','${wk}',this.value)" placeholder="0"></td>
+            <td>
+              ${wr.file?`<span style="font-size:11px;color:var(--primary);cursor:pointer" onclick="downloadRepFile('${c.id}','weekly','${wk}')">📎 ${wr.file.name.substring(0,15)}...</span>`:
+                wr.link?`<a href="${wr.link}" target="_blank" style="font-size:11px;color:var(--primary)">🔗 Link</a>`:''}
+              <div style="display:flex;gap:4px;margin-top:4px">
+                <button class="btn btn-o btn-s" onclick="document.getElementById('ms-wf-${c.id}').click()">📎 Arquivo</button>
+                <input type="file" id="ms-wf-${c.id}" style="display:none" accept=".pdf,.jpg,.png,.doc,.docx" onchange="uploadReportFile('${c.id}','weekly','${wk}',this)">
+                <input class="mini" type="url" placeholder="ou Link..." style="width:90px" value="${wr.link||''}" onblur="updateWeekReportLink('${c.id}','${wk}',this.value)">
+              </div>
+            </td>
+            <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" onchange="toggleMonthlyReport('${c.id}','${mk}',this.checked)" ${mr.done?'checked':''}>
+              <span style="font-size:11px;color:${mr.done?'#16A34A':'#9CA3AF'}">${mr.done?(mr.file||mr.link)?'✅ Enviado':'⚠️ Sem arquivo':'⏳ Pendente'}</span>
+            </label></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+  </div>`;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -1576,6 +1767,28 @@ function verifyTeamPwd(){
 }
 function cycleDel(cid,did){const d=D.clients.find(c=>c.id===cid).deliverables.find(d=>d.id===did);d.status=CS(d.status);save();render()}
 function updDel(cid,did,f,v){D.clients.find(c=>c.id===cid).deliverables.find(d=>d.id===did)[f]=v;save()}
+function cycleContinuous(cid,caId){const c=D.clients.find(c=>c.id===cid);const ca=c.continuousActivities.find(a=>a.id===caId);const s=['ativo','pausado','inativo'];ca.status=s[(s.indexOf(ca.status)+1)%s.length];save();render();}
+function toggleWeeklyReport(cid,wk,done){const c=D.clients.find(c=>c.id===cid);if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,file:null,link:'',leads:0};c.weeklyReports[wk].done=done;save();render();}
+function toggleMonthlyReport(cid,mk,done){const c=D.clients.find(c=>c.id===cid);if(!c.monthlyReports[mk])c.monthlyReports[mk]={done:false,file:null,link:''};c.monthlyReports[mk].done=done;save();render();}
+function updateWeeklyLeads(cid,wk,v){const c=D.clients.find(c=>c.id===cid);if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,file:null,link:'',leads:0};c.weeklyReports[wk].leads=parseInt(v)||0;save();}
+function updateWeekReportLink(cid,wk,v){const c=D.clients.find(c=>c.id===cid);if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,file:null,link:'',leads:0};c.weeklyReports[wk].link=v;save();}
+function updateMonthReportLink(cid,mk,v){const c=D.clients.find(c=>c.id===cid);if(!c.monthlyReports[mk])c.monthlyReports[mk]={done:false,file:null,link:''};c.monthlyReports[mk].link=v;save();}
+function uploadReportFile(cid,type,key,input){
+  const f=input.files[0];if(!f)return;
+  const c=D.clients.find(c=>c.id===cid);
+  const reader=new FileReader();
+  reader.onload=e=>{
+    if(type==='weekly'){if(!c.weeklyReports[key])c.weeklyReports[key]={done:true,file:null,link:'',leads:0};c.weeklyReports[key].file={name:f.name,type:f.type,data:e.target.result};c.weeklyReports[key].done=true;}
+    else{if(!c.monthlyReports[key])c.monthlyReports[key]={done:true,file:null,link:''};c.monthlyReports[key].file={name:f.name,type:f.type,data:e.target.result};c.monthlyReports[key].done=true;}
+    save();render();toast('📎 Arquivo enviado!');
+  };
+  reader.readAsDataURL(f);
+}
+function downloadRepFile(cid,type,key){
+  const c=D.clients.find(c=>c.id===cid);
+  const obj=type==='weekly'?c.weeklyReports[key]:c.monthlyReports[key];
+  if(obj&&obj.file){const a=document.createElement('a');a.href=obj.file.data;a.download=obj.file.name;a.click();}
+}
 function cycleWeek(cid,m,wk){const c=D.clients.find(c=>c.id===cid);c.monthlyContent[m][wk]=CS(c.monthlyContent[m][wk]);save();render()}
 function toggleEnc(cid,n){const c=D.clients.find(c=>c.id===cid);c.encounters.completed=c.encounters.completed>=n?n-1:n;if(c.encounters.completed<0)c.encounters.completed=0;save();render()}
 function addMonth(cid){const m=prompt('Nome do mês (ex: Junho 2026):');if(!m)return;D.clients.find(c=>c.id===cid).monthlyContent[m]={'1ª Semana':'pendente','2ª Semana':'pendente','3ª Semana':'pendente','4ª Semana':'pendente'};save();render()}
