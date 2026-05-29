@@ -1315,10 +1315,10 @@ function rDetail(){
             <option value="cancelado" ${c.paymentStatus==='cancelado'?'selected':''}>Cancelado</option>
           </select>
         </div>
-        <div class="fg"><label>Responsável Principal da Carteira</label>
-          <select id="ct-mo">
-            <option value="">— Selecionar —</option>
-            ${TEAM_NAMES().map(n=>`<option value="${n}" ${c.mainOwner===n?'selected':''}>${n.split(' ')[0]} ${n.split(' ').slice(-1)[0]}</option>`).join('')}
+        <div class="fg"><label>Social Seller Responsável 👤</label>
+          <select id="ct-asgn">
+            <option value="">— Sem responsável —</option>
+            ${D.team.filter(m=>m.role==='Social Seller'||m.role==='CEO'||m.role==='Gestão').map(m=>`<option value="${m.name}" ${c.assignees&&c.assignees[0]===m.name?'selected':''}>${m.name.split(' ')[0]} ${m.name.split(' ').slice(-1)[0]}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -1941,7 +1941,9 @@ function saveContrato(cid){
   c.contractValue=$('ct-val').value;
   c.paymentMethod=$('ct-pm').value;
   c.paymentStatus=$('ct-ps').value;
-  c.mainOwner=$('ct-mo').value;
+  const newAsgn=$('ct-asgn').value;
+  c.assignees=newAsgn?[newAsgn]:[];
+  c.mainOwner=newAsgn;
   c.nicho=$('ct-ni').value;
   c.cnpj=$('ct-cnpj').value;
   c.address=$('ct-addr').value;
