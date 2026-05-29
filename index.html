@@ -284,6 +284,20 @@ function SC(s){return{concluido:'bc',andamento:'ba',pendente:'bp',atrasado:'br'}
 function CS(s){return{pendente:'andamento',andamento:'concluido',concluido:'pendente',atrasado:'pendente'}[s]||'pendente'}
 function WC(s){return{concluido:'wc',andamento:'wa',pendente:'wp'}[s]||'wp'}
 function prog(c){const t=c.deliverables.length,d=c.deliverables.filter(x=>x.status==='concluido').length;return t?Math.round(d/t*100):0}
+function progGP(c){
+  const now=new Date();now.setHours(23,59,59,0);
+  const allFris=fridaysFrom(c.startDate);
+  const pastFris=allFris.filter(f=>f<=now);
+  const wkTotal=pastFris.length;
+  const wkDone=pastFris.filter(f=>{const k=getWeekKey(f);return c.weeklyReports&&c.weeklyReports[k]&&c.weeklyReports[k].done;}).length;
+  const allMons=monthsFrom(c.startDate);
+  const curMonStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const pastMons=allMons.filter(m=>m<=curMonStart);
+  const mTotal=pastMons.length;
+  const mDone=pastMons.filter(m=>{const k=getMonthKey(m);return c.monthlyReports&&c.monthlyReports[k]&&c.monthlyReports[k].done;}).length;
+  const tot=wkTotal+mTotal;const done=wkDone+mDone;
+  return{pct:tot>0?Math.round(done/tot*100):0,wkDone,wkTotal,mDone,mTotal};
+}
 function getDaysUntil(dueDate){if(!dueDate)return null;const today=new Date();today.setHours(0,0,0,0);const due=new Date(dueDate);due.setHours(0,0,0,0);return Math.floor((due-today)/(1000*60*60*24))}
 function getDelStatusByDate(del){if(!del.dueDate)return del.status;const days=getDaysUntil(del.dueDate);if(days<0)return 'atrasado';return del.status}
 function getDelClassByDate(del){const status=getDelStatusByDate(del);const days=getDaysUntil(del.dueDate);if(days!==null&&days>=0&&days<=7)return'ba';return SC(status)}
@@ -392,7 +406,7 @@ function mkClient(name,i,products,contractStatus,contractDue,assignees,customDel
     name,initials:initials(name),color:color(i),products,contractStatus:contractStatus||'ativo',
     contractDue:contractDue||null,assignees:assignees||[],deliverables:dels,
     monthlyContent:{'Maio 2026':{'1ª Semana':'pendente','2ª Semana':'pendente','3ª Semana':'pendente','4ª Semana':'pendente'}},
-    encounters:{list:[]},arts:[],notes:'',email:'',phone:'',linkedin:'',startDate:'',birthday:'',
+    encounters:{list:[]},leads:[],arts:[],notes:'',email:'',phone:'',linkedin:'',startDate:'',birthday:'',
     nicho:'',cnpj:'',address:'',contractValue:'',paymentMethod:'',paymentStatus:'em-dia',results:[],mainOwner:'',token:generateToken(),
     weeklyReports:{},
     monthlyReports:{},
@@ -548,7 +562,7 @@ const DEFAULT={
 // ────────────────────────────────────────────────────────────
 // STATE & PERSISTENCE
 // ────────────────────────────────────────────────────────────
-let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0,adminAuth:false,currentUser:null,semanaWeekKey:null};
+let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0,adminAuth:false,currentUser:null,semanaWeekKey:null,editingLeadIdx:null};
 let D=(()=>{try{const s=localStorage.getItem('allin');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT))}catch{return JSON.parse(JSON.stringify(DEFAULT))}})();
 const save=()=>localStorage.setItem('allin',JSON.stringify(D));
 const getC=()=>D.clients.find(c=>c.id===S.clientId);
@@ -680,6 +694,9 @@ if(!D.team.find(m=>m.id==='naiara-faria')){
   const idx=D.team.findIndex(m=>m.id==='mariana-souza');
   D.team.splice(idx+1,0,{id:'naiara-faria',name:'Naiara Faria',role:'Gestão',dept:'Gestão',email:'naiarafaria@outlook.com.br',phone:'',birthday:'',color:'#7C3AED',initials:'NF',notes:'',capacity:10,personalInfo:''});
 }
+
+// MIGRATE LEADS — Add leads array to existing clients (Mai/2026)
+D.clients.forEach(c=>{if(!c.leads)c.leads=[];});
 
 // MIGRATE EMAIL & BIRTHDAY - Initialize for portal login
 D.clients.forEach((c,i)=>{
@@ -895,31 +912,37 @@ function rClients(){
 
   const statusLabel={ativo:'Ativo',vencido:'Vencido',finalizado:'Finalizado'};
   const cards=list.map(c=>{
-    const p=prog(c);
+    const isGP=c.products.includes('Gestão de Perfil');
+    const gp=isGP?progGP(c):null;
+    const p=gp?gp.pct:prog(c);
+    const pbarColor=p===0?'#9CA3AF':p<50?'#EF4444':p<80?'#F59E0B':'#10B981';
     const pends=c.deliverables.filter(d=>d.status==='pendente'||d.status==='atrasado');
     const daysRemaining=getContractDaysRemaining(c.contractDue);
+    const totalLeadsCard=(c.leads||[]).filter(l=>l.stage!=='descartado').length;
     return`<div class="cc" style="position:relative;overflow:visible;display:flex;flex-direction:column">
       <div class="cc-top" onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})" style="cursor:pointer;flex:1">
         <div class="av av-m" style="background:${c.color}">${c.initials}</div>
         <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between">
           <div>
             <div class="cname">${c.name}</div>
-            <div style="font-size:13px;font-weight:600;color:${c.color};margin-bottom:6px">👤 ${c.assignees.length?c.assignees.map(a=>a).join(', '):'Sem responsável'}</div>
-            <div class="tags">${c.products.map(pr=>`<span class="tag" style="font-size:10px">${pr}</span>`).join('')}</div>
+            <div style="font-size:13px;font-weight:600;color:${c.color};margin-bottom:4px">👤 ${c.assignees.length?c.assignees.map(a=>a.split(' ')[0]).join(', '):'Sem responsável'}</div>
+            <div class="tags">${c.products.map(pr=>`<span class="tag" style="font-size:10px">${pr}</span>`).join('')}${totalLeadsCard?`<span class="tag tag-g" style="font-size:10px">🎯 ${totalLeadsCard} leads</span>`:''}</div>
           </div>
         </div>
-        <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between">
-          <div style="font-size:18px;font-weight:800;color:${c.color}">${p}%</div>
+        <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;min-width:70px">
+          <div style="font-size:20px;font-weight:900;color:${pbarColor}">${p}%</div>
           <span class="pill pill-${c.contractStatus}" style="font-size:9px;padding:2px 8px;white-space:nowrap">${statusLabel[c.contractStatus]}</span>
         </div>
       </div>
-      <div style="padding:10px 12px;border-top:1px solid var(--border);margin-top:8px;font-size:11px;background:#FAFAFA">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
-          <div style="flex:1">
-            <div style="color:var(--muted);font-size:10px;margin-bottom:2px">Contrato</div>
-            <div style="font-weight:600;color:var(--text)">${daysRemaining}</div>
-          </div>
-          <button class="btn btn-p btn-s" style="white-space:nowrap" onclick="event.stopPropagation();window.open(window.location.origin+window.location.pathname+'#portal/${c.token}','_blank')" title="Abrir Portal do Cliente">🌐 Portal</button>
+      <div style="padding:8px 12px 10px;border-top:1px solid var(--border);background:#FAFAFA">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:10px;color:var(--muted)">${isGP?`✉️ ${gp.wkDone}/${gp.wkTotal} sem · 📊 ${gp.mDone}/${gp.mTotal} men`:'Progresso geral'}</span>
+          <span style="font-size:10px;font-weight:600;color:${pbarColor}">${p}%</span>
+        </div>
+        <div class="pb-track" style="height:6px;margin-bottom:8px"><div class="pb-fill" style="width:${p}%;background:${pbarColor};height:6px"></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div style="font-size:11px;font-weight:600;color:var(--text)">📅 ${daysRemaining}</div>
+          <button class="btn btn-p btn-s" style="white-space:nowrap;font-size:10px;padding:3px 8px" onclick="event.stopPropagation();window.open(window.location.origin+window.location.pathname+'#portal/${c.token}','_blank')" title="Portal do Cliente">🌐</button>
         </div>
       </div>
       ${pends.length?`<div class="alert-s" style="margin-top:0;border-top:none">${pends.slice(0,2).map(d=>`<div class="drow"><span class="dname" style="font-size:11px">${d.name}</span><span class="dresp" style="font-size:10px">${d.responsible||'—'}</span></div>`).join('')}${pends.length>2?`<div style="font-size:9px;color:var(--muted);padding:4px 12px">+${pends.length-2} pendentes</div>`:''}</div>`:''}
@@ -964,7 +987,7 @@ function rClients(){
 function rDetail(){
   const c=getC();if(!c)return'';
   const p=prog(c);
-  const tabs={entregas:'📦 Entregas',conteudo:'📅 Conteúdo Mensal',encontros:'🤝 Encontros',artes:'📱 Artes',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
+  const tabs={entregas:'📦 Entregas',leads:'🎯 Leads',conteudo:'📅 Conteúdo Mensal',encontros:'🤝 Encontros',artes:'📱 Artes',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
   const tabHtml=Object.entries(tabs).map(([k,v])=>`<div class="tab ${S.tab===k?'active':''}" onclick="S.tab='${k}';render()">${v}</div>`).join('');
   const statusMap={ativo:'pill-ativo',vencido:'pill-vencido',finalizado:'pill-finalizado'};
   let body='';
@@ -1223,6 +1246,87 @@ function rDetail(){
       </div>`;
     }).join('')}</div></div>`;
   }
+  else if(S.tab==='leads'){
+    const LSTAGES=[
+      {id:'prospecção',label:'Prospecção',emoji:'🔍',color:'#3B82F6',bg:'#EFF6FF'},
+      {id:'lead',label:'Lead Qualificado',emoji:'✨',color:'#F59E0B',bg:'#FFFBEB'},
+      {id:'reunião',label:'Reunião',emoji:'📅',color:'#8B5CF6',bg:'#F5F3FF'},
+      {id:'venda',label:'Venda Fechada',emoji:'💰',color:'#10B981',bg:'#ECFDF5'},
+    ];
+    const allLeads=c.leads||[];
+    const active=allLeads.filter(l=>l.stage!=='descartado');
+    const descartados=allLeads.filter(l=>l.stage==='descartado');
+    const counts=LSTAGES.map(s=>({...s,count:allLeads.filter(l=>l.stage===s.id).length}));
+    const maxCount=Math.max(1,...counts.map(x=>x.count));
+    // Funnel visual
+    const funnelRows=counts.map((s,i)=>{
+      const barW=s.count>0?Math.round(s.count/maxCount*100):0;
+      const convRate=i>0&&counts[i-1].count>0?Math.round(s.count/counts[i-1].count*100):null;
+      return`<div style="display:grid;grid-template-columns:160px 1fr 60px 70px;align-items:center;gap:12px;padding:10px 0;${i<counts.length-1?'border-bottom:1px solid #F3F4F6':''}">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:${s.color}">${s.emoji} ${s.label}</div>
+        <div style="position:relative;height:22px;background:#F3F4F6;border-radius:4px;overflow:hidden">
+          <div style="position:absolute;left:0;top:0;height:100%;width:${barW}%;background:${s.color};border-radius:4px;transition:width .3s"></div>
+        </div>
+        <div style="font-size:20px;font-weight:800;color:${s.color};text-align:right">${s.count}</div>
+        <div style="font-size:11px;color:var(--muted);text-align:right">${convRate!==null?`↑${convRate}%`:'—'}</div>
+      </div>`;
+    }).join('');
+    // Lead cards per stage
+    const stageCards=LSTAGES.map(s=>{
+      const stagLeads=allLeads.filter(l=>l.stage===s.id);
+      if(!stagLeads.length)return`<div style="text-align:center;padding:20px;color:#CBD5E1;font-size:13px;border:1px dashed #E5E7EB;border-radius:8px">Nenhum lead nesta etapa</div>`;
+      return stagLeads.map((l,rawIdx)=>{
+        const idx=allLeads.indexOf(l);
+        const nextStage=LSTAGES[LSTAGES.findIndex(x=>x.id===s.id)+1];
+        return`<div style="background:white;border:1px solid ${s.color}30;border-left:4px solid ${s.color};border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--text)">${l.name}</div>
+            ${l.company?`<div style="font-size:11px;color:var(--muted)">${l.company}</div>`:''}
+            ${l.phone?`<div style="font-size:11px;color:var(--muted)">📞 ${l.phone}</div>`:''}
+            ${l.notes?`<div style="font-size:11px;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">${l.notes}</div>`:''}
+            <div style="font-size:10px;color:#CBD5E1;margin-top:4px">${l.dateAdded||''}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">
+            ${nextStage?`<button class="btn btn-p btn-s" style="font-size:11px;white-space:nowrap" onclick="moveLeadStage('${c.id}',${idx},'${nextStage.id}')">→ ${nextStage.label}</button>`:`<span style="font-size:11px;font-weight:700;color:#10B981">🏆 Fechado!</span>`}
+            <div style="display:flex;gap:4px;margin-top:4px">
+              <button class="btn btn-o btn-s" style="font-size:10px;padding:3px 7px" onclick="openLeadModal('${c.id}',${idx})">✏️</button>
+              <button class="btn btn-o btn-s" style="font-size:10px;padding:3px 7px;border-color:var(--red);color:var(--red)" onclick="moveLeadStage('${c.id}',${idx},'descartado')">✕</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    });
+    body=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-size:15px;font-weight:700;color:var(--text)">🎯 Funil de Leads — ${c.name.split(' ')[0]}</h3>
+      <button class="btn btn-p btn-s" onclick="openLeadModal('${c.id}')">+ Novo Lead</button>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="ch"><h3>📊 Funil de Conversão</h3><span style="font-size:11px;color:var(--muted)">${active.length} leads ativos</span></div>
+      <div class="cb">${funnelRows}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px">
+      ${LSTAGES.map((s,i)=>`<div style="background:${s.bg};border:1px solid ${s.color}30;border-radius:10px;padding:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span style="font-size:13px;font-weight:700;color:${s.color}">${s.emoji} ${s.label}</span>
+          <span style="font-size:20px;font-weight:800;color:${s.color}">${counts[i].count}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">${stageCards[i]}</div>
+      </div>`).join('')}
+    </div>
+    ${descartados.length?`<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--muted);padding:8px 0">❌ Descartados (${descartados.length})</summary>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+        ${descartados.map((l,i)=>{const idx=allLeads.indexOf(l);return`<div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:#FEF2F2;border-radius:6px;border:1px solid #FECACA">
+          <div style="flex:1;font-size:12px;color:#9CA3AF;text-decoration:line-through">${l.name}${l.company?' · '+l.company:''}</div>
+          <button class="btn btn-o btn-s" style="font-size:10px" onclick="moveLeadStage('${c.id}',${idx},'prospecção')">↺ Reativar</button>
+          <button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="deleteLead('${c.id}',${idx})">🗑️</button>
+        </div>`;}).join('')}
+      </div></details>`:''}
+    ${allLeads.length===0?`<div style="text-align:center;padding:48px;background:#F9FAFB;border-radius:12px;border:1px dashed var(--border)">
+      <div style="font-size:40px;margin-bottom:12px">🎯</div>
+      <p style="margin:0;color:var(--muted);font-size:14px">Nenhum lead registrado ainda.</p>
+      <button class="btn btn-p" style="margin-top:16px" onclick="openLeadModal('${c.id}')">+ Registrar Primeiro Lead</button>
+    </div>`:''}`;
+  }
   else if(S.tab==='resultados'){
     const res=c.results||[];
     const totP=res.reduce((s,r)=>s+(r.prospects||0),0);
@@ -1345,12 +1449,22 @@ function rDetail(){
         </div>
         <div style="font-size:13px;font-weight:600;color:var(--primary);margin-top:8px">${daysRemaining}</div>
       </div>
-      <div style="text-align:right">
-        <div style="font-size:42px;font-weight:900;color:${c.color};line-height:1">${p}%</div>
-        <div style="font-size:10px;color:var(--muted)">concluído</div>
-        <div style="width:110px;margin-top:6px"><div class="pb-track"><div class="pb-fill" style="width:${p}%;background:${c.color}"></div></div></div>
-        <button class="btn btn-p btn-s" onclick="genClientLink('${c.id}')" style="margin-top:8px">🔗 Portal</button>
-      </div>
+      ${(()=>{
+        const isGP=c.products.includes('Gestão de Perfil');
+        if(isGP){const gp=progGP(c);return`<div style="text-align:right;min-width:140px">
+          <div style="font-size:42px;font-weight:900;color:${c.color};line-height:1">${gp.pct}%</div>
+          <div style="font-size:10px;color:var(--muted)">relatórios enviados</div>
+          <div style="width:110px;margin-top:6px"><div class="pb-track"><div class="pb-fill" style="width:${gp.pct}%;background:${c.color}"></div></div></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">✉️ ${gp.wkDone}/${gp.wkTotal} sem · 📊 ${gp.mDone}/${gp.mTotal} men</div>
+          <button class="btn btn-p btn-s" onclick="genClientLink('${c.id}')" style="margin-top:8px">🔗 Portal</button>
+        </div>`;}
+        return`<div style="text-align:right">
+          <div style="font-size:42px;font-weight:900;color:${c.color};line-height:1">${p}%</div>
+          <div style="font-size:10px;color:var(--muted)">concluído</div>
+          <div style="width:110px;margin-top:6px"><div class="pb-track"><div class="pb-fill" style="width:${p}%;background:${c.color}"></div></div></div>
+          <button class="btn btn-p btn-s" onclick="genClientLink('${c.id}')" style="margin-top:8px">🔗 Portal</button>
+        </div>`;
+      })()}
     </div>
   </div>
   <div class="tabs">${tabHtml}</div>${body}`;
@@ -2176,6 +2290,79 @@ function downloadEncFile(cid,encIdx,fileIdx){
     link.download=file.name;
     link.click();
   }
+}
+
+// ────────────────────────────────────────────────────────────
+// LEADS — CRUD
+// ────────────────────────────────────────────────────────────
+const LSTAGES_DEF=[
+  {id:'prospecção',label:'Prospecção',emoji:'🔍'},
+  {id:'lead',label:'Lead Qualificado',emoji:'✨'},
+  {id:'reunião',label:'Reunião',emoji:'📅'},
+  {id:'venda',label:'Venda Fechada',emoji:'💰'},
+];
+function openLeadModal(cid,idx){
+  const c=D.clients.find(c=>c.id===cid);
+  const isEdit=idx!==undefined&&idx!==null;
+  const l=isEdit?(c.leads||[])[idx]:{name:'',company:'',phone:'',stage:'prospecção',notes:'',dateAdded:new Date().toISOString().split('T')[0]};
+  S.editingLeadIdx=isEdit?idx:null;
+  const html=`<div class="overlay" id="lm-overlay" onclick="if(event.target===this)closeLeadModal()">
+    <div class="modal" style="max-width:440px">
+      <div class="modal-hd"><h3>${isEdit?'✏️ Editar Lead':'+ Novo Lead'}</h3><button class="btn btn-o btn-s" onclick="closeLeadModal()">✕</button></div>
+      <div class="modal-bd">
+        <div class="fgrid">
+          <div class="fg" style="grid-column:1/-1"><label>Nome *</label><input id="lm-name" value="${l.name||''}" placeholder="Nome do lead"></div>
+          <div class="fg"><label>Empresa</label><input id="lm-company" value="${l.company||''}" placeholder="Empresa (opcional)"></div>
+          <div class="fg"><label>Telefone</label><input id="lm-phone" value="${l.phone||''}" placeholder="+55 ..."></div>
+          <div class="fg"><label>Etapa do Funil</label>
+            <select id="lm-stage">
+              ${LSTAGES_DEF.map(s=>`<option value="${s.id}" ${l.stage===s.id?'selected':''}>${s.emoji} ${s.label}</option>`).join('')}
+              <option value="descartado" ${l.stage==='descartado'?'selected':''}>❌ Descartado</option>
+            </select>
+          </div>
+          <div class="fg"><label>Data</label><input id="lm-date" type="date" value="${l.dateAdded||''}"></div>
+          <div class="fg" style="grid-column:1/-1"><label>Observações</label><textarea id="lm-notes" style="min-height:80px;resize:vertical;width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit" placeholder="Contexto, próximos passos...">${l.notes||''}</textarea></div>
+        </div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-o" onclick="closeLeadModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveLead('${cid}')">💾 Salvar</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function closeLeadModal(){const o=document.getElementById('lm-overlay');if(o)o.remove();}
+function saveLead(cid){
+  const name=(document.getElementById('lm-name')?.value||'').trim();
+  if(!name){toast('⚠️ Informe o nome do lead!');return;}
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c.leads)c.leads=[];
+  const lead={
+    name,
+    company:(document.getElementById('lm-company')?.value||'').trim(),
+    phone:(document.getElementById('lm-phone')?.value||'').trim(),
+    stage:document.getElementById('lm-stage')?.value||'prospecção',
+    notes:(document.getElementById('lm-notes')?.value||'').trim(),
+    dateAdded:document.getElementById('lm-date')?.value||new Date().toISOString().split('T')[0],
+  };
+  if(S.editingLeadIdx!==null&&S.editingLeadIdx!==undefined){
+    c.leads[S.editingLeadIdx]=lead;
+  }else{
+    c.leads.unshift(lead);
+  }
+  save();closeLeadModal();toast('✅ Lead salvo!');render();
+}
+function deleteLead(cid,idx){
+  if(!confirm('Remover este lead?'))return;
+  const c=D.clients.find(c=>c.id===cid);
+  c.leads.splice(idx,1);
+  save();toast('🗑️ Lead removido');render();
+}
+function moveLeadStage(cid,idx,stage){
+  const c=D.clients.find(c=>c.id===cid);
+  if(c.leads&&c.leads[idx])c.leads[idx].stage=stage;
+  save();toast(stage==='venda'?'🏆 Venda fechada!':stage==='descartado'?'❌ Lead descartado':'📌 Lead movido');render();
 }
 
 // ────────────────────────────────────────────────────────────
