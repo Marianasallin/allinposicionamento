@@ -1761,15 +1761,19 @@ function rMinhaSemana(){
   const semanaisDone=myClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
   const mensaisDone=myClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
   const totalLeads=myClients.reduce((sum,c)=>sum+(c.weeklyReports&&c.weeklyReports[wk]?c.weeklyReports[wk].leads||0:0),0);
-  // Due date badge for monthly (vence dia 10)
+  // Due date badge for monthly (vence dia 10) — baseado no mês rastreado (mk), não no mês atual
   const today=new Date();
-  const dueDay10=new Date(today.getFullYear(),today.getMonth(),10);
+  const _ptMon={'Janeiro':0,'Fevereiro':1,'Março':2,'Abril':3,'Maio':4,'Junho':5,'Julho':6,'Agosto':7,'Setembro':8,'Outubro':9,'Novembro':10,'Dezembro':11};
+  const _mkParts=mk.split(' ');// ["Junho","2026"]
+  const _mkMonth=_ptMon[_mkParts[0]]??today.getMonth();
+  const _mkYear=parseInt(_mkParts[1])||today.getFullYear();
+  const dueDay10=new Date(_mkYear,_mkMonth,10);
   const daysUntil10=Math.ceil((dueDay10-today)/(1000*60*60*24));
-  const monthDueBadge=today.getDate()>10
+  const monthDueBadge=daysUntil10<0
     ?`<span style="background:#FEE2E2;color:#DC2626;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px">⚠️ Prazo encerrado</span>`
     :daysUntil10<=3
       ?`<span style="background:#FEF3C7;color:#D97706;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px">⏰ Vence em ${daysUntil10} dia${daysUntil10===1?'':'s'}</span>`
-      :`<span style="background:#DCFCE7;color:#16A34A;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px">📅 Vence dia 10</span>`;
+      :`<span style="background:#DCFCE7;color:#16A34A;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px">📅 Vence dia 10/${String(_mkMonth+1).padStart(2,'0')}</span>`;
 
   return`
   ${getMonthlyAlertHtml()}
