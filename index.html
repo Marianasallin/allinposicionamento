@@ -1348,7 +1348,10 @@ function rDetail(){
   }
 
   const daysRemaining=getContractDaysRemaining(c.contractDue);
-  return`<div class="back" onclick="nav('clients',{clientId:null})">← Voltar</div>
+  return`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+    <div class="back" style="margin:0" onclick="nav('clients',{clientId:null})">← Voltar</div>
+    <button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red);font-size:11px" onclick="deleteClient('${c.id}')">🗑️ Excluir Cliente</button>
+  </div>
   <div class="dh">
     <div class="av av-l" style="background:${c.color}">${c.initials}</div>
     <div class="dinfo">
@@ -1997,6 +2000,17 @@ function saveResult(cid){
 function delResult(cid,idx){
   if(!confirm('Remover este registro?'))return;
   const c=D.clients.find(c=>c.id===cid);c.results.splice(idx,1);save();toast('🗑️ Removido');render();
+}
+function deleteClient(cid){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c)return;
+  if(!confirm(`Excluir "${c.name}" permanentemente? Esta ação não pode ser desfeita.`))return;
+  D.clients=D.clients.filter(cl=>cl.id!==cid);
+  save();
+  S.clientId=null;
+  S.tab='entregas';
+  toast('🗑️ Cliente excluído');
+  render();
 }
 function addClient(){
   const tnames=TEAM_NAMES();
