@@ -328,8 +328,9 @@ function fridaysFrom(startDateStr){
   const diff=day===5?0:(day<5?5-day:12-day);
   if(diff>0)start.setDate(start.getDate()+diff);
   const current=getCurrentFriday();
-  // Show up to current week + 4 future weeks
-  const futureLimit=new Date(current);futureLimit.setDate(futureLimit.getDate()+28);
+  // Show up to 6 months ahead (same horizon as monthsFrom)
+  const now2=new Date();
+  const futureLimit=new Date(now2.getFullYear(),now2.getMonth()+6,1);
   const res=[];
   const d=new Date(start);
   while(d<=futureLimit){res.push(new Date(d));d.setDate(d.getDate()+7);}
@@ -731,6 +732,39 @@ if(!localStorage.getItem('allin_migv3')){
   });
   save();
   localStorage.setItem('allin_migv3','1');
+}
+
+// FORCE MIGRATION v4 — sincroniza encontros e resultados do localhost para o site
+if(!localStorage.getItem('allin_migv4')){
+  const _encData={
+    'Leticia Petean':{
+      encounters:[
+        {id:'enc1',date:'2026-05-10',description:'Apresentação da jornada IC, alinhamento de expectativas e revisão do perfil LinkedIn. Decidimos priorizar conexões no setor financeiro nas próximas semanas.',attendees:['Mariana Souza','Iasmim Flávia Marques Soares'],transcriptionLink:'https://docs.google.com/encontro1-transcricao',recordingLink:'https://drive.google.com/encontro1-gravacao',attachments:[],notes:'Cliente muito engajada. Próximo encontro em 2 semanas.'},
+        {id:'enc2',date:'2026-05-24',description:'Revisão do Play Book de Vendas e validação do ICP. Aprovamos os scripts de abordagem para conexão fria.',attendees:['Iasmim Flávia Marques Soares'],transcriptionLink:'https://docs.google.com/encontro2-transcricao',recordingLink:'',attachments:[],notes:''}
+      ],
+      results:[
+        {id:'r4',month:'Maio 2026',prospects:87,leads:34,meetings:12,sales:3},
+        {id:'r3',month:'Abril 2026',prospects:72,leads:28,meetings:9,sales:2},
+        {id:'r2',month:'Março 2026',prospects:61,leads:21,meetings:7,sales:1},
+        {id:'r1',month:'Fevereiro 2026',prospects:45,leads:15,meetings:5,sales:1}
+      ]
+    }
+  };
+  D.clients.forEach(c=>{
+    const p=_encData[c.name];
+    if(!p)return;
+    if(p.encounters&&p.encounters.length){
+      if(!c.encounters)c.encounters={list:[]};
+      if(!c.encounters.list)c.encounters.list=[];
+      // Only add if list is empty (don't overwrite real data)
+      if(c.encounters.list.length===0)c.encounters.list=p.encounters;
+    }
+    if(p.results&&p.results.length){
+      if(!c.results||c.results.length===0)c.results=p.results;
+    }
+  });
+  save();
+  localStorage.setItem('allin_migv4','1');
 }
 
 // MIGRATE TEAM - Ensure Mariana and Naiara exist
