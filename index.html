@@ -562,7 +562,7 @@ const DEFAULT={
 // ────────────────────────────────────────────────────────────
 // STATE & PERSISTENCE
 // ────────────────────────────────────────────────────────────
-let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0,adminAuth:false,currentUser:null,semanaWeekKey:null,editingLeadIdx:null};
+let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0,adminAuth:false,currentUser:null,semanaWeekKey:null,editingLeadIdx:null,weeklyFilterMonth:null};
 let D=(()=>{try{const s=localStorage.getItem('allin');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT))}catch{return JSON.parse(JSON.stringify(DEFAULT))}})();
 const save=()=>localStorage.setItem('allin',JSON.stringify(D));
 const getC=()=>D.clients.find(c=>c.id===S.clientId);
@@ -684,6 +684,53 @@ D.clients.forEach(c=>{
     if(p.cnpj&&!c.cnpj)c.cnpj=p.cnpj;
     if(p.birthday&&!c.birthday)c.birthday=p.birthday;
   });
+}
+
+// FORCE MIGRATION v3 — sobrescreve campos-chave independente do que está salvo
+if(!localStorage.getItem('allin_migv3')){
+  const _fv3={
+    'Leticia Petean':         {contractStatus:'ativo',contractDue:'2026-06-10',contractValue:'6197.5',paymentMethod:'Cartão Infinity Pay',assignees:['Iasmim Flávia Marques Soares']},
+    'Marília Campos Carneiro':{contractStatus:'ativo',contractDue:'2026-06-10',contractValue:'',paymentMethod:'Boleto 1 vez',email:'contato@chamadesenvolvimento.com.br',linkedin:'https://www.linkedin.com/in/mariliaccarneiro/',cnpj:'62.497.501/0001-82',assignees:['Rebeca Gomes de Araújo']},
+    'Marcelo Wietha':         {contractStatus:'ativo',contractDue:'2026-05-30',email:'marcelo@wietha.com.br',paymentMethod:'Cartão Crédito Sicoob',linkedin:'https://www.linkedin.com/in/marcelo-wietha/',cnpj:'353.180.070-15',assignees:['Rebeca Gomes de Araújo']},
+    'Tatiani Garcia De Faria':{contractStatus:'ativo',contractDue:'2026-06-10',contractValue:'2200',paymentMethod:'Boleto Mensal',email:'tatiani@gaau.com.br',phone:'+55 11 97178 4562',cnpj:'25.162.480/0001-18',assignees:['Iasmim Flávia Marques Soares']},
+    'Daniela Anderson':       {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'2100',paymentMethod:'Boleto Mensal',email:'daniela.anderson1211@gmail.com',phone:'+55 19 98447 9996',cnpj:'262.564.198-39',assignees:['Gisele Alexandrina de Oliveira']},
+    'Felipe Elcio Dias':      {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'2300',paymentMethod:'Boleto Mensal',email:'andre@lets.events',cnpj:'41.832.891/0001-20',assignees:['Iasmim Flávia Marques Soares']},
+    'Jose Ricardo':           {contractStatus:'ativo',contractDue:'2026-06-21',assignees:['Rebeca Gomes de Araújo']},
+    'Ludimila Muller':        {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'1800',paymentMethod:'Boleto Mensal',email:'ludimilamuller@contribox.com.br',phone:'+55 22 99221 9498',cnpj:'53.926.693/0001-04',assignees:['Gisele Alexandrina de Oliveira']},
+    'Maressa Ferreira Marra Toussaint':{contractStatus:'ativo',contractDue:'2026-06-15',contractValue:'1997',paymentMethod:'Boleto Mensal',email:'marra.rhconsultoria@gmail.com',cnpj:'585.362.190.0190',assignees:['Iasmim Flávia Marques Soares']},
+    'Paulo Henrique Teixeira':{contractStatus:'ativo',contractDue:'2026-06-15',contractValue:'3100',paymentMethod:'Boleto Mensal',email:'paulohtl54@gmail.com',phone:'+55 16 99766 0814',assignees:[]},
+    'Rafael Rodrigues':       {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'1800',paymentMethod:'Boleto Mensal',email:'rrtreinamentos41@gmail.com',phone:'+55 31 99490 8949',cnpj:'17.003.821/0001-84',assignees:[]},
+    'Silvia Zuffo':           {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'1280',paymentMethod:'Boleto Mensal',email:'silvia@szuffo.com',phone:'+55 31 98407 7175',cnpj:'47.558.615/0001-00',assignees:['Iasmim Flávia Marques Soares']},
+    'Guilherme Gomes — Uluhub':{contractStatus:'ativo',contractDue:'2026-06-15',contractValue:'2000',paymentMethod:'Boleto Mensal',email:'financeiro@uluhub.com.br',phone:'+55 3799358398',cnpj:'50.198.675/0001-65',assignees:['Iasmim Flávia Marques Soares']},
+    'Ana Martins':            {contractStatus:'ativo',contractDue:'2026-06-20',contractValue:'1400',paymentMethod:'Boleto Mensal',assignees:['Gisele Alexandrina de Oliveira']},
+    'Luciana Rezende':        {contractStatus:'ativo',paymentMethod:'Permuta',assignees:['Rebeca Gomes de Araújo']},
+    'Fabrício Fidelis':       {contractStatus:'ativo',paymentMethod:'Permuta',assignees:['Iasmim Flávia Marques Soares']},
+    'Renata Rosendo de Lima Costa':{contractStatus:'ativo',contractValue:'1800',paymentMethod:'PIX',email:'renatarlcosta@hotmail.com',phone:'+55 11 98781 5002',assignees:['Gisele Alexandrina de Oliveira']},
+    'Laura Bigaton':          {contractStatus:'ativo',contractValue:'1800',paymentMethod:'PIX',email:'laurabigaton@hotmail.com',phone:'+55 31 98229 5674',cnpj:'52.000.352/0001-40',birthday:'05/03/1986',assignees:['Iasmim Flávia Marques Soares']},
+    'Luana Maciel':           {contractStatus:'ativo',contractValue:'1400',paymentMethod:'Boleto Mensal',email:'luanamoises04@gmail.com',phone:'+55 19 99139 5754',cnpj:'35.948.070/0001-50',assignees:['Nayara Calixto Justino Campos']},
+    'Raquel Mateus':          {assignees:['Rebeca Gomes de Araújo']},
+    'Raphael Ribeiro':        {assignees:['Rebeca Gomes de Araújo']},
+    'Letícia Franco':         {assignees:['Gisele Alexandrina de Oliveira']},
+    'Leticia de Souza Medeiros Franco':{contractStatus:'ativo',paymentMethod:'Boleto Mensal',cnpj:'055.325.176-73',assignees:[]},
+    'Elaine Lima':            {contractStatus:'inativo',assignees:[]},
+    'Magno Reis':             {contractStatus:'inativo',assignees:[]},
+  };
+  D.clients.forEach(c=>{
+    const p=_fv3[c.name];
+    if(!p)return;
+    if(p.contractStatus)c.contractStatus=p.contractStatus;
+    if(p.contractDue)c.contractDue=new Date(p.contractDue).getTime();
+    if(p.contractValue!==undefined&&p.contractValue!=='')c.contractValue=p.contractValue;
+    if(p.paymentMethod)c.paymentMethod=p.paymentMethod;
+    if(p.email)c.email=p.email;
+    if(p.phone)c.phone=p.phone;
+    if(p.linkedin)c.linkedin=p.linkedin;
+    if(p.cnpj)c.cnpj=p.cnpj;
+    if(p.birthday)c.birthday=p.birthday;
+    if(p.assignees&&p.assignees.length)c.assignees=p.assignees;
+  });
+  save();
+  localStorage.setItem('allin_migv3','1');
 }
 
 // MIGRATE TEAM - Ensure Mariana and Naiara exist
@@ -1014,12 +1061,26 @@ function rDetail(){
       </div>`;
 
       // SECTION 2: Relatório Semanal
-      const fridays=fridaysFrom(c.startDate);
+      const allFridays=fridaysFrom(c.startDate);
       const wk=thisWeekKey();
+      // Build month list from all fridays
+      const monthKeys=[...new Set(allFridays.map(f=>getMonthKey(f)))];
+      // Determine active month filter — default to current/closest month
+      const defaultMonth=(()=>{
+        const curMk=getMonthKey(new Date());
+        return monthKeys.includes(curMk)?curMk:monthKeys[0]||curMk;
+      })();
+      if(!S.weeklyFilterMonth||!monthKeys.includes(S.weeklyFilterMonth))S.weeklyFilterMonth=defaultMonth;
+      const fridays=allFridays.filter(f=>getMonthKey(f)===S.weeklyFilterMonth);
       body+=`<div class="card" style="margin-bottom:16px">
-        <div class="ch"><h3>📊 Relatório Semanal <span style="font-size:11px;font-weight:400;color:var(--muted)">— toda sexta</span></h3></div>
+        <div class="ch">
+          <h3>📊 Relatório Semanal <span style="font-size:11px;font-weight:400;color:var(--muted)">— toda sexta</span></h3>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--border);background:#FAFAFA">
+          ${monthKeys.map(mk=>`<span class="fc ${S.weeklyFilterMonth===mk?'active':''}" onclick="S.weeklyFilterMonth='${mk}';render()" style="font-size:11px">${mk}</span>`).join('')}
+        </div>
         <div class="tw"><table><thead><tr><th>Semana (sexta)</th><th>Enviado?</th><th>Leads</th><th>Arquivo / Link</th></tr></thead><tbody>
-          ${fridays.map(fri=>{
+          ${fridays.length?fridays.map(fri=>{
             const key=getWeekKey(fri);
             const wr=(c.weeklyReports&&c.weeklyReports[key])||{done:false,file:null,link:'',leads:0};
             const isCurrent=key===wk;
@@ -1042,7 +1103,7 @@ function rDetail(){
                 <input type="file" id="wrf-${c.id}-${key}" style="display:none" accept=".pdf,.jpg,.png,.doc,.docx" onchange="uploadReportFile('${c.id}','weekly','${key}',this)">
               </td>
             </tr>`;
-          }).join('')}
+          }).join(''):`<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Nenhuma semana em ${S.weeklyFilterMonth}</td></tr>`}
         </tbody></table></div>
       </div>`;
 
