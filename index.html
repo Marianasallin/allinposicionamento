@@ -738,6 +738,20 @@ if(!localStorage.getItem('allin_migv3')){
   localStorage.setItem('allin_migv3','1');
 }
 
+// MIGRATION v5 — prospects de TESTE para Leticia Petean (remover depois pelo botão 🗑️)
+if(!localStorage.getItem('allin_migv5')){
+  const _lp=D.clients.find(c=>c.name==='Leticia Petean');
+  if(_lp&&(!_lp.prospects||_lp.prospects.length===0)){
+    _lp.prospects=[
+      {id:'test_p1',date:'2026-06-01',conductedBy:'Iasmim Flávia Marques Soares',linkedinUrl:'https://www.linkedin.com/in/exemplo1',name:'Carlos Eduardo Lima',role:'Diretor Comercial',location:'São Paulo, SP',phone:'+55 11 99999-1111',email:'carlos@empresa.com.br',sentMessage:true,replied:false,scheduledMeeting:false,hadMeeting:false,followUp1:'',followUp2:'',followUp3:'',contractClosed:false,contractValue:'',reasonNotClosed:'',notes:''},
+      {id:'test_p2',date:'2026-06-03',conductedBy:'Iasmim Flávia Marques Soares',linkedinUrl:'https://www.linkedin.com/in/exemplo2',name:'Ana Paula Rodrigues',role:'CEO',location:'Belo Horizonte, MG',phone:'+55 31 98888-2222',email:'ana@negocio.com.br',sentMessage:true,replied:true,scheduledMeeting:true,hadMeeting:false,followUp1:'',followUp2:'',followUp3:'',contractClosed:false,contractValue:'',reasonNotClosed:'',notes:'Muito interessada, aguardando agenda'},
+      {id:'test_p3',date:'2026-05-20',conductedBy:'Iasmim Flávia Marques Soares',linkedinUrl:'https://www.linkedin.com/in/exemplo3',name:'Roberto Alves Santos',role:'Fundador',location:'Rio de Janeiro, RJ',phone:'+55 21 97777-3333',email:'roberto@startup.io',sentMessage:true,replied:true,scheduledMeeting:true,hadMeeting:true,followUp1:'2026-05-25',followUp2:'',followUp3:'',contractClosed:true,contractValue:'2500',reasonNotClosed:'',notes:'Fechou contrato em 25/05'}
+    ];
+    save();
+  }
+  localStorage.setItem('allin_migv5','1');
+}
+
 // FORCE MIGRATION v4 — sincroniza encontros e resultados do localhost para o site
 if(!localStorage.getItem('allin_migv4')){
   const _encData={
