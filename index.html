@@ -239,6 +239,7 @@ input.mini:focus{outline:none;border-color:var(--primary)}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
@@ -3550,13 +3551,14 @@ window.addEventListener('hashchange',handleNavigation);
       appId:"1:183466767758:web:6760abc38d557b8dd620df"
     };
     firebase.initializeApp(_fbConfig);
+    const _auth=firebase.auth();
     const _db=firebase.database();
     let _fbTimer=null;
     let _fbWriting=false;
     let _fbReady=false;
 
     // Override save() para escrever no Firebase + localStorage
-    const _lsave=save; // guarda original (localStorage)
+    const _lsave=save;
     save=()=>{
       _lsave();
       if(!_fbReady)return;
@@ -3569,41 +3571,50 @@ window.addEventListener('hashchange',handleNavigation);
       },800);
     };
 
-    // Sincronização inicial: Firebase → local (ou local → Firebase se vazio)
-    _db.ref('allin').get().then(snap=>{
-      if(snap.exists()){
-        const fbData=snap.val();
-        // Firebase tem dados — usar como fonte de verdade
-        D=fbData;
-        localStorage.setItem('allin',JSON.stringify(D));
-        render();
-        toast('☁️ Dados sincronizados');
-      } else {
-        // Firebase vazio — enviar dados locais
-        _db.ref('allin').set(JSON.parse(JSON.stringify(D)));
-      }
-      _fbReady=true;
+    function startSync(){
+      // Sincronização inicial: Firebase → local (ou local → Firebase se vazio)
+      _db.ref('allin').get().then(snap=>{
+        if(snap.exists()){
+          D=snap.val();
+          localStorage.setItem('allin',JSON.stringify(D));
+          render();
+          toast('☁️ Sincronizado');
+        } else {
+          // Firebase vazio — enviar dados locais
+          _db.ref('allin').set(JSON.parse(JSON.stringify(D)));
+        }
+        _fbReady=true;
 
-      // Listener em tempo real — atualiza todos os dispositivos conectados
-      setTimeout(()=>{
-        _db.ref('allin').on('value',snap=>{
-          if(_fbWriting)return;
-          const fbData=snap.val();
-          if(!fbData)return;
-          const fbStr=JSON.stringify(fbData);
-          const localStr=JSON.stringify(D);
-          if(fbStr!==localStr){
-            D=fbData;
-            localStorage.setItem('allin',JSON.stringify(D));
-            toast('🔄 Atualizado em tempo real');
-            render();
-          }
-        });
-      },2000); // aguarda 2s para evitar conflito com render inicial
+        // Listener em tempo real — atualiza todos os dispositivos conectados
+        setTimeout(()=>{
+          _db.ref('allin').on('value',snap=>{
+            if(_fbWriting)return;
+            const fbData=snap.val();
+            if(!fbData)return;
+            if(JSON.stringify(fbData)!==JSON.stringify(D)){
+              D=fbData;
+              localStorage.setItem('allin',JSON.stringify(D));
+              toast('🔄 Atualizado em tempo real');
+              render();
+            }
+          });
+        },2000);
 
+      }).catch(e=>{
+        console.warn('Firebase sync error:',e);
+        _fbReady=true;
+      });
+    }
+
+    // Login automático com conta de serviço — invisível para o usuário
+    _auth.signInWithEmailAndPassword(
+      'sistema@allinposicionamento.com.br',
+      'allin@time'
+    ).then(()=>{
+      startSync();
     }).catch(e=>{
-      console.warn('Firebase offline, usando localStorage:',e);
-      _fbReady=true; // permite saves mesmo offline (tentará quando voltar)
+      console.warn('Firebase auth falhou, usando localStorage:',e);
+      _fbReady=true;
     });
 
   }catch(e){
