@@ -838,7 +838,13 @@ function render(){
   const sbFooter=$('sb-user-info');
   if(sbFooter) sbFooter.innerHTML=`${S.currentUser.name}<br><span style="font-size:10px;opacity:.7">${S.currentUser.role||'ALL IN'}</span>`;
   // Normal admin views
-  $('view').innerHTML={dash:rDash,clients:rClients,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rFunc,team:rTeam,clientView:rClientView}[S.view]();
+  try{
+    const fn={dash:rDash,clients:rClients,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rFunc,team:rTeam,clientView:rClientView}[S.view];
+    $('view').innerHTML=fn?fn():'';
+  }catch(e){
+    $('view').innerHTML='<div style="padding:30px"><div style="background:#FEE2E2;border:1px solid #FCA5A5;border-radius:12px;padding:20px;color:#991B1B"><strong>⚠️ Erro ao carregar a página:</strong><br><code style="font-size:12px;display:block;margin-top:8px;white-space:pre-wrap">'+e.message+'</code><br><small style="opacity:.7">'+e.stack+'</small></div></div>';
+    console.error('render() error:',e);
+  }
   // Restore search input focus after re-render (prevents losing cursor on each keystroke)
   if(S.view==='clients'&&S._searchFocused){
     const si=$('client-search');
