@@ -3880,11 +3880,32 @@ window.addEventListener('hashchange',handleNavigation);
       },800);
     };
 
+    // Garante que todos os clientes têm os campos obrigatórios
+    function sanitizeD(data){
+      if(!data||!data.clients)return data;
+      data.clients.forEach(function(c){
+        if(!c.assignees)c.assignees=[];
+        if(!c.products)c.products=[];
+        if(!c.deliverables)c.deliverables=[];
+        if(!c.prospects)c.prospects=[];
+        if(!c.encounters)c.encounters={list:[]};
+        if(!c.encounters.list)c.encounters.list=[];
+        if(!c.results)c.results=[];
+        if(!c.weeklyReports)c.weeklyReports={};
+        if(!c.monthlyReports)c.monthlyReports={};
+        if(!c.leads)c.leads=[];
+        if(!c.arts)c.arts=[];
+        if(!c.continuousActivities)c.continuousActivities=[];
+      });
+      if(!data.team)data.team=[];
+      return data;
+    }
+
     function startSync(){
       // Sincronização inicial: Firebase → local (ou local → Firebase se vazio)
       _db.ref('allin').get().then(snap=>{
         if(snap.exists()){
-          D=snap.val();
+          D=sanitizeD(snap.val());
           localStorage.setItem('allin',JSON.stringify(D));
           render();
           toast('☁️ Sincronizado');
@@ -3900,8 +3921,9 @@ window.addEventListener('hashchange',handleNavigation);
             if(_fbWriting)return;
             const fbData=snap.val();
             if(!fbData)return;
-            if(JSON.stringify(fbData)!==JSON.stringify(D)){
-              D=fbData;
+            const sanitized=sanitizeD(fbData);
+            if(JSON.stringify(sanitized)!==JSON.stringify(D)){
+              D=sanitized;
               localStorage.setItem('allin',JSON.stringify(D));
               toast('🔄 Atualizado em tempo real');
               render();
