@@ -3605,73 +3605,74 @@ function rPortalEntregas(c){
 }
 
 function rPortalProspeccao(c){
-  const pros=(c.prospects||[]).sort((a,b)=>b.date.localeCompare(a.date));
+  const pros=(c.prospects||[]).sort(function(a,b){return b.date.localeCompare(a.date);});
   const total=pros.length;
-  const meetings=pros.filter(p=>p.hadMeeting).length;
-  const closed=pros.filter(p=>p.contractClosed).length;
-  const pending=pros.filter(p=>!p.replied).length;
-  return`<div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
-      <div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)">
-        <div style="font-size:28px;font-weight:800;color:#7C3AED">${total}</div>
-        <div style="font-size:11px;color:#6B7280">Total Prospectados</div>
-      </div>
-      <div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)">
-        <div style="font-size:28px;font-weight:800;color:#D97706">${pending}</div>
-        <div style="font-size:11px;color:#6B7280">Aguardando Resposta</div>
-      </div>
-      <div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)">
-        <div style="font-size:28px;font-weight:800;color:#0D3D9B">${meetings}</div>
-        <div style="font-size:11px;color:#6B7280">Reuniões Realizadas</div>
-      </div>
-      <div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)">
-        <div style="font-size:28px;font-weight:800;color:#16A34A">${closed}</div>
-        <div style="font-size:11px;color:#6B7280">Contratos Fechados</div>
-      </div>
-    </div>
-    <div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden">
-      <div style="padding:16px 20px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between">
-        <h3 style="margin:0;font-size:15px">🎯 Seus Prospects</h3>
-        <span style="font-size:12px;color:#6B7280">Atualize o status de cada contato</span>
-      </div>
-      ${pros.length===0?`<div style="padding:40px;text-align:center;color:#9CA3AF">Nenhum prospect cadastrado ainda.</div>`:`
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:#F9FAFB">
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:#6B7280">Nome</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:#6B7280">Cargo</th>
-          <th style="padding:10px;text-align:center;font-size:11px;color:#6B7280">Respondeu?</th>
-          <th style="padding:10px;text-align:center;font-size:11px;color:#6B7280">Agendou?</th>
-          <th style="padding:10px;text-align:center;font-size:11px;color:#6B7280">Reunião?</th>
-          <th style="padding:10px;text-align:center;font-size:11px;color:#6B7280">Fechou?</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:#6B7280">Observação</th>
-        </tr></thead>
-        <tbody>
-          ${pros.map((p,i)=>`<tr style="border-top:1px solid #F3F4F6">
-            <td style="padding:10px 16px">
-              <div style="font-weight:600;font-size:13px">${p.name}</div>
-              ${p.linkedinUrl?`<a href="${p.linkedinUrl}" target="_blank" style="font-size:10px;color:#0D3D9B">🔗 LinkedIn</a>`:''}
-            </td>
-            <td style="padding:10px 16px;font-size:12px;color:#6B7280">${p.role||'—'}</td>
-            <td style="padding:10px;text-align:center">
-              <input type="checkbox" ${p.replied?'checked':''} onchange="portalUpdateProspect('${c.id}','${p.id}','replied',this.checked)" style="width:16px;height:16px;cursor:pointer">
-            </td>
-            <td style="padding:10px;text-align:center">
-              <input type="checkbox" ${p.scheduledMeeting?'checked':''} onchange="portalUpdateProspect('${c.id}','${p.id}','scheduledMeeting',this.checked)" style="width:16px;height:16px;cursor:pointer">
-            </td>
-            <td style="padding:10px;text-align:center">
-              <input type="checkbox" ${p.hadMeeting?'checked':''} onchange="portalUpdateProspect('${c.id}','${p.id}','hadMeeting',this.checked)" style="width:16px;height:16px;cursor:pointer">
-            </td>
-            <td style="padding:10px;text-align:center">
-              <input type="checkbox" ${p.contractClosed?'checked':''} onchange="portalUpdateProspect('${c.id}','${p.id}','contractClosed',this.checked)" style="width:16px;height:16px;cursor:pointer">
-            </td>
-            <td style="padding:10px 16px">
-              <input style="width:100%;min-width:140px;border:1px solid #E5E7EB;border-radius:6px;padding:4px 8px;font-size:11px" value="${p.notes||''}" placeholder="Observação..." onblur="portalUpdateProspect('${c.id}','${p.id}','notes',this.value)">
-            </td>
-          </tr>`).join('')}
-        </tbody>
-      </table></div>`}
-    </div>
-  </div>`;
+  const meetings=pros.filter(function(p){return p.hadMeeting;}).length;
+  const closed=pros.filter(function(p){return p.contractClosed;}).length;
+  const pending=pros.filter(function(p){return !p.replied;}).length;
+  const cid=c.id;
+
+  function chk(pid,field,val,label){
+    return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;border-radius:8px;background:'+(val?'#F0FDF4':'#F9FAFB')+';border:1px solid '+(val?'#86EFAC':'#E5E7EB')+'">'
+      +'<input type="checkbox" '+(val?'checked':'')+' onchange="portalUpdateProspect(\''+cid+'\',\''+pid+'\',\''+field+'\',this.checked);this.closest(\'label\').style.background=this.checked?\'#F0FDF4\':\'#F9FAFB\';this.closest(\'label\').style.borderColor=this.checked?\'#86EFAC\':\'#E5E7EB\'" style="width:16px;height:16px;cursor:pointer">'
+      +'<span style="font-size:12px;font-weight:600;color:'+(val?'#16A34A':'#6B7280')+'">'+label+'</span></label>';
+  }
+
+  const cards=pros.map(function(p){
+    const dateStr=p.date?new Date(p.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}):'';
+    const statusColor=p.contractClosed?'#16A34A':p.hadMeeting?'#0D3D9B':p.replied?'#7C3AED':'#9CA3AF';
+    const statusLabel=p.contractClosed?'✅ Contrato Fechado':p.hadMeeting?'🤝 Reunião Realizada':p.replied?'💬 Respondeu':'⏳ Aguardando Resposta';
+    return '<div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;margin-bottom:16px">'
+      // Header
+      +'<div style="padding:14px 18px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between">'
+        +'<div>'
+          +'<div style="font-size:15px;font-weight:700;color:#1E293B">'+p.name+'</div>'
+          +'<div style="font-size:12px;color:#6B7280;margin-top:2px">'+(p.role||'')+(p.role&&dateStr?' · ':'')+dateStr+'</div>'
+          +(p.linkedinUrl?'<a href="'+p.linkedinUrl+'" target="_blank" style="font-size:11px;color:#0D3D9B;text-decoration:none">🔗 Ver LinkedIn</a>':'')
+        +'</div>'
+        +'<span style="font-size:11px;font-weight:600;color:'+statusColor+';background:'+statusColor+'18;padding:4px 10px;border-radius:99px;white-space:nowrap">'+statusLabel+'</span>'
+      +'</div>'
+      // Checkboxes
+      +'<div style="padding:14px 18px">'
+        +'<div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;margin-bottom:10px">Atualizar Status</div>'
+        +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px">'
+          +chk(p.id,'replied',p.replied,'💬 Respondeu')
+          +chk(p.id,'scheduledMeeting',p.scheduledMeeting,'📅 Agendou Reunião')
+          +chk(p.id,'hadMeeting',p.hadMeeting,'🤝 Fez Reunião')
+          +chk(p.id,'contractClosed',p.contractClosed,'✅ Fechou Contrato')
+        +'</div>'
+        // Follow-ups
+        +'<div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;margin-bottom:10px">Follow-up</div>'
+        +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">'
+          +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">Follow-up 1</label>'
+            +'<input type="date" value="'+(p.followUp1||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'followUp1\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>'
+          +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">Follow-up 2</label>'
+            +'<input type="date" value="'+(p.followUp2||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'followUp2\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>'
+          +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">Follow-up 3</label>'
+            +'<input type="date" value="'+(p.followUp3||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'followUp3\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>'
+        +'</div>'
+        // Contract value (if closed) + reason (if not closed) + notes
+        +(p.contractClosed
+          ?'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">💰 Valor do Contrato (R$)</label>'
+            +'<input type="number" value="'+(p.contractValue||'')+'" placeholder="0,00" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'contractValue\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>'
+          :'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">❌ Motivo de não fechar (se aplicável)</label>'
+            +'<input value="'+(p.reasonNotClosed||'')+'" placeholder="Ex: sem budget, sem interesse..." onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'reasonNotClosed\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>')
+        +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">📝 Observações</label>'
+          +'<textarea rows="2" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'notes\',this.value)" placeholder="Alguma observação sobre esse contato..." style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px;resize:none">'+( p.notes||'')+'</textarea></div>'
+      +'</div></div>';
+  }).join('');
+
+  const empty='<div style="background:white;border-radius:12px;padding:48px;text-align:center;color:#9CA3AF;box-shadow:0 2px 8px rgba(0,0,0,.06)">Nenhum prospect cadastrado ainda.</div>';
+
+  return '<div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">'
+      +'<div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)"><div style="font-size:28px;font-weight:800;color:#7C3AED">'+total+'</div><div style="font-size:11px;color:#6B7280">Total</div></div>'
+      +'<div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)"><div style="font-size:28px;font-weight:800;color:#D97706">'+pending+'</div><div style="font-size:11px;color:#6B7280">Aguardando</div></div>'
+      +'<div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)"><div style="font-size:28px;font-weight:800;color:#0D3D9B">'+meetings+'</div><div style="font-size:11px;color:#6B7280">Reuniões</div></div>'
+      +'<div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)"><div style="font-size:28px;font-weight:800;color:#16A34A">'+closed+'</div><div style="font-size:11px;color:#6B7280">Fechamentos</div></div>'
+    +'</div>'
+    +(pros.length?cards:empty)
+    +'</div>';
 }
 function portalUpdateProspect(cid,pid,field,value){
   const c=D.clients.find(c=>c.id===cid);
