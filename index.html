@@ -850,6 +850,36 @@ function render(){
 // ────────────────────────────────────────────────────────────
 // DASHBOARD
 // ────────────────────────────────────────────────────────────
+function rDashProspeccao(){
+  try{
+    const thisMonth=new Date().toISOString().substring(0,7);
+    const monthLabel=new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    const sellers=D.team.filter(m=>m.role==='Social Seller'||m.role==='Assistente');
+    const rows=sellers.map(m=>{
+      const myC=D.clients.filter(c=>c.assignees&&c.assignees.includes(m.name)&&c.contractStatus==='ativo');
+      const all=myC.flatMap(c=>c.prospects||[]);
+      const mon=all.filter(p=>p.date&&p.date.substring(0,7)===thisMonth).length;
+      const meet=all.filter(p=>p.hadMeeting).length;
+      const cls=all.filter(p=>p.contractClosed).length;
+      const rate=all.length?Math.round(cls/all.length*100):0;
+      return{name:m.name.split(' ')[0],color:m.color,initials:m.initials,total:all.length,mon,meet,cls,rate};
+    }).filter(r=>r.total>0);
+    if(!rows.length)return'';
+    const tbody=rows.map(r=>{
+      const rateColor=r.rate>=20?'#16A34A':r.rate>=10?'#D97706':'#EF4444';
+      return '<tr><td><div style="display:flex;align-items:center;gap:8px"><div class="av av-s" style="background:'+r.color+'">'+r.initials+'</div><strong style="font-size:12px">'+r.name+'</strong></div></td>'
+        +'<td><span style="font-weight:700;color:#7C3AED">'+r.mon+'</span></td>'
+        +'<td>'+r.total+'</td><td>'+r.meet+'</td>'
+        +'<td><span style="font-weight:700;color:#16A34A">'+r.cls+'</span></td>'
+        +'<td><span style="font-weight:700;color:'+rateColor+'">'+r.rate+'%</span></td></tr>';
+    }).join('');
+    return'<div class="card" style="margin-top:20px;margin-bottom:20px">'
+      +'<div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA)">'
+      +'<h3 style="color:white;margin:0">🎯 Prospecção — '+monthLabel+'</h3></div>'
+      +'<div class="tw"><table><thead><tr><th>Social Seller</th><th>Este Mês</th><th>Total</th><th>Reuniões</th><th>Fechamentos</th><th>Conversão</th></tr></thead>'
+      +'<tbody>'+tbody+'</tbody></table></div></div>';
+  }catch(e){return'';}
+}
 function rDash(){
   const ativos=D.clients.filter(c=>c.contractStatus==='ativo');
   const vencidos=D.clients.filter(c=>c.contractStatus==='vencido');
@@ -914,36 +944,7 @@ function rDash(){
     </div>
   </div>
   ${vencidos.length?`<div class="card" style="margin-bottom:18px;border-color:#FDE68A"><div class="ch" style="background:#FFFBEB"><h3>⚠️ Contratos Vencidos</h3></div><div class="cb">${alertCards}</div></div>`:''}
-  ${(()=>{
-    const thisMonth=new Date().toISOString().substring(0,7);
-    const sellers=D.team.filter(m=>m.role==='Social Seller'||m.role==='Assistente');
-    const rows=sellers.map(m=>{
-      const myC=D.clients.filter(c=>c.assignees.includes(m.name)&&c.contractStatus==='ativo');
-      const all=myC.flatMap(c=>c.prospects||[]);
-      const mon=all.filter(p=>p.date&&p.date.substring(0,7)===thisMonth);
-      const meet=all.filter(p=>p.hadMeeting).length;
-      const cls=all.filter(p=>p.contractClosed).length;
-      const rate=all.length?Math.round(cls/all.length*100):0;
-      return{m,total:all.length,month:mon.length,meet,cls,rate};
-    });
-    if(!rows.some(r=>r.total>0))return'';
-    return`<div class="card" style="margin-top:20px;margin-bottom:20px">
-      <div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA)">
-        <h3 style="color:white;margin:0">🎯 Prospecção — ${new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</h3>
-      </div>
-      <div class="tw"><table>
-        <thead><tr><th>Social Seller</th><th>Este Mês</th><th>Total Geral</th><th>Reuniões</th><th>Fechamentos</th><th>Conversão</th></tr></thead>
-        <tbody>${rows.map(r=>`<tr>
-          <td><div style="display:flex;align-items:center;gap:8px"><div class="av av-s" style="background:${r.m.color}">${r.m.initials}</div><strong style="font-size:12px">${r.m.name.split(' ')[0]}</strong></div></td>
-          <td><span style="font-weight:700;color:#7C3AED">${r.month}</span></td>
-          <td>${r.total}</td>
-          <td>${r.meet}</td>
-          <td><span style="font-weight:700;color:#16A34A">${r.cls}</span></td>
-          <td><span style="font-weight:700;color:${r.rate>=20?'#16A34A':r.rate>=10?'#D97706':'#EF4444'}">${r.rate}%</span></td>
-        </tr>`).join('')}</tbody>
-      </table></div>
-    </div>`;
-  })()}
+  ${rDashProspeccao()}
   <div style="margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
     <div class="card"><div class="ch"><h3>📊 Volume Mensal de Leads Gerados</h3></div><div class="cb" style="padding:20px"><canvas id="chartMonthlyleads" height="70"></canvas></div></div>
     <div class="card"><div class="ch"><h3>👥 Distribuição de Leads</h3></div><div class="cb" style="padding:20px"><canvas id="chartLeadsbyVendor" height="70"></canvas></div></div>
