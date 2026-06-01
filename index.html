@@ -835,6 +835,12 @@ function render(){
   if(sbFooter) sbFooter.innerHTML=`${S.currentUser.name}<br><span style="font-size:10px;opacity:.7">${S.currentUser.role||'ALL IN'}</span>`;
   // Normal admin views
   $('view').innerHTML={dash:rDash,clients:rClients,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rFunc,team:rTeam,clientView:rClientView}[S.view]();
+  // Restore search input focus after re-render (prevents losing cursor on each keystroke)
+  if(S.view==='clients'&&S._searchFocused){
+    const si=$('client-search');
+    if(si){si.focus();const l=si.value.length;si.setSelectionRange(l,l);}
+    S._searchFocused=false;
+  }
 }
 
 // ────────────────────────────────────────────────────────────
@@ -888,7 +894,21 @@ function rDash(){
     <div class="stat" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--green)">${done}</div><div class="stat-lbl">Concluídas</div></div>
     <div class="stat" onclick="nav('clients',{statusFilter:'vencido'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--red)">${vencidos.length}</div><div class="stat-lbl">Contratos Vencidos</div></div>
   </div>
-  <div class="card" style="margin-bottom:18px;border-color:#E8622A;border-left:4px solid #E8622A"><div class="ch" style="background:#FFF7ED"><h3>🎂 Aniversariantes do Mês</h3></div><div class="cb"><div style="display:flex;flex-wrap:wrap;gap:8px">${bdayHtml||'<span style="color:var(--muted);font-size:12px">Nenhum aniversário neste mês</span>'}</div></div></div>
+  <div class="card" style="margin-bottom:18px;overflow:hidden;border:none;box-shadow:0 4px 20px rgba(232,98,42,.15)">
+    <div style="background:linear-gradient(135deg,#FF6B6B,#FF8E53,#FFD93D);padding:14px 20px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-10px;right:-10px;font-size:60px;opacity:.18;transform:rotate(15deg)">🎂</div>
+      <div style="position:absolute;top:6px;right:60px;font-size:22px;opacity:.25">🎁</div>
+      <div style="position:absolute;bottom:-4px;right:20px;font-size:28px;opacity:.2">🎉</div>
+      <div style="position:absolute;top:8px;left:50%;font-size:16px;opacity:.2">✨</div>
+      <h3 style="margin:0;color:white;font-size:14px;font-weight:800;letter-spacing:.5px;text-shadow:0 1px 3px rgba(0,0,0,.2)">🎂 Aniversariantes do Mês</h3>
+      <div style="font-size:11px;color:rgba(255,255,255,.85);margin-top:2px">${new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'}).replace(/^\w/,c=>c.toUpperCase())}</div>
+    </div>
+    <div style="padding:14px 16px;background:linear-gradient(180deg,#FFFBF5,#FFFFFF)">
+      ${birthdays.length
+        ?`<div style="display:flex;flex-wrap:wrap;gap:10px">${bdayHtml}</div>`
+        :`<div style="text-align:center;padding:16px 0;color:#9CA3AF;font-size:13px">🎈 Nenhum aniversário este mês</div>`}
+    </div>
+  </div>
   ${vencidos.length?`<div class="card" style="margin-bottom:18px;border-color:#FDE68A"><div class="ch" style="background:#FFFBEB"><h3>⚠️ Contratos Vencidos</h3></div><div class="cb">${alertCards}</div></div>`:''}
   <div style="margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
     <div class="card"><div class="ch"><h3>📊 Volume Mensal de Leads Gerados</h3></div><div class="cb" style="padding:20px"><canvas id="chartMonthlyleads" height="70"></canvas></div></div>
@@ -1049,7 +1069,7 @@ function rClients(){
 
   return`<div class="sh" style="margin-bottom:14px"><h2>Clientes</h2><button class="btn btn-p btn-s" onclick="S.viewMode='myportfolio';S.selectedTeamMember=null;render()">👤 Minha Carteira</button></div>
   <div class="filter-bar" style="gap:12px;margin-bottom:12px">
-    <input type="text" class="mini" placeholder="🔍 Buscar por nome/email..." value="${S.searchTerm}" onkeyup="S.searchTerm=this.value;render()" style="flex:1;max-width:300px">
+    <input type="text" id="client-search" class="mini" placeholder="🔍 Buscar por nome/email..." value="${S.searchTerm}" oninput="S.searchTerm=this.value;S._searchFocused=true;render()" style="flex:1;max-width:300px">
     <select class="mini" onchange="S.sortOrder=this.value;render()" style="width:200px">
       <option value="nome" ${S.sortOrder==='nome'?'selected':''}>Ordenar: A-Z</option>
       <option value="vencimento" ${S.sortOrder==='vencimento'?'selected':''}>Ordenar: Vencimento</option>
