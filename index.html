@@ -567,7 +567,7 @@ const DEFAULT={
 // ────────────────────────────────────────────────────────────
 // STATE & PERSISTENCE
 // ────────────────────────────────────────────────────────────
-let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0,adminAuth:false,currentUser:null,semanaWeekKey:null,editingLeadIdx:null,weeklyFilterMonth:null,minhaSemanaFilterMonth:null,minhaSemanaWk:null};
+let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0,adminAuth:false,currentUser:null,semanaWeekKey:null,editingLeadIdx:null,weeklyFilterMonth:null,minhaSemanaFilterMonth:null,minhaSemanaWk:null,gestaoFilterMonth:null,gestaoWk:null};
 let D=(()=>{try{const s=localStorage.getItem('allin');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT))}catch{return JSON.parse(JSON.stringify(DEFAULT))}})();
 let save=()=>localStorage.setItem('allin',JSON.stringify(D));
 const getC=()=>D.clients.find(c=>c.id===S.clientId);
@@ -1943,7 +1943,21 @@ function rFunc(){
 // MINHA SEMANA — GESTÃO (Mari + Naiara)
 // ────────────────────────────────────────────────────────────
 function rMinhaSemanaGestao(user){
-  const wk=thisWeekKey();
+  // Coletar todas as sextas de todos os clientes ativos
+  const _atv=D.clients.filter(c=>c.contractStatus==='ativo');
+  const allFriKeys=[...new Set(_atv.flatMap(c=>fridaysFrom(c.startDate).map(f=>getWeekKey(f))))].sort();
+  const allFriDates=allFriKeys.map(k=>new Date(k+'T12:00:00'));
+  const monthKeys=[...new Set(allFriDates.map(f=>getMonthKey(f)))];
+  const curMonthKey=getMonthKey(new Date());
+  if(!S.gestaoFilterMonth||!monthKeys.includes(S.gestaoFilterMonth)){
+    S.gestaoFilterMonth=monthKeys.includes(curMonthKey)?curMonthKey:(monthKeys[0]||curMonthKey);
+  }
+  const monthFriKeys=allFriKeys.filter(k=>getMonthKey(new Date(k+'T12:00:00'))===S.gestaoFilterMonth);
+  const thisWk=thisWeekKey();
+  if(!S.gestaoWk||!monthFriKeys.includes(S.gestaoWk)){
+    S.gestaoWk=monthFriKeys.includes(thisWk)?thisWk:(monthFriKeys[monthFriKeys.length-1]||thisWk);
+  }
+  const wk=S.gestaoWk;
   const wkDate=new Date(wk+'T12:00:00');
   const wkLabel=wkDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
   const mk=currentTrackingMonthKey();
@@ -1990,8 +2004,23 @@ function rMinhaSemanaGestao(user){
   const revenue=allPros.filter(p=>p.contractClosed).reduce(function(s,p){return s+parseFloat(p.contractValue||0);},0);
   const convRate=allPros.length?Math.round(fClosed/allPros.length*100):0;
 
+  // Filtro de mês
+  const monthFilterHtml='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+    +'<span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Mês:</span>'
+    +monthKeys.map(function(m){return'<span class="fc '+(S.gestaoFilterMonth===m?'active':'')+'" onclick="S.gestaoFilterMonth=\''+m+'\';S.gestaoWk=null;render()" style="font-size:11px">'+m+'</span>';}).join('')
+    +'</div>';
+  const weekFilterHtml='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:18px">'
+    +'<span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Semana:</span>'
+    +monthFriKeys.map(function(fk){
+      const fd=new Date(fk+'T12:00:00');
+      const lbl='Sexta '+fd.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+      return'<span class="fc '+(S.gestaoWk===fk?'active':'')+'" onclick="S.gestaoWk=\''+fk+'\';render()" style="font-size:11px">'+lbl+(fk===thisWk?' 📍':'')+'</span>';
+    }).join('')
+    +'</div>';
+
   return'<div style="margin-bottom:8px"><h2 style="font-size:18px;margin:0">⚡ Minha Semana — Gestão</h2>'
     +'<div style="font-size:12px;color:var(--muted)">Sexta '+wkLabel+' · '+user.name.split(' ')[0]+'</div></div>'
+    +monthFilterHtml+weekFilterHtml
 
     // Stats rápidos
     +'<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">'
