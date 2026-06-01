@@ -237,6 +237,9 @@ input.mini:focus{outline:none;border-color:var(--primary)}
 .portal-login-forgot a:hover{text-decoration:underline;color:#082C74}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
 <aside id="sidebar">
@@ -565,7 +568,7 @@ const DEFAULT={
 // ────────────────────────────────────────────────────────────
 let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0,adminAuth:false,currentUser:null,semanaWeekKey:null,editingLeadIdx:null,weeklyFilterMonth:null,minhaSemanaFilterMonth:null,minhaSemanaWk:null};
 let D=(()=>{try{const s=localStorage.getItem('allin');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT))}catch{return JSON.parse(JSON.stringify(DEFAULT))}})();
-const save=()=>localStorage.setItem('allin',JSON.stringify(D));
+let save=()=>localStorage.setItem('allin',JSON.stringify(D));
 const getC=()=>D.clients.find(c=>c.id===S.clientId);
 const getM=()=>D.team.find(m=>m.id===S.memberId);
 const TEAM_NAMES=()=>D.team.map(m=>m.name);
@@ -3531,6 +3534,82 @@ function handleNavigation(){
 }
 handleNavigation();
 window.addEventListener('hashchange',handleNavigation);
+
+// ────────────────────────────────────────────────────────────
+// FIREBASE — Sync em tempo real entre todos os dispositivos
+// ────────────────────────────────────────────────────────────
+(function initFirebase(){
+  try{
+    const _fbConfig={
+      apiKey:"AIzaSyBOwmuLm5Xp4Q-8KFIhpzB92g58hdhqqv0",
+      authDomain:"allin-sistema.firebaseapp.com",
+      databaseURL:"https://allin-sistema-default-rtdb.firebaseio.com",
+      projectId:"allin-sistema",
+      storageBucket:"allin-sistema.firebasestorage.app",
+      messagingSenderId:"183466767758",
+      appId:"1:183466767758:web:6760abc38d557b8dd620df"
+    };
+    firebase.initializeApp(_fbConfig);
+    const _db=firebase.database();
+    let _fbTimer=null;
+    let _fbWriting=false;
+    let _fbReady=false;
+
+    // Override save() para escrever no Firebase + localStorage
+    const _lsave=save; // guarda original (localStorage)
+    save=()=>{
+      _lsave();
+      if(!_fbReady)return;
+      if(_fbTimer)clearTimeout(_fbTimer);
+      _fbWriting=true;
+      _fbTimer=setTimeout(()=>{
+        _db.ref('allin').set(JSON.parse(JSON.stringify(D)))
+          .then(()=>setTimeout(()=>{_fbWriting=false;},1000))
+          .catch(()=>{_fbWriting=false;});
+      },800);
+    };
+
+    // Sincronização inicial: Firebase → local (ou local → Firebase se vazio)
+    _db.ref('allin').get().then(snap=>{
+      if(snap.exists()){
+        const fbData=snap.val();
+        // Firebase tem dados — usar como fonte de verdade
+        D=fbData;
+        localStorage.setItem('allin',JSON.stringify(D));
+        render();
+        toast('☁️ Dados sincronizados');
+      } else {
+        // Firebase vazio — enviar dados locais
+        _db.ref('allin').set(JSON.parse(JSON.stringify(D)));
+      }
+      _fbReady=true;
+
+      // Listener em tempo real — atualiza todos os dispositivos conectados
+      setTimeout(()=>{
+        _db.ref('allin').on('value',snap=>{
+          if(_fbWriting)return;
+          const fbData=snap.val();
+          if(!fbData)return;
+          const fbStr=JSON.stringify(fbData);
+          const localStr=JSON.stringify(D);
+          if(fbStr!==localStr){
+            D=fbData;
+            localStorage.setItem('allin',JSON.stringify(D));
+            toast('🔄 Atualizado em tempo real');
+            render();
+          }
+        });
+      },2000); // aguarda 2s para evitar conflito com render inicial
+
+    }).catch(e=>{
+      console.warn('Firebase offline, usando localStorage:',e);
+      _fbReady=true; // permite saves mesmo offline (tentará quando voltar)
+    });
+
+  }catch(e){
+    console.warn('Firebase não disponível:',e);
+  }
+})();
 </script>
 </body>
 </html>
