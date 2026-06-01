@@ -412,7 +412,7 @@ function mkClient(name,i,products,contractStatus,contractDue,assignees,customDel
     contractDue:contractDue||null,assignees:assignees||[],deliverables:dels,
     monthlyContent:{'Maio 2026':{'1ª Semana':'pendente','2ª Semana':'pendente','3ª Semana':'pendente','4ª Semana':'pendente'}},
     encounters:{list:[]},leads:[],arts:[],notes:'',email:'',phone:'',linkedin:'',startDate:'',birthday:'',
-    nicho:'',cnpj:'',address:'',contractValue:'',paymentMethod:'',paymentStatus:'em-dia',results:[],mainOwner:'',token:generateToken(),
+    nicho:'',cnpj:'',address:'',contractValue:'',paymentMethod:'',paymentStatus:'em-dia',results:[],mainOwner:'',token:generateToken(),prospects:[],
     weeklyReports:{},
     monthlyReports:{},
     continuousActivities:products.includes('Gestão de Perfil')?[
@@ -914,6 +914,36 @@ function rDash(){
     </div>
   </div>
   ${vencidos.length?`<div class="card" style="margin-bottom:18px;border-color:#FDE68A"><div class="ch" style="background:#FFFBEB"><h3>⚠️ Contratos Vencidos</h3></div><div class="cb">${alertCards}</div></div>`:''}
+  ${(()=>{
+    const thisMonth=new Date().toISOString().substring(0,7);
+    const sellers=D.team.filter(m=>m.role==='Social Seller'||m.role==='Assistente');
+    const rows=sellers.map(m=>{
+      const myC=D.clients.filter(c=>c.assignees.includes(m.name)&&c.contractStatus==='ativo');
+      const all=myC.flatMap(c=>c.prospects||[]);
+      const mon=all.filter(p=>p.date&&p.date.substring(0,7)===thisMonth);
+      const meet=all.filter(p=>p.hadMeeting).length;
+      const cls=all.filter(p=>p.contractClosed).length;
+      const rate=all.length?Math.round(cls/all.length*100):0;
+      return{m,total:all.length,month:mon.length,meet,cls,rate};
+    });
+    if(!rows.some(r=>r.total>0))return'';
+    return`<div class="card" style="margin-top:20px;margin-bottom:20px">
+      <div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA)">
+        <h3 style="color:white;margin:0">🎯 Prospecção — ${new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</h3>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>Social Seller</th><th>Este Mês</th><th>Total Geral</th><th>Reuniões</th><th>Fechamentos</th><th>Conversão</th></tr></thead>
+        <tbody>${rows.map(r=>`<tr>
+          <td><div style="display:flex;align-items:center;gap:8px"><div class="av av-s" style="background:${r.m.color}">${r.m.initials}</div><strong style="font-size:12px">${r.m.name.split(' ')[0]}</strong></div></td>
+          <td><span style="font-weight:700;color:#7C3AED">${r.month}</span></td>
+          <td>${r.total}</td>
+          <td>${r.meet}</td>
+          <td><span style="font-weight:700;color:#16A34A">${r.cls}</span></td>
+          <td><span style="font-weight:700;color:${r.rate>=20?'#16A34A':r.rate>=10?'#D97706':'#EF4444'}">${r.rate}%</span></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+  })()}
   <div style="margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
     <div class="card"><div class="ch"><h3>📊 Volume Mensal de Leads Gerados</h3></div><div class="cb" style="padding:20px"><canvas id="chartMonthlyleads" height="70"></canvas></div></div>
     <div class="card"><div class="ch"><h3>👥 Distribuição de Leads</h3></div><div class="cb" style="padding:20px"><canvas id="chartLeadsbyVendor" height="70"></canvas></div></div>
@@ -1109,12 +1139,61 @@ function rClients(){
 function rDetail(){
   const c=getC();if(!c)return'';
   const p=prog(c);
-  const tabs={entregas:'📦 Entregas',conteudo:'📅 Conteúdo Mensal',encontros:'🤝 Encontros',artes:'📱 Artes',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
+  const tabs={entregas:'📦 Entregas',prospeccao:'🎯 Prospecção',conteudo:'📅 Conteúdo Mensal',encontros:'🤝 Encontros',artes:'📱 Artes',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
   const tabHtml=Object.entries(tabs).map(([k,v])=>`<div class="tab ${S.tab===k?'active':''}" onclick="S.tab='${k}';render()">${v}</div>`).join('');
   const statusMap={ativo:'pill-ativo',vencido:'pill-vencido',finalizado:'pill-finalizado'};
   let body='';
 
-  if(S.tab==='entregas'){
+  if(S.tab==='prospeccao'){
+    const pros=c.prospects||[];
+    const thisMonth=new Date().toISOString().substring(0,7);
+    const monthPros=pros.filter(p=>p.date&&p.date.substring(0,7)===thisMonth);
+    const totalClosed=pros.filter(p=>p.contractClosed).length;
+    const totalMeetings=pros.filter(p=>p.hadMeeting).length;
+    const convRate=pros.length?Math.round(totalClosed/pros.length*100):0;
+    body=`<div class="card">
+      <div class="ch">
+        <h3>🎯 Prospecção</h3>
+        <button class="btn btn-p btn-s" onclick="openProspectModal('${c.id}',null)">+ Adicionar Prospect</button>
+      </div>
+      <div class="cb">
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+          <div class="stat-card"><div class="stat-val" style="color:var(--primary)">${pros.length}</div><div class="stat-label">Total Prospects</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:#D97706">${monthPros.length}</div><div class="stat-label">Este Mês</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalMeetings}</div><div class="stat-label">Reuniões Feitas</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:#7C3AED">${totalClosed} <span style="font-size:14px">(${convRate}%)</span></div><div class="stat-label">Contratos Fechados</div></div>
+        </div>
+        ${pros.length===0?`<div style="text-align:center;padding:40px;color:var(--muted)">Nenhum prospect cadastrado ainda.<br>Clique em "+ Adicionar Prospect" para começar.</div>`:`
+        <div class="tw"><table>
+          <thead><tr>
+            <th>Data</th><th>Nome</th><th>Cargo</th><th>LinkedIn</th><th>Conduzido por</th>
+            <th>Mensagem</th><th>Respondeu</th><th>Reunião</th><th>Fechou</th><th>Valor</th><th></th>
+          </tr></thead>
+          <tbody>
+            ${[...pros].sort((a,b)=>b.date.localeCompare(a.date)).map(p=>{
+              const dateStr=p.date?new Date(p.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):'—';
+              const bool=(v,yes='✅',no='⏳')=>v?`<span style="color:#16A34A">${yes}</span>`:`<span style="color:#9CA3AF">${no}</span>`;
+              return`<tr>
+                <td style="font-size:11px;color:var(--muted)">${dateStr}</td>
+                <td><strong style="font-size:12px">${p.name||'—'}</strong>${p.email?`<br><span style="font-size:10px;color:var(--muted)">${p.email}</span>`:''}</td>
+                <td style="font-size:11px">${p.role||'—'}</td>
+                <td>${p.linkedinUrl?`<a href="${p.linkedinUrl}" target="_blank" style="font-size:11px;color:var(--primary)">🔗 Ver</a>`:'—'}</td>
+                <td style="font-size:11px">${(p.conductedBy||'').split(' ')[0]}</td>
+                <td style="text-align:center">${bool(p.sentMessage)}</td>
+                <td style="text-align:center">${bool(p.replied)}</td>
+                <td style="text-align:center">${bool(p.hadMeeting)}</td>
+                <td style="text-align:center">${p.contractClosed?`<span style="color:#16A34A;font-weight:700">✅ Sim</span>`:`<span style="color:#9CA3AF">Não</span>`}</td>
+                <td style="font-size:11px">${p.contractValue?'R$ '+p.contractValue:'—'}</td>
+                <td><button class="btn btn-o btn-s" onclick="openProspectModal('${c.id}','${p.id}')" style="font-size:10px">✏️</button>
+                    <button class="btn btn-o btn-s" onclick="deleteProspect('${c.id}','${p.id}')" style="font-size:10px;border-color:var(--red);color:var(--red)">🗑️</button></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>`}
+      </div>
+    </div>`;
+  }
+  else if(S.tab==='entregas'){
     const hasGP=c.products.includes('Gestão de Perfil');
     const hasIC=c.products.includes('Implementação Comercial');
     body='';
@@ -1922,6 +2001,35 @@ function rMinhaSemana(){
         }).join('')}
       </tbody>
     </table></div>
+  </div>
+
+  <!-- SEÇÃO 3: Prospecção da Semana -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA);border-radius:8px 8px 0 0">
+      <div>
+        <h3 style="margin:0;color:white">🎯 Prospecção da Semana</h3>
+        <span style="font-size:12px;color:rgba(255,255,255,.85)">Prospects adicionados nesta semana por cliente</span>
+      </div>
+    </div>
+    <div style="padding:0">
+      ${myClients.map(c=>{
+        const weekProspects=(c.prospects||[]).filter(p=>p.date===wk);
+        const totalProspects=(c.prospects||[]).length;
+        const closedProspects=(c.prospects||[]).filter(p=>p.contractClosed).length;
+        return`<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #F3F4F6">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:13px">${c.name.split(' ').slice(0,2).join(' ')}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">Total: ${totalProspects} prospects · ${closedProspects} fechados</div>
+          </div>
+          <div style="text-align:center;min-width:60px">
+            <div style="font-size:20px;font-weight:800;color:${weekProspects.length>0?'#7C3AED':'#9CA3AF'}">${weekProspects.length}</div>
+            <div style="font-size:9px;color:var(--muted)">esta semana</div>
+          </div>
+          <button class="btn btn-p btn-s" onclick="openProspectModal('${c.id}',null)" style="background:#7C3AED;border-color:#7C3AED;white-space:nowrap">+ Prospect</button>
+          <button class="btn btn-o btn-s" onclick="nav('clients',{clientId:'${c.id}',tab:'prospeccao'})" style="white-space:nowrap;font-size:11px">Ver todos →</button>
+        </div>`;
+      }).join('')}
+    </div>
   </div>`;
 }
 
@@ -2458,6 +2566,114 @@ function downloadEncFile(cid,encIdx,fileIdx){
     link.download=file.name;
     link.click();
   }
+}
+
+// ────────────────────────────────────────────────────────────
+// PROSPECÇÃO — CRUD
+// ────────────────────────────────────────────────────────────
+function openProspectModal(cid, pid){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c)return;
+  if(!c.prospects)c.prospects=[];
+  const p=pid?c.prospects.find(p=>p.id===pid):null;
+  const v=p||{id:'p'+Date.now(),date:new Date().toISOString().substring(0,10),conductedBy:S.currentUser?S.currentUser.name:'',linkedinUrl:'',name:'',role:'',location:'',phone:'',email:'',sentMessage:false,replied:false,scheduledMeeting:false,hadMeeting:false,followUp1:'',followUp2:'',followUp3:'',contractClosed:false,contractValue:'',reasonNotClosed:'',notes:''};
+  const isEdit=!!p;
+  const overlay=document.createElement('div');
+  overlay.id='pm-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:720px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="background:linear-gradient(135deg,#0D3D9B,#1d4ed8);padding:20px 24px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between">
+      <h3 style="margin:0;color:white;font-size:16px">${isEdit?'✏️ Editar Prospect':'🎯 Novo Prospect'} — ${c.name.split(' ')[0]}</h3>
+      <button onclick="document.getElementById('pm-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
+    </div>
+    <div style="padding:24px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E5E7EB">📋 Dados do Prospect (Social Seller preenche)</div>
+      <div class="fgrid3" style="margin-bottom:16px">
+        <div class="fg"><label>Data *</label><input type="date" id="pm-date" value="${v.date}"></div>
+        <div class="fg"><label>Conduzido por</label><input id="pm-by" value="${v.conductedBy}" placeholder="Nome da SS"></div>
+        <div class="fg"><label>LinkedIn URL</label><input id="pm-li" value="${v.linkedinUrl}" placeholder="https://linkedin.com/in/..."></div>
+        <div class="fg"><label>Nome *</label><input id="pm-name" value="${v.name}" placeholder="Nome completo"></div>
+        <div class="fg"><label>Cargo</label><input id="pm-role" value="${v.role}" placeholder="CEO, Gerente..."></div>
+        <div class="fg"><label>Localização</label><input id="pm-loc" value="${v.location}" placeholder="São Paulo, SP"></div>
+        <div class="fg"><label>Telefone</label><input id="pm-phone" value="${v.phone}" placeholder="+55 11 99999-9999"></div>
+        <div class="fg"><label>Email</label><input id="pm-email" value="${v.email}" placeholder="email@exemplo.com"></div>
+        <div class="fg" style="display:flex;align-items:center;gap:8px;padding-top:20px">
+          <input type="checkbox" id="pm-sent" ${v.sentMessage?'checked':''} style="width:16px;height:16px">
+          <label for="pm-sent" style="margin:0;cursor:pointer">Enviou mensagem?</label>
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E5E7EB">🤝 Follow-up (Cliente preenche no portal)</div>
+      <div class="fgrid3" style="margin-bottom:16px">
+        <div class="fg" style="display:flex;align-items:center;gap:8px;padding-top:20px">
+          <input type="checkbox" id="pm-rep" ${v.replied?'checked':''} style="width:16px;height:16px">
+          <label for="pm-rep" style="margin:0;cursor:pointer">Respondeu?</label>
+        </div>
+        <div class="fg" style="display:flex;align-items:center;gap:8px;padding-top:20px">
+          <input type="checkbox" id="pm-sch" ${v.scheduledMeeting?'checked':''} style="width:16px;height:16px">
+          <label for="pm-sch" style="margin:0;cursor:pointer">Agendou Reunião?</label>
+        </div>
+        <div class="fg" style="display:flex;align-items:center;gap:8px;padding-top:20px">
+          <input type="checkbox" id="pm-met" ${v.hadMeeting?'checked':''} style="width:16px;height:16px">
+          <label for="pm-met" style="margin:0;cursor:pointer">Fez Reunião?</label>
+        </div>
+        <div class="fg"><label>Follow-up 1</label><input type="date" id="pm-f1" value="${v.followUp1||''}"></div>
+        <div class="fg"><label>Follow-up 2</label><input type="date" id="pm-f2" value="${v.followUp2||''}"></div>
+        <div class="fg"><label>Follow-up 3</label><input type="date" id="pm-f3" value="${v.followUp3||''}"></div>
+        <div class="fg" style="display:flex;align-items:center;gap:8px;padding-top:20px">
+          <input type="checkbox" id="pm-cls" ${v.contractClosed?'checked':''} style="width:16px;height:16px">
+          <label for="pm-cls" style="margin:0;cursor:pointer">Fechou Contrato?</label>
+        </div>
+        <div class="fg"><label>Valor do Contrato (R$)</label><input id="pm-val" value="${v.contractValue||''}" placeholder="0,00"></div>
+        <div class="fg"><label>Motivo não fechou</label><input id="pm-rsn" value="${v.reasonNotClosed||''}" placeholder="Se não fechou..."></div>
+      </div>
+      <div class="fg" style="margin-bottom:20px"><label>Observações</label><textarea id="pm-obs" rows="2" style="width:100%;resize:vertical">${v.notes||''}</textarea></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-o" onclick="document.getElementById('pm-overlay').remove()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveProspect('${cid}','${v.id}')">💾 Salvar Prospect</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+function saveProspect(cid,pid){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c)return;
+  if(!c.prospects)c.prospects=[];
+  const idx=c.prospects.findIndex(p=>p.id===pid);
+  const p={
+    id:pid,
+    date:$('pm-date').value,
+    conductedBy:$('pm-by').value,
+    linkedinUrl:$('pm-li').value,
+    name:$('pm-name').value,
+    role:$('pm-role').value,
+    location:$('pm-loc').value,
+    phone:$('pm-phone').value,
+    email:$('pm-email').value,
+    sentMessage:$('pm-sent').checked,
+    replied:$('pm-rep').checked,
+    scheduledMeeting:$('pm-sch').checked,
+    hadMeeting:$('pm-met').checked,
+    followUp1:$('pm-f1').value,
+    followUp2:$('pm-f2').value,
+    followUp3:$('pm-f3').value,
+    contractClosed:$('pm-cls').checked,
+    contractValue:$('pm-val').value,
+    reasonNotClosed:$('pm-rsn').value,
+    notes:$('pm-obs').value
+  };
+  if(!p.name){toast('⚠️ Nome é obrigatório');return;}
+  if(idx>=0)c.prospects[idx]=p;else c.prospects.push(p);
+  save();
+  document.getElementById('pm-overlay').remove();
+  toast('✅ Prospect salvo!');
+  render();
+}
+function deleteProspect(cid,pid){
+  if(!confirm('Remover este prospect?'))return;
+  const c=D.clients.find(c=>c.id===cid);
+  c.prospects=(c.prospects||[]).filter(p=>p.id!==pid);
+  save();toast('🗑️ Prospect removido');render();
 }
 
 // ────────────────────────────────────────────────────────────
@@ -3323,6 +3539,85 @@ function rPortalEntregas(c){
     ${c.deliverables.length===0?'<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhuma entrega registrada ainda.</div>':''}`;
 }
 
+function rPortalProspeccao(c){
+  const pros=(c.prospects||[]).sort((a,b)=>b.date.localeCompare(a.date));
+  const total=pros.length;
+  const meetings=pros.filter(p=>p.hadMeeting).length;
+  const closed=pros.filter(p=>p.contractClosed).length;
+  const pending=pros.filter(p=>!p.replied).length;
+  return`<div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
+      <div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+        <div style="font-size:28px;font-weight:800;color:#7C3AED">${total}</div>
+        <div style="font-size:11px;color:#6B7280">Total Prospectados</div>
+      </div>
+      <div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+        <div style="font-size:28px;font-weight:800;color:#D97706">${pending}</div>
+        <div style="font-size:11px;color:#6B7280">Aguardando Resposta</div>
+      </div>
+      <div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+        <div style="font-size:28px;font-weight:800;color:#0D3D9B">${meetings}</div>
+        <div style="font-size:11px;color:#6B7280">Reuniões Realizadas</div>
+      </div>
+      <div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+        <div style="font-size:28px;font-weight:800;color:#16A34A">${closed}</div>
+        <div style="font-size:11px;color:#6B7280">Contratos Fechados</div>
+      </div>
+    </div>
+    <div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between">
+        <h3 style="margin:0;font-size:15px">🎯 Seus Prospects</h3>
+        <span style="font-size:12px;color:#6B7280">Atualize o status de cada contato</span>
+      </div>
+      ${pros.length===0?`<div style="padding:40px;text-align:center;color:#9CA3AF">Nenhum prospect cadastrado ainda.</div>`:`
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#F9FAFB">
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:#6B7280">Nome</th>
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:#6B7280">Cargo</th>
+          <th style="padding:10px;text-align:center;font-size:11px;color:#6B7280">Respondeu?</th>
+          <th style="padding:10px;text-align:center;font-size:11px;color:#6B7280">Agendou?</th>
+          <th style="padding:10px;text-align:center;font-size:11px;color:#6B7280">Reunião?</th>
+          <th style="padding:10px;text-align:center;font-size:11px;color:#6B7280">Fechou?</th>
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:#6B7280">Observação</th>
+        </tr></thead>
+        <tbody>
+          ${pros.map((p,i)=>`<tr style="border-top:1px solid #F3F4F6">
+            <td style="padding:10px 16px">
+              <div style="font-weight:600;font-size:13px">${p.name}</div>
+              ${p.linkedinUrl?`<a href="${p.linkedinUrl}" target="_blank" style="font-size:10px;color:#0D3D9B">🔗 LinkedIn</a>`:''}
+            </td>
+            <td style="padding:10px 16px;font-size:12px;color:#6B7280">${p.role||'—'}</td>
+            <td style="padding:10px;text-align:center">
+              <input type="checkbox" ${p.replied?'checked':''} onchange="portalUpdateProspect('${c.id}','${p.id}','replied',this.checked)" style="width:16px;height:16px;cursor:pointer">
+            </td>
+            <td style="padding:10px;text-align:center">
+              <input type="checkbox" ${p.scheduledMeeting?'checked':''} onchange="portalUpdateProspect('${c.id}','${p.id}','scheduledMeeting',this.checked)" style="width:16px;height:16px;cursor:pointer">
+            </td>
+            <td style="padding:10px;text-align:center">
+              <input type="checkbox" ${p.hadMeeting?'checked':''} onchange="portalUpdateProspect('${c.id}','${p.id}','hadMeeting',this.checked)" style="width:16px;height:16px;cursor:pointer">
+            </td>
+            <td style="padding:10px;text-align:center">
+              <input type="checkbox" ${p.contractClosed?'checked':''} onchange="portalUpdateProspect('${c.id}','${p.id}','contractClosed',this.checked)" style="width:16px;height:16px;cursor:pointer">
+            </td>
+            <td style="padding:10px 16px">
+              <input style="width:100%;min-width:140px;border:1px solid #E5E7EB;border-radius:6px;padding:4px 8px;font-size:11px" value="${p.notes||''}" placeholder="Observação..." onblur="portalUpdateProspect('${c.id}','${p.id}','notes',this.value)">
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`}
+    </div>
+  </div>`;
+}
+function portalUpdateProspect(cid,pid,field,value){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c||!c.prospects)return;
+  const p=c.prospects.find(p=>p.id===pid);
+  if(!p)return;
+  p[field]=value;
+  save();
+  toast('✅ Salvo!');
+}
+
 function rPortalReunioes(c){
   const encs=(c.encounters&&c.encounters.list||[]).sort((a,b)=>new Date(b.date)-new Date(a.date));
   return`
@@ -3417,11 +3712,12 @@ function rClientPortalAuth(){
   const navItems=[
     {id:'dashboard',icon:'📊',label:'Dashboard'},
     {id:'entregas',icon:'📦',label:'Entregas'},
+    {id:'prospeccao',icon:'🎯',label:'Prospecção'},
     {id:'reunioes',icon:'🤝',label:'Reuniões'},
     {id:'relatorios',icon:'📈',label:'Relatórios'},
   ];
-  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',reunioes:'Reuniões',relatorios:'Relatórios'};
-  const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,reunioes:rPortalReunioes,relatorios:rPortalRelatorios};
+  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Prospecção',reunioes:'Reuniões',relatorios:'Relatórios'};
+  const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,prospeccao:rPortalProspeccao,reunioes:rPortalReunioes,relatorios:rPortalRelatorios};
   const mainContent=(contentMap[pv]||rPortalDashboard)(c);
   return`<div class="portal-wrapper">
     <div class="portal-sidebar">
