@@ -574,7 +574,7 @@ const getC=()=>D.clients.find(c=>c.id===S.clientId);
 const getM=()=>D.team.find(m=>m.id===S.memberId);
 const TEAM_NAMES=()=>D.team.map(m=>m.name);
 const TEAM_PASSWORD='allin2026';
-const ADMIN_PASSWORD='Allin@Time';
+const ADMIN_PASSWORD='allin@time';
 
 // MIGRATE TOKENS - Ensure all clients have tokens
 D.clients.forEach(c=>{if(!c.token)c.token=generateToken();});
