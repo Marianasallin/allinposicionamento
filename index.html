@@ -1940,11 +1940,122 @@ function rFunc(){
 }
 
 // ────────────────────────────────────────────────────────────
-// MINHA SEMANA
+// MINHA SEMANA — GESTÃO (Mari + Naiara)
+// ────────────────────────────────────────────────────────────
+function rMinhaSemanaGestao(user){
+  const wk=thisWeekKey();
+  const wkDate=new Date(wk+'T12:00:00');
+  const wkLabel=wkDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const mk=currentTrackingMonthKey();
+  const ativos=D.clients.filter(c=>c.contractStatus==='ativo');
+  const sellers=D.team.filter(m=>m.role==='Social Seller'||m.role==='Assistente');
+  const thisMonth=new Date().toISOString().substring(0,7);
+
+  // === BLOCO 1: Performance da Equipe esta semana ===
+  const teamRows=sellers.map(function(m){
+    const mc=ativos.filter(c=>(c.assignees||[]).includes(m.name));
+    const wkDone=mc.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
+    const mDone=mc.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
+    const leads=mc.reduce(function(s,c){return s+(c.weeklyReports&&c.weeklyReports[wk]?c.weeklyReports[wk].leads||0:0);},0);
+    const newProspects=mc.flatMap(c=>(c.prospects||[]).filter(p=>p.date===wk)).length;
+    const wkOk=wkDone===mc.length&&mc.length>0;
+    return '<tr>'
+      +'<td><div style="display:flex;align-items:center;gap:8px"><div class="av av-s" style="background:'+m.color+'">'+m.initials+'</div><strong style="font-size:12px">'+m.name.split(' ')[0]+'</strong></div></td>'
+      +'<td style="text-align:center"><span style="font-weight:700;color:'+(wkOk?'#16A34A':'#EF4444')+'">'+wkDone+'/'+mc.length+'</span></td>'
+      +'<td style="text-align:center">'+leads+'</td>'
+      +'<td style="text-align:center"><span style="font-weight:700;color:#7C3AED">'+newProspects+'</span></td>'
+      +'<td style="text-align:center"><span style="font-weight:700;color:'+(mDone===mc.length&&mc.length>0?'#16A34A':'#D97706')+'">'+mDone+'/'+mc.length+'</span></td>'
+      +'</tr>';
+  }).join('');
+
+  // === BLOCO 2: Alertas urgentes ===
+  const expiring=ativos.filter(function(c){
+    if(!c.contractDue)return false;
+    const d=new Date(c.contractDue);const now=new Date();
+    return(d-now)/(1000*60*60*24)<=14;
+  });
+  const overdue=ativos.flatMap(c=>(c.deliverables||[]).filter(d=>d.status==='atrasado').map(d=>({client:c.name,del:d.name,resp:d.responsible||'—'})));
+  const noSeller=ativos.filter(c=>!(c.assignees||[]).length);
+  const alertsHtml=(expiring.length===0&&overdue.length===0&&noSeller.length===0)
+    ?'<div style="padding:16px;color:#16A34A;text-align:center;font-weight:600">✅ Nenhum alerta esta semana!</div>'
+    :(expiring.map(c=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #FEF3C7"><span style="font-size:18px">⚠️</span><div><strong style="font-size:12px">'+c.name+'</strong><br><span style="font-size:11px;color:#D97706">Contrato vence em '+getContractDaysRemaining(c.contractDue)+'</span></div></div>').join('')
+    +overdue.slice(0,5).map(a=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #FEE2E2"><span style="font-size:18px">🔴</span><div><strong style="font-size:12px">'+a.client+'</strong> — '+a.del+'<br><span style="font-size:11px;color:#DC2626">Entrega atrasada · '+a.resp+'</span></div></div>').join('')
+    +noSeller.map(c=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #F3F4F6"><span style="font-size:18px">👤</span><div><strong style="font-size:12px">'+c.name+'</strong><br><span style="font-size:11px;color:#9CA3AF">Sem Social Seller atribuída</span></div></div>').join(''));
+
+  // === BLOCO 3: Funil de prospecção da semana ===
+  const allPros=ativos.flatMap(c=>(c.prospects||[]).filter(p=>p.date&&p.date.substring(0,7)===thisMonth));
+  const fRep=allPros.filter(p=>p.replied).length;
+  const fMeet=allPros.filter(p=>p.hadMeeting).length;
+  const fClosed=allPros.filter(p=>p.contractClosed).length;
+  const revenue=allPros.filter(p=>p.contractClosed).reduce(function(s,p){return s+parseFloat(p.contractValue||0);},0);
+  const convRate=allPros.length?Math.round(fClosed/allPros.length*100):0;
+
+  return'<div style="margin-bottom:8px"><h2 style="font-size:18px;margin:0">⚡ Minha Semana — Gestão</h2>'
+    +'<div style="font-size:12px;color:var(--muted)">Sexta '+wkLabel+' · '+user.name.split(' ')[0]+'</div></div>'
+
+    // Stats rápidos
+    +'<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">'
+    +'<div class="stat-card"><div class="stat-val" style="color:var(--primary)">'+ativos.length+'</div><div class="stat-label">Clientes Ativos</div></div>'
+    +'<div class="stat-card"><div class="stat-val" style="color:#16A34A">'+allPros.length+'</div><div class="stat-label">Prospects este mês</div></div>'
+    +'<div class="stat-card"><div class="stat-val" style="color:#7C3AED">'+fClosed+'</div><div class="stat-label">Fechamentos ('+convRate+'%)</div></div>'
+    +'<div class="stat-card"><div class="stat-val" style="color:#057642">'+(revenue>0?'R$ '+revenue.toLocaleString('pt-BR'):'R$ 0')+'</div><div class="stat-label">Receita (prospecção)</div></div>'
+    +'</div>'
+
+    // Performance da equipe
+    +'<div class="card" style="margin-bottom:20px">'
+    +'<div class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8)">'
+    +'<h3 style="color:white;margin:0">👥 Performance da Equipe — Sexta '+wkLabel+'</h3></div>'
+    +'<div class="tw"><table>'
+    +'<thead><tr><th>Social Seller</th><th style="text-align:center">Rel. Semanais</th><th style="text-align:center">Leads</th><th style="text-align:center">Novos Prospects</th><th style="text-align:center">Rel. Mensal</th></tr></thead>'
+    +'<tbody>'+teamRows+'</tbody></table></div></div>'
+
+    // Funil do mês
+    +'<div class="card" style="margin-bottom:20px">'
+    +'<div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA)">'
+    +'<h3 style="color:white;margin:0">🎯 Funil de Prospecção — '+mk+'</h3></div>'
+    +'<div class="cb"><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;text-align:center">'
+    +'<div><div style="font-size:28px;font-weight:800;color:#0077B5">'+allPros.length+'</div><div style="font-size:11px;color:var(--muted)">📩 Prospectados</div></div>'
+    +'<div style="display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--muted)">→</div>'
+    +'<div><div style="font-size:28px;font-weight:800;color:#7C3AED">'+fRep+'</div><div style="font-size:11px;color:var(--muted)">💬 Responderam</div></div>'
+    +'<div style="display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--muted)">→</div>'
+    +'<div><div style="font-size:28px;font-weight:800;color:#0D3D9B">'+fMeet+'</div><div style="font-size:11px;color:var(--muted)">🤝 Reuniões</div></div>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:center;padding:8px 0;font-size:20px;color:var(--muted)">↓</div>'
+    +'<div style="text-align:center;padding:12px;background:#F0FDF4;border-radius:12px">'
+    +'<div style="font-size:32px;font-weight:900;color:#16A34A">'+fClosed+'</div>'
+    +'<div style="font-size:12px;color:#16A34A;font-weight:600">✅ Fechamentos ('+convRate+'% conversão)</div>'
+    +(revenue>0?'<div style="font-size:14px;font-weight:700;color:#057642;margin-top:4px">R$ '+revenue.toLocaleString('pt-BR')+'</div>':'')
+    +'</div></div></div>'
+
+    // Alertas
+    +'<div class="card">'
+    +'<div class="ch" style="background:'+(expiring.length||overdue.length?'linear-gradient(135deg,#DC2626,#EF4444)':'linear-gradient(135deg,#16A34A,#22C55E)')+'">'
+    +'<h3 style="color:white;margin:0">'+(expiring.length||overdue.length?'⚠️ Alertas da Semana':'✅ Alertas da Semana')+'</h3>'
+    +'<span style="font-size:12px;color:rgba(255,255,255,.85)">'+(expiring.length+overdue.length+noSeller.length)+' item(s)</span></div>'
+    +'<div>'+alertsHtml+'</div></div>';
+}
+
+// MINHA SEMANA — CONTEÚDO (Gabriela) — a definir após reunião
+// ────────────────────────────────────────────────────────────
+function rMinhaSemanaConteudo(user){
+  return'<div class="card" style="margin:40px auto;max-width:500px;text-align:center">'
+    +'<div class="cb" style="padding:48px 32px">'
+    +'<div style="font-size:48px;margin-bottom:16px">✍️</div>'
+    +'<h3 style="margin-bottom:8px">Minha Semana — Conteúdo</h3>'
+    +'<p style="color:var(--muted);font-size:13px">Esta área está sendo estruturada com base no fluxo de trabalho de conteúdo.<br><strong>Em breve!</strong></p>'
+    +'</div></div>';
+}
+
+// MINHA SEMANA — SOCIAL SELLERS
 // ────────────────────────────────────────────────────────────
 function rMinhaSemana(){
   const user=S.currentUser;
   if(!user)return'<div class="card"><p>Faça login para ver sua semana.</p></div>';
+  // Roteamento por perfil
+  const isGestao=user.role==='CEO'||user.role==='Gestão';
+  const isConteudo=user.role==='Head de Conteúdo';
+  if(isGestao)return rMinhaSemanaGestao(user);
+  if(isConteudo)return rMinhaSemanaConteudo(user);
   const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(user.name)&&c.contractStatus!=='inativo'&&c.products.includes('Gestão de Perfil'));
 
   // Collect all unique Fridays across user's clients (sorted)
