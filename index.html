@@ -1137,6 +1137,53 @@ function rClients(){
 // ────────────────────────────────────────────────────────────
 // CLIENT DETAIL
 // ────────────────────────────────────────────────────────────
+function rDetailProspeccao(c){
+  try{
+    const pros=(c.prospects||[]).slice().sort(function(a,b){return b.date.localeCompare(a.date);});
+    const thisMonth=new Date().toISOString().substring(0,7);
+    const monthCount=pros.filter(function(p){return p.date&&p.date.substring(0,7)===thisMonth;}).length;
+    const meetings=pros.filter(function(p){return p.hadMeeting;}).length;
+    const closed=pros.filter(function(p){return p.contractClosed;}).length;
+    const rate=pros.length?Math.round(closed/pros.length*100):0;
+    const cid=c.id;
+    function ck(v){return v?'<span style="color:#16A34A">✅</span>':'<span style="color:#9CA3AF">—</span>';}
+    const rows=pros.map(function(p){
+      const dt=p.date?new Date(p.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):'—';
+      const emailHtml=p.email?'<br><span style="font-size:10px;color:var(--muted)">'+p.email+'</span>':'';
+      const liHtml=p.linkedinUrl?'<a href="'+p.linkedinUrl+'" target="_blank" style="font-size:11px;color:var(--primary)">🔗</a>':'—';
+      const valHtml=p.contractValue?'R$ '+p.contractValue:'—';
+      const closedHtml=p.contractClosed?'<span style="color:#16A34A;font-weight:700">✅</span>':'<span style="color:#9CA3AF">—</span>';
+      return '<tr>'
+        +'<td style="font-size:11px;color:var(--muted)">'+dt+'</td>'
+        +'<td><strong style="font-size:12px">'+(p.name||'—')+'</strong>'+emailHtml+'</td>'
+        +'<td style="font-size:11px">'+(p.role||'—')+'</td>'
+        +'<td>'+liHtml+'</td>'
+        +'<td style="font-size:11px">'+((p.conductedBy||'').split(' ')[0])+'</td>'
+        +'<td style="text-align:center">'+ck(p.sentMessage)+'</td>'
+        +'<td style="text-align:center">'+ck(p.replied)+'</td>'
+        +'<td style="text-align:center">'+ck(p.hadMeeting)+'</td>'
+        +'<td style="text-align:center">'+closedHtml+'</td>'
+        +'<td style="font-size:11px">'+valHtml+'</td>'
+        +'<td>'
+          +'<button class="btn btn-o btn-s" onclick="openProspectModal(\''+cid+'\',\''+p.id+'\')" style="font-size:10px">✏️</button> '
+          +'<button class="btn btn-o btn-s" onclick="deleteProspect(\''+cid+'\',\''+p.id+'\')" style="font-size:10px;border-color:var(--red);color:var(--red)">🗑️</button>'
+        +'</td></tr>';
+    }).join('');
+    const tableHtml=pros.length===0
+      ?'<div style="text-align:center;padding:40px;color:var(--muted)">Nenhum prospect ainda. Clique em "+ Adicionar Prospect".</div>'
+      :'<div class="tw"><table><thead><tr><th>Data</th><th>Nome</th><th>Cargo</th><th>LinkedIn</th><th>Condutor</th><th>Msg</th><th>Resp.</th><th>Reunião</th><th>Fechou</th><th>Valor</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    return '<div class="card">'
+      +'<div class="ch"><h3>🎯 Prospecção</h3>'
+      +'<button class="btn btn-p btn-s" onclick="openProspectModal(\''+cid+'\',null)">+ Adicionar Prospect</button></div>'
+      +'<div class="cb">'
+      +'<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">'
+      +'<div class="stat-card"><div class="stat-val" style="color:var(--primary)">'+pros.length+'</div><div class="stat-label">Total</div></div>'
+      +'<div class="stat-card"><div class="stat-val" style="color:#D97706">'+monthCount+'</div><div class="stat-label">Este Mês</div></div>'
+      +'<div class="stat-card"><div class="stat-val" style="color:#16A34A">'+meetings+'</div><div class="stat-label">Reuniões</div></div>'
+      +'<div class="stat-card"><div class="stat-val" style="color:#7C3AED">'+closed+' ('+rate+'%)</div><div class="stat-label">Fechamentos</div></div>'
+      +'</div>'+tableHtml+'</div></div>';
+  }catch(e){return '<div class="card"><div class="cb"><p style="color:red">Erro ao carregar prospecção: '+e.message+'</p></div></div>';}
+}
 function rDetail(){
   const c=getC();if(!c)return'';
   const p=prog(c);
@@ -1146,53 +1193,7 @@ function rDetail(){
   let body='';
 
   if(S.tab==='prospeccao'){
-    const pros=c.prospects||[];
-    const thisMonth=new Date().toISOString().substring(0,7);
-    const monthPros=pros.filter(p=>p.date&&p.date.substring(0,7)===thisMonth);
-    const totalClosed=pros.filter(p=>p.contractClosed).length;
-    const totalMeetings=pros.filter(p=>p.hadMeeting).length;
-    const convRate=pros.length?Math.round(totalClosed/pros.length*100):0;
-    body=`<div class="card">
-      <div class="ch">
-        <h3>🎯 Prospecção</h3>
-        <button class="btn btn-p btn-s" onclick="openProspectModal('${c.id}',null)">+ Adicionar Prospect</button>
-      </div>
-      <div class="cb">
-        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
-          <div class="stat-card"><div class="stat-val" style="color:var(--primary)">${pros.length}</div><div class="stat-label">Total Prospects</div></div>
-          <div class="stat-card"><div class="stat-val" style="color:#D97706">${monthPros.length}</div><div class="stat-label">Este Mês</div></div>
-          <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalMeetings}</div><div class="stat-label">Reuniões Feitas</div></div>
-          <div class="stat-card"><div class="stat-val" style="color:#7C3AED">${totalClosed} <span style="font-size:14px">(${convRate}%)</span></div><div class="stat-label">Contratos Fechados</div></div>
-        </div>
-        ${pros.length===0?`<div style="text-align:center;padding:40px;color:var(--muted)">Nenhum prospect cadastrado ainda.<br>Clique em "+ Adicionar Prospect" para começar.</div>`:`
-        <div class="tw"><table>
-          <thead><tr>
-            <th>Data</th><th>Nome</th><th>Cargo</th><th>LinkedIn</th><th>Conduzido por</th>
-            <th>Mensagem</th><th>Respondeu</th><th>Reunião</th><th>Fechou</th><th>Valor</th><th></th>
-          </tr></thead>
-          <tbody>
-            ${[...pros].sort((a,b)=>b.date.localeCompare(a.date)).map(p=>{
-              const dateStr=p.date?new Date(p.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):'—';
-              const bool=(v,yes='✅',no='⏳')=>v?`<span style="color:#16A34A">${yes}</span>`:`<span style="color:#9CA3AF">${no}</span>`;
-              return`<tr>
-                <td style="font-size:11px;color:var(--muted)">${dateStr}</td>
-                <td><strong style="font-size:12px">${p.name||'—'}</strong>${p.email?`<br><span style="font-size:10px;color:var(--muted)">${p.email}</span>`:''}</td>
-                <td style="font-size:11px">${p.role||'—'}</td>
-                <td>${p.linkedinUrl?`<a href="${p.linkedinUrl}" target="_blank" style="font-size:11px;color:var(--primary)">🔗 Ver</a>`:'—'}</td>
-                <td style="font-size:11px">${(p.conductedBy||'').split(' ')[0]}</td>
-                <td style="text-align:center">${bool(p.sentMessage)}</td>
-                <td style="text-align:center">${bool(p.replied)}</td>
-                <td style="text-align:center">${bool(p.hadMeeting)}</td>
-                <td style="text-align:center">${p.contractClosed?`<span style="color:#16A34A;font-weight:700">✅ Sim</span>`:`<span style="color:#9CA3AF">Não</span>`}</td>
-                <td style="font-size:11px">${p.contractValue?'R$ '+p.contractValue:'—'}</td>
-                <td><button class="btn btn-o btn-s" onclick="openProspectModal('${c.id}','${p.id}')" style="font-size:10px">✏️</button>
-                    <button class="btn btn-o btn-s" onclick="deleteProspect('${c.id}','${p.id}')" style="font-size:10px;border-color:var(--red);color:var(--red)">🗑️</button></td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table></div>`}
-      </div>
-    </div>`;
+    body=rDetailProspeccao(c);
   }
   else if(S.tab==='entregas'){
     const hasGP=c.products.includes('Gestão de Perfil');
