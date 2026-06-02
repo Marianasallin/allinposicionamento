@@ -259,8 +259,7 @@ input.mini:focus{outline:none;border-color:var(--primary)}
     <div class="ni" onclick="nav('clients',{clientId:null})"><span class="ni-icon">👥</span><span>Clientes</span></div>
     <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Visão da Equipe</span></div>
     <div class="ni" onclick="nav('minhasamana')"><span class="ni-icon">⚡</span><span>Minha Semana</span></div>
-    <div class="ni" onclick="nav('func')"><span class="ni-icon">👩‍💼</span><span>Por Funcionária</span></div>
-    <div class="ni" onclick="nav('team')"><span class="ni-icon">🤝</span><span>Time</span></div>
+    <div class="ni" onclick="nav('team')"><span class="ni-icon">👩‍💼</span><span>Equipe</span></div>
     <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
       <div class="ni" onclick="window.open(window.location.origin+window.location.pathname+'#portal','_blank')" style="background:rgba(0,160,220,.15);border:1px solid rgba(0,160,220,.3)"><span class="ni-icon">🌐</span><span>Portal do Cliente</span></div>
     </div>
@@ -822,8 +821,8 @@ save();
 function nav(view,extra={}){
   if(S.view==='team')S.teamAuth=false;
   Object.assign(S,{view},extra);
-  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dash','clients','semana','minhasamana','func','team'][i]===view));
-  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',semana:'Visão da Equipe',minhasamana:'Minha Semana',func:'Por Funcionária',team:'Gestão de Time'};
+  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dash','clients','semana','minhasamana','team'][i]===view));
+  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',semana:'Visão da Equipe',minhasamana:'Minha Semana',func:'Equipe',team:'Equipe'};
   $('ttitle').textContent=titles[view]||view;
   render();
 }
@@ -855,7 +854,7 @@ function render(){
   if(sbFooter) sbFooter.innerHTML=`${S.currentUser.name}<br><span style="font-size:10px;opacity:.7">${S.currentUser.role||'ALL IN'}</span>`;
   // Normal admin views
   try{
-    const _viewFns={dash:rDash,clients:rClients,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rFunc,team:rTeam,clientView:rClientView};
+    const _viewFns={dash:rDash,clients:rClients,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rTeam,team:rTeam,clientView:rClientView};
     const _fn=_viewFns[S.view];
     if(!_fn){
       $('view').innerHTML='<div style="padding:20px;color:var(--muted)">Vista desconhecida: <code>'+S.view+'</code></div>';
@@ -1611,11 +1610,11 @@ function rDetail(){
             <option value="cancelado" ${c.paymentStatus==='cancelado'?'selected':''}>Cancelado</option>
           </select>
         </div>
-        <div class="fg"><label>Social Seller Responsável 👤</label>
+        <div class="fg"><label>Responsável 👤</label>
           <select id="ct-asgn">
             <option value="">— Sem responsável —</option>
-            <option value="N/A" ${c.assignees&&c.assignees[0]==='N/A'?'selected':''}>🚫 Não se aplica (sem SS)</option>
-            ${D.team.filter(m=>m.role==='Social Seller'||m.role==='Assistente').map(m=>`<option value="${m.name}" ${c.assignees&&c.assignees[0]===m.name?'selected':''}>${m.name.split(' ')[0]} ${m.name.split(' ').slice(-1)[0]}</option>`).join('')}
+            <option value="N/A" ${c.assignees&&c.assignees[0]==='N/A'?'selected':''}>🚫 Não se aplica</option>
+            ${D.team.map(m=>`<option value="${m.name}" ${c.assignees&&c.assignees[0]===m.name?'selected':''}>${m.name.split(' ')[0]} ${m.name.split(' ').slice(-1)[0]}${m.role==='CEO'||m.role==='Gestão'?' ('+m.role+')':''}</option>`).join('')}
           </select>
         </div>
         <div class="fg" style="grid-column:span 2"><label>Responsável de Conteúdo ✍️ <span style="font-size:10px;color:var(--muted)">(pode selecionar mais de um)</span></label>
@@ -2309,115 +2308,114 @@ function rMinhaSemana(){
 // TEAM
 // ────────────────────────────────────────────────────────────
 function rTeam(){
-  const previewCards=D.team.map(m=>{
-    const myClients=D.clients.filter(c=>c.assignees.includes(m.name)&&c.contractStatus==='ativo');
-    const myDels=myClients.flatMap(c=>c.deliverables.filter(d=>d.responsible===m.name));
-    const doneDels=myDels.filter(d=>d.status==='concluido').length;
-    const pendDels=myDels.filter(d=>d.status==='pendente').length;
-    const goingDels=myDels.filter(d=>d.status==='andamento').length;
-    const capPct=Math.min(Math.round(myClients.length/m.capacity*100),100);
-    const capColor=capPct<70?'var(--green)':capPct<90?'var(--yellow)':'var(--red)';
-    const perfPct=myDels.length?Math.round(doneDels/myDels.length*100):0;
-    return`<div class="card">
-      <div class="ch">
-        <div style="display:flex;align-items:center;gap:12px">
-          <div class="av av-s" style="background:${m.color}">${m.initials}</div>
-          <div><strong style="font-size:13px">${m.name}</strong><br><span style="font-size:11px;color:var(--muted)">${m.role} · ${m.dept}</span></div>
-        </div>
-      </div>
-      <div class="cb">
-        <div class="grid2" style="gap:10px;margin-bottom:14px">
-          <div style="background:#F9FAFB;border-radius:8px;padding:12px;text-align:center">
-            <div style="font-size:24px;font-weight:800;color:var(--primary)">${myClients.length}</div>
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Clientes</div>
-          </div>
-          <div style="background:#F9FAFB;border-radius:8px;padding:12px;text-align:center">
-            <div style="font-size:24px;font-weight:800;color:${capColor}">${capPct}%</div>
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Capacidade</div>
-          </div>
-        </div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px">DISPONIBILIDADE (${myClients.length}/${m.capacity} clientes)</div>
-        <div class="cap-bar"><div class="cap-fill" style="width:${capPct}%;background:${capColor}"></div></div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);margin:12px 0 5px">DESEMPENHO (${perfPct}% das entregas concluídas)</div>
-        <div class="cap-bar"><div class="cap-fill" style="width:${perfPct}%;background:var(--green)"></div></div>
-        <div class="srow" style="margin-top:6px">
-          <span style="color:var(--green)">✅ ${doneDels} concluídas</span>
-          <span style="color:var(--yellow)">🔄 ${goingDels}</span>
-          <span style="color:var(--gray)">⏳ ${pendDels}</span>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+  const wk=thisWeekKey();
+  const mk=currentTrackingMonthKey();
+  const canEdit=S.teamAuth;
 
-  if(!S.teamAuth){
-    return`<div style="position:relative">
-      ${previewCards?`<div class="sh"><h2>Time (${D.team.length} pessoas)</h2></div><div class="grid2">${previewCards}</div>`:''}
-      <div class="overlay" style="background:rgba(0,0,0,.3);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;position:fixed;inset:0">
-        <div class="modal" style="max-width:400px">
-          <div class="modal-hd" style="border-bottom:none;padding:28px 24px 0"><h3>🔐 Acesso Restrito</h3></div>
-          <div class="modal-body" style="text-align:center">
-            <p style="color:var(--muted);margin-bottom:24px">Esta seção é acessível apenas para Mari e Naiara. Digite a senha para editar.</p>
-            <div class="fg" style="margin-bottom:20px"><label>Senha</label><input id="team-pwd" type="password" placeholder="Digite a senha..." style="text-align:center;font-size:14px" onkeypress="if(event.key==='Enter')verifyTeamPwd()"></div>
-          </div>
-          <div class="modal-ft">
-            <button class="btn btn-p" onclick="verifyTeamPwd()" style="width:100%">Acessar</button>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
+  const totalClients=D.clients.filter(c=>c.contractStatus==='ativo').length;
+  const assigned=D.clients.filter(c=>c.assignees.length>0&&c.contractStatus==='ativo').length;
+  const unassigned=totalClients-assigned;
+
   const cards=D.team.map(m=>{
     const myClients=D.clients.filter(c=>c.assignees.includes(m.name)&&c.contractStatus==='ativo');
-    const bday=m.birthday?new Date(m.birthday+' ').toLocaleDateString('pt-BR'):'—';
+    const gpClients=myClients.filter(c=>c.products.includes('Gestão de Perfil'));
+    const icClients=myClients.filter(c=>c.products.includes('Implementação Comercial')&&!c.products.includes('Gestão de Perfil'));
+    const capPct=Math.min(Math.round(myClients.length/(m.capacity||10)*100),100);
+    const capColor=capPct<70?'var(--green)':capPct<90?'var(--yellow)':'var(--red)';
+    const semDone=gpClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
+    const menDone=gpClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
+    const prospects=gpClients.reduce((s,c)=>s+((c.prospects||[]).filter(p=>p.date===wk).length),0);
+    const icDels=myClients.flatMap(c=>c.deliverables.filter(d=>d.product==='Implementação Comercial'&&d.responsible===m.name));
+    const icDone=icDels.filter(d=>d.status==='concluido').length;
+    const icPend=icDels.filter(d=>d.status==='pendente').length;
+
     return`<div class="card">
       <div class="ch">
         <div style="display:flex;align-items:center;gap:12px">
           <div class="av av-m" style="background:${m.color}">${m.initials}</div>
-          <div><strong style="font-size:14px">${m.name}</strong><br>
-            <input class="fi" value="${m.role}" placeholder="Cargo" onchange="updM('${m.id}','role',this.value)" style="font-size:11px">
-          </div>
+          <div><strong style="font-size:14px">${m.name}</strong><br><span style="font-size:11px;color:var(--muted)">${m.role} · ${m.dept}</span></div>
         </div>
       </div>
       <div class="cb">
-        <div class="fgrid" style="margin-bottom:12px">
-          <div class="fg"><label>Departamento</label><input value="${m.dept||''}" placeholder="—" onchange="updM('${m.id}','dept',this.value)"></div>
-          <div class="fg"><label>Nascimento</label><input type="date" value="${m.birthday||''}" onchange="updM('${m.id}','birthday',this.value)"></div>
-          <div class="fg"><label>E-mail</label><input value="${m.email||''}" placeholder="—" onchange="updM('${m.id}','email',this.value)"></div>
-          <div class="fg"><label>Telefone</label><input value="${m.phone||''}" placeholder="—" onchange="updM('${m.id}','phone',this.value)"></div>
-        </div>
-        <div class="fg" style="margin-bottom:12px">
-          <label>Capacidade máx. de clientes</label>
-          <input type="number" value="${m.capacity||10}" min="1" max="50" onchange="updM('${m.id}','capacity',parseInt(this.value))">
-        </div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Clientes (${myClients.length})</div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">
-          ${myClients.length?myClients.map(c=>`<span class="tag" style="cursor:pointer" onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})">${c.name.split(' ')[0]}</span>`).join(''):'<span style="font-size:11px;color:var(--muted)">Nenhum</span>'}
-        </div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📌 Informações Pessoais (Privado - Mari & Naiara)</div>
-        <div style="background:#F9FAFB;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">
-          <div class="fg" style="margin-bottom:10px">
-            <label style="font-size:10px">Histórico Profissional / Notas Pessoais</label>
-            <textarea placeholder="Formação, experiência anterior, habilidades, desafios pessoais..." onchange="updM('${m.id}','personalInfo',this.value)" style="min-height:80px;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:6px">${m.personalInfo||''}</textarea>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+          <div style="background:#F9FAFB;border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:22px;font-weight:800;color:var(--primary)">${myClients.length}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Clientes</div>
           </div>
-          <div class="fgrid">
-            <div class="fg">
-              <label style="font-size:10px">Data Importante</label>
-              <input type="date" value="${m.importantDate||''}" placeholder="Data importante" onchange="updM('${m.id}','importantDate',this.value)" style="font-size:12px;padding:8px">
-            </div>
-            <div class="fg">
-              <label style="font-size:10px">Descrição da Data</label>
-              <input type="text" value="${m.importantDateNote||''}" placeholder="Ex: Aniversário da filha, Formatura..." onchange="updM('${m.id}','importantDateNote',this.value)" style="font-size:12px;padding:8px">
-            </div>
+          <div style="background:#F9FAFB;border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:22px;font-weight:800;color:${capColor}">${capPct}%</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Capacidade</div>
+          </div>
+          <div style="background:#F9FAFB;border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:22px;font-weight:800;color:#3B82F6">${prospects}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Prospects sem.</div>
           </div>
         </div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Notas de 1:1 / Desenvolvimento</div>
-        <textarea class="nf" placeholder="Anotações de reuniões, feedbacks, sugestões de desenvolvimento..." onchange="updM('${m.id}','notes',this.value)">${m.notes||''}</textarea>
+        ${gpClients.length?`
+        <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Gestão de Perfil — esta semana (${gpClients.length})</div>
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <div style="flex:1;background:${semDone===gpClients.length?'#DCFCE7':'#FEF3C7'};border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:15px;font-weight:700;color:${semDone===gpClients.length?'#16A34A':'#D97706'}">${semDone}/${gpClients.length}</div>
+            <div style="font-size:10px;color:var(--muted)">Semanais enviados</div>
+          </div>
+          <div style="flex:1;background:${menDone===gpClients.length?'#DCFCE7':'#FEF3C7'};border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:15px;font-weight:700;color:${menDone===gpClients.length?'#16A34A':'#D97706'}">${menDone}/${gpClients.length}</div>
+            <div style="font-size:10px;color:var(--muted)">Mensais (${mk})</div>
+          </div>
+        </div>`:''}
+        ${icClients.length?`
+        <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Impl. Comercial (${icDels.length} marcos)</div>
+        <div style="font-size:11px;margin-bottom:10px"><span style="color:#16A34A">✅ ${icDone} concluídos</span> · <span style="color:#9CA3AF">⏳ ${icPend} pendentes</span></div>`:''}
+        <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Disponibilidade (${myClients.length}/${m.capacity||10})</div>
+        <div class="cap-bar"><div class="cap-fill" style="width:${capPct}%;background:${capColor}"></div></div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);margin:10px 0 5px;text-transform:uppercase;letter-spacing:.5px">Carteira</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
+          ${myClients.length?myClients.map(c=>`<span class="tag" style="cursor:pointer;font-size:11px" onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})">${c.name.split(' ')[0]} ${c.name.split(' ')[1]||''}</span>`).join(''):`<span style="font-size:12px;color:var(--muted)">Nenhum cliente atribuído.</span>`}
+        </div>
+        ${canEdit?`
+        <div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:12px">
+          <div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">✏️ Cadastro (editável)</div>
+          <div class="fgrid" style="margin-bottom:10px">
+            <div class="fg"><label>Cargo</label><input value="${m.role||''}" onchange="updM('${m.id}','role',this.value)"></div>
+            <div class="fg"><label>Departamento</label><input value="${m.dept||''}" onchange="updM('${m.id}','dept',this.value)"></div>
+            <div class="fg"><label>E-mail</label><input value="${m.email||''}" onchange="updM('${m.id}','email',this.value)"></div>
+            <div class="fg"><label>Telefone</label><input value="${m.phone||''}" onchange="updM('${m.id}','phone',this.value)"></div>
+            <div class="fg"><label>Nascimento</label><input type="date" value="${m.birthday||''}" onchange="updM('${m.id}','birthday',this.value)"></div>
+            <div class="fg"><label>Capacidade máx.</label><input type="number" min="1" max="50" value="${m.capacity||10}" onchange="updM('${m.id}','capacity',parseInt(this.value))"></div>
+          </div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📌 Informações Pessoais (Privado)</div>
+          <textarea class="nf" placeholder="Formação, experiência, habilidades, contexto pessoal..." onchange="updM('${m.id}','personalInfo',this.value)" style="min-height:70px;margin-bottom:8px">${m.personalInfo||''}</textarea>
+          <div class="fgrid" style="margin-bottom:8px">
+            <div class="fg"><label>Data Importante</label><input type="date" value="${m.importantDate||''}" onchange="updM('${m.id}','importantDate',this.value)"></div>
+            <div class="fg"><label>Descrição</label><input value="${m.importantDateNote||''}" placeholder="Ex: Aniversário da filha" onchange="updM('${m.id}','importantDateNote',this.value)"></div>
+          </div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Notas de 1:1 / Desenvolvimento</div>
+          <textarea class="nf" placeholder="Anotações de reuniões, feedbacks, sugestões de desenvolvimento..." onchange="updM('${m.id}','notes',this.value)">${m.notes||''}</textarea>
+        </div>`:''}
       </div>
     </div>`;
   }).join('');
 
-  return`<div class="sh"><h2>Time (${D.team.length} pessoas)</h2><button class="btn btn-p btn-s" onclick="addMember()">+ Adicionar</button></div>
+  const headerRight=canEdit
+    ?`<div style="display:flex;gap:8px"><button class="btn btn-o btn-s" onclick="S.teamAuth=false;render()">🔒 Bloquear edição</button><button class="btn btn-p btn-s" onclick="addMember()">+ Adicionar</button></div>`
+    :`<button class="btn btn-o btn-s" onclick="unlockTeamEdit()">🔐 Editar cadastros (Mari & Naiara)</button>`;
+
+  return`
+  <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+    <div class="stat"><div class="stat-num">${D.team.length}</div><div class="stat-lbl">Pessoas no time</div></div>
+    <div class="stat"><div class="stat-num">${assigned}</div><div class="stat-lbl">Clientes Atribuídos</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--yellow)">${unassigned}</div><div class="stat-lbl">Sem Responsável</div></div>
+    <div class="stat"><div class="stat-num">${totalClients>0?Math.round(assigned/totalClients*100):0}%</div><div class="stat-lbl">Cobertura</div></div>
+  </div>
+  ${unassigned>0?`<div class="card" style="margin-bottom:18px"><div class="ch" style="background:#FFFBEB"><h3>⚠️ ${unassigned} clientes sem responsável</h3><button class="btn btn-o btn-s" onclick="nav('clients')">Atribuir →</button></div></div>`:''}
+  <div class="sh"><h2>Equipe (${D.team.length} pessoas)</h2>${headerRight}</div>
   <div class="grid2">${cards}</div>`;
+}
+function unlockTeamEdit(){
+  const pwd=prompt('Senha para editar cadastros (Mari & Naiara):');
+  if(pwd===null)return;
+  if(pwd===TEAM_PASSWORD){S.teamAuth=true;render();toast('✅ Edição liberada!');}
+  else toast('❌ Senha incorreta!');
 }
 
 // ────────────────────────────────────────────────────────────
