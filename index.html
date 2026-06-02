@@ -257,7 +257,7 @@ input.mini:focus{outline:none;border-color:var(--primary)}
   <nav class="sb-nav">
     <div class="ni active" onclick="nav('dash')"><span class="ni-icon">📊</span><span>Dashboard</span></div>
     <div class="ni" onclick="nav('clients',{clientId:null})"><span class="ni-icon">👥</span><span>Clientes</span></div>
-    <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Pendências da Semana</span></div>
+    <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Visão da Equipe</span></div>
     <div class="ni" onclick="nav('minhasamana')"><span class="ni-icon">⚡</span><span>Minha Semana</span></div>
     <div class="ni" onclick="nav('func')"><span class="ni-icon">👩‍💼</span><span>Por Funcionária</span></div>
     <div class="ni" onclick="nav('team')"><span class="ni-icon">🤝</span><span>Time</span></div>
@@ -530,7 +530,8 @@ const DEFAULT={
     {id:'iasmim',name:'Iasmim Flávia Marques Soares',role:'Social Seller',dept:'Comercial',email:'iasmimms49@gmail.com',phone:'32 999617911',birthday:'1996-12-14',color:'#E8622A',initials:'IS',notes:'',capacity:12},
     {id:'gabriela',name:'Gabriela Nogueira',role:'Head de Conteúdo',dept:'Gestão de Conteúdo',email:'gabrielaheadmkt@gmail.com',phone:'31 995745031',birthday:'1994-11-15',color:'#057642',initials:'GN',notes:'',capacity:20},
     {id:'nayara',name:'Nayara Calixto Justino Campos',role:'Assistente',dept:'Operações',email:'nayara@agenciaallin.com',phone:'31 972679915',birthday:'2001-04-16',color:'#0891B2',initials:'NC',notes:'',capacity:10},
-  ]
+  ],
+  assignedTasks:[]
 };
 
 // ────────────────────────────────────────────────────────────
@@ -570,6 +571,7 @@ const DEFAULT={
 let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0,adminAuth:false,currentUser:null,semanaWeekKey:null,editingLeadIdx:null,weeklyFilterMonth:null,minhaSemanaFilterMonth:null,minhaSemanaWk:null,gestaoFilterMonth:null,gestaoWk:null};
 let D=(()=>{try{const s=localStorage.getItem('allin');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT))}catch{return JSON.parse(JSON.stringify(DEFAULT))}})();
 let save=()=>localStorage.setItem('allin',JSON.stringify(D));
+if(!D.assignedTasks)D.assignedTasks=[];
 const getC=()=>D.clients.find(c=>c.id===S.clientId);
 const getM=()=>D.team.find(m=>m.id===S.memberId);
 const TEAM_NAMES=()=>D.team.map(m=>m.name);
@@ -821,7 +823,7 @@ function nav(view,extra={}){
   if(S.view==='team')S.teamAuth=false;
   Object.assign(S,{view},extra);
   document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dash','clients','semana','minhasamana','func','team'][i]===view));
-  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',semana:'Pendências da Semana',minhasamana:'Minha Semana',func:'Por Funcionária',team:'Gestão de Time'};
+  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',semana:'Visão da Equipe',minhasamana:'Minha Semana',func:'Por Funcionária',team:'Gestão de Time'};
   $('ttitle').textContent=titles[view]||view;
   render();
 }
@@ -1324,10 +1326,10 @@ function rDetail(){
         <div style="display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--border);background:#FAFAFA">
           ${monthKeys.map(mk=>`<span class="fc ${S.weeklyFilterMonth===mk?'active':''}" onclick="S.weeklyFilterMonth='${mk}';render()" style="font-size:11px">${mk}</span>`).join('')}
         </div>
-        <div class="tw"><table><thead><tr><th>Semana (sexta)</th><th>Enviado?</th><th>Leads</th><th>Arquivo / Link</th></tr></thead><tbody>
+        <div class="tw"><table><thead><tr><th>Semana (sexta)</th><th>Enviado?</th><th>Arquivo / Link</th></tr></thead><tbody>
           ${fridays.length?fridays.map(fri=>{
             const key=getWeekKey(fri);
-            const wr=(c.weeklyReports&&c.weeklyReports[key])||{done:false,file:null,link:'',leads:0};
+            const wr=(c.weeklyReports&&c.weeklyReports[key])||{done:false,file:null,link:''};
             const isCurrent=key===wk;
             const isFuture=fri>new Date(wk+'T23:59:59');
             const label=fri.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
@@ -1339,7 +1341,6 @@ function rDetail(){
                 <input type="checkbox" onchange="toggleWeeklyReport('${c.id}','${key}',this.checked)" ${wr.done?'checked':''}>
                 <span style="font-size:11px;color:${statusColor}">${statusText}</span>
               </label></td>
-              <td><input type="number" class="mini" min="0" value="${wr.leads||0}" style="width:65px" onblur="updateWeeklyLeads('${c.id}','${key}',this.value)" placeholder="0"></td>
               <td style="display:flex;gap:6px;align-items:center">
                 ${wr.file?`<span style="font-size:11px;color:var(--primary);cursor:pointer" onclick="downloadRepFile('${c.id}','weekly','${key}')">📎 ${wr.file.name.substring(0,18)}...</span>`:''}
                 ${wr.link?`<a href="${wr.link}" target="_blank" style="font-size:11px;color:var(--primary)">🔗 Ver</a>`:''}
@@ -1348,7 +1349,7 @@ function rDetail(){
                 <input type="file" id="wrf-${c.id}-${key}" style="display:none" accept=".pdf,.jpg,.png,.doc,.docx" onchange="uploadReportFile('${c.id}','weekly','${key}',this)">
               </td>
             </tr>`;
-          }).join(''):`<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Nenhuma semana em ${S.weeklyFilterMonth}</td></tr>`}
+          }).join(''):`<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px">Nenhuma semana em ${S.weeklyFilterMonth}</td></tr>`}
         </tbody></table></div>
       </div>`;
 
@@ -1783,14 +1784,14 @@ function rWeeklyPending(){
 
   const allSemanaisDone=totalClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
   const allMensaisDone=totalClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
-  const totalLeads=totalClients.reduce((sum,c)=>sum+(c.weeklyReports&&c.weeklyReports[wk]?c.weeklyReports[wk].leads||0:0),0);
+  const totalLeads=totalClients.reduce((sum,c)=>sum+((c.prospects||[]).filter(p=>p.date===wk).length),0);
 
   const memberCards=D.team.filter(m=>m.id!=='mariana-souza'&&m.id!=='naiara-faria').map(member=>{
     const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(member.name)&&c.contractStatus!=='inativo'&&c.products.includes('Gestão de Perfil'));
     if(!myClients.length)return'';
     const semDone=myClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
     const menDone=myClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
-    const leads=myClients.reduce((s,c)=>s+(c.weeklyReports&&c.weeklyReports[wk]?c.weeklyReports[wk].leads||0:0),0);
+    const leads=myClients.reduce((s,c)=>s+((c.prospects||[]).filter(p=>p.date===wk).length),0);
     const allOk=semDone===myClients.length&&menDone===myClients.length;
 
     return`<div class="card" style="margin-bottom:16px">
@@ -1804,16 +1805,16 @@ function rWeeklyPending(){
         </div>
         <div style="display:flex;gap:16px;align-items:center">
           <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:${semDone===myClients.length?'#16A34A':'#D97706'}">${semDone}/${myClients.length}</div><div style="font-size:10px;color:var(--muted)">Semanais</div></div>
-          <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#3B82F6">${leads}</div><div style="font-size:10px;color:var(--muted)">Leads</div></div>
+          <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#3B82F6">${leads}</div><div style="font-size:10px;color:var(--muted)">Prospects</div></div>
           <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:${menDone===myClients.length?'#16A34A':'#D97706'}">${menDone}/${myClients.length}</div><div style="font-size:10px;color:var(--muted)">Mensais</div></div>
           <span style="padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600;background:${allOk?'#DCFCE7':'#FEF3C7'};color:${allOk?'#16A34A':'#D97706'}">${allOk?'✅ Em dia':'⚠️ Pendências'}</span>
         </div>
       </div>
       <div class="tw"><table>
-        <thead><tr><th>Cliente</th><th>Rel. Semanal</th><th>Leads</th><th>Rel. Mensal</th><th>Contínuos</th></tr></thead>
+        <thead><tr><th>Cliente</th><th>Rel. Semanal</th><th>Prospects</th><th>Rel. Mensal</th><th>Contínuos</th></tr></thead>
         <tbody>
           ${myClients.map(c=>{
-            const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,file:null,link:'',leads:0};
+            const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,file:null,link:''};
             const mr=(c.monthlyReports&&c.monthlyReports[mk])||{done:false,file:null,link:''};
             const cas=c.continuousActivities||[];
             const activosCount=cas.filter(a=>a.status==='ativo').length;
@@ -1821,10 +1822,11 @@ function rWeeklyPending(){
             const mrColor=mr.done?(mr.file||mr.link)?'#16A34A':'#D97706':'#9CA3AF';
             const wrStatus=wr.done?(wr.file||wr.link)?'✅':'⚠️':'⏳';
             const mrStatus=mr.done?(mr.file||mr.link)?'✅':'⚠️':'⏳';
+            const prospectsWk=(c.prospects||[]).filter(p=>p.date===wk).length;
             return`<tr onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})" style="cursor:pointer">
               <td><div style="font-weight:500;font-size:12px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
               <td><span style="font-size:13px;color:${wrColor}">${wrStatus} ${wr.done?'Enviado':'Pendente'}</span>${wr.done&&!wr.file&&!wr.link?'<span style="font-size:10px;color:#D97706"> sem arquivo</span>':''}</td>
-              <td><span style="font-weight:600;color:#3B82F6">${wr.leads||0}</span></td>
+              <td><span style="font-weight:600;color:#3B82F6">${prospectsWk}</span></td>
               <td><span style="font-size:13px;color:${mrColor}">${mrStatus} ${mr.done?'Enviado':'Pendente'}</span>${mr.done&&!mr.file&&!mr.link?'<span style="font-size:10px;color:#D97706"> sem arquivo</span>':''}</td>
               <td><span style="font-size:11px;color:${activosCount===cas.length?'#16A34A':'#D97706'}">${activosCount}/${cas.length} ativos</span></td>
             </tr>`;
@@ -1837,7 +1839,7 @@ function rWeeklyPending(){
   const isCurrentWeek=wk===thisWeekKey();
   return`<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
     <div class="stat-card"><div class="stat-val">${allSemanaisDone}/${totalClients.length}</div><div class="stat-label">Rel. Semanais da semana</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalLeads}</div><div class="stat-label">Total de leads</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalLeads}</div><div class="stat-label">Prospects esta semana</div></div>
     <div class="stat-card"><div class="stat-val" style="color:#D97706">${allMensaisDone}/${totalClients.length}</div><div class="stat-label">Rel. Mensais (${mk})</div></div>
   </div>
   <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -1869,7 +1871,7 @@ function rFunc(){
     // GP stats for this week
     const semDone=gpClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
     const menDone=gpClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
-    const leads=gpClients.reduce((s,c)=>s+(c.weeklyReports&&c.weeklyReports[wk]?c.weeklyReports[wk].leads||0:0),0);
+    const leads=gpClients.reduce((s,c)=>s+((c.prospects||[]).filter(p=>p.date===wk).length),0);
     // IC milestones
     const icDels=myClients.flatMap(c=>c.deliverables.filter(d=>d.product==='Implementação Comercial'&&d.responsible===m.name));
     const icDone=icDels.filter(d=>d.status==='concluido').length;
@@ -1895,7 +1897,7 @@ function rFunc(){
           </div>
           <div style="background:#F9FAFB;border-radius:8px;padding:10px;text-align:center">
             <div style="font-size:22px;font-weight:800;color:#3B82F6">${leads}</div>
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Leads semana</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Prospects semana</div>
           </div>
         </div>
         ${gpClients.length?`
@@ -1971,13 +1973,12 @@ function rMinhaSemanaGestao(user){
     const mc=ativos.filter(c=>(c.assignees||[]).includes(m.name));
     const wkDone=mc.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
     const mDone=mc.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
-    const leads=mc.reduce(function(s,c){return s+(c.weeklyReports&&c.weeklyReports[wk]?c.weeklyReports[wk].leads||0:0);},0);
+    const leads=mc.reduce(function(s,c){return s+((c.prospects||[]).filter(p=>p.date===wk).length);},0);
     const newProspects=mc.flatMap(c=>(c.prospects||[]).filter(p=>p.date===wk)).length;
     const wkOk=wkDone===mc.length&&mc.length>0;
     return '<tr>'
       +'<td><div style="display:flex;align-items:center;gap:8px"><div class="av av-s" style="background:'+m.color+'">'+m.initials+'</div><strong style="font-size:12px">'+m.name.split(' ')[0]+'</strong></div></td>'
       +'<td style="text-align:center"><span style="font-weight:700;color:'+(wkOk?'#16A34A':'#EF4444')+'">'+wkDone+'/'+mc.length+'</span></td>'
-      +'<td style="text-align:center">'+leads+'</td>'
       +'<td style="text-align:center"><span style="font-weight:700;color:#7C3AED">'+newProspects+'</span></td>'
       +'<td style="text-align:center"><span style="font-weight:700;color:'+(mDone===mc.length&&mc.length>0?'#16A34A':'#D97706')+'">'+mDone+'/'+mc.length+'</span></td>'
       +'</tr>';
@@ -2036,7 +2037,7 @@ function rMinhaSemanaGestao(user){
     +'<div class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8)">'
     +'<h3 style="color:white;margin:0">👥 Performance da Equipe — Sexta '+wkLabel+'</h3></div>'
     +'<div class="tw"><table>'
-    +'<thead><tr><th>Social Seller</th><th style="text-align:center">Rel. Semanais</th><th style="text-align:center">Leads</th><th style="text-align:center">Novos Prospects</th><th style="text-align:center">Rel. Mensal</th></tr></thead>'
+    +'<thead><tr><th>Social Seller</th><th style="text-align:center">Rel. Semanais</th><th style="text-align:center">Novos Prospects</th><th style="text-align:center">Rel. Mensal</th></tr></thead>'
     +'<tbody>'+teamRows+'</tbody></table></div></div>'
 
     // Funil do mês
@@ -2058,22 +2059,71 @@ function rMinhaSemanaGestao(user){
     +'</div></div></div>'
 
     // Alertas
-    +'<div class="card">'
+    +'<div class="card" style="margin-bottom:20px">'
     +'<div class="ch" style="background:'+(expiring.length||overdue.length?'linear-gradient(135deg,#DC2626,#EF4444)':'linear-gradient(135deg,#16A34A,#22C55E)')+'">'
     +'<h3 style="color:white;margin:0">'+(expiring.length||overdue.length?'⚠️ Alertas da Semana':'✅ Alertas da Semana')+'</h3>'
     +'<span style="font-size:12px;color:rgba(255,255,255,.85)">'+(expiring.length+overdue.length+noSeller.length)+' item(s)</span></div>'
-    +'<div>'+alertsHtml+'</div></div>';
+    +'<div>'+alertsHtml+'</div></div>'
+
+    // Tarefas pessoais
+    +renderTasksSection(user,wk)
+
+    // Visão geral das tarefas do time
+    +rTarefasEquipe(wk);
+}
+
+function rTarefasEquipe(wk){
+  const allThisWk=D.assignedTasks.filter(t=>t.weekKey===wk);
+  if(!allThisWk.length)return'<div class="card"><div class="ch"><h3>👥 Tarefas da Equipe — esta semana</h3></div><div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Nenhuma tarefa atribuída para esta semana.</div></div>';
+  const byPerson={};
+  allThisWk.forEach(t=>{
+    if(!byPerson[t.assignedTo])byPerson[t.assignedTo]={name:t.assignedTo,tasks:[]};
+    byPerson[t.assignedTo].tasks.push(t);
+  });
+  const rows=Object.values(byPerson).map(p=>{
+    const done=p.tasks.filter(t=>t.done).length;
+    const total=p.tasks.length;
+    const member=D.team.find(m=>m.name===p.name);
+    const color=member?member.color:'#6B7280';
+    const initials=member?member.initials:p.name.substring(0,2).toUpperCase();
+    return'<div style="border-bottom:1px solid #F3F4F6">'
+      +'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#FAFAFA">'
+      +'<div class="av av-s" style="background:'+color+'">'+initials+'</div>'
+      +'<strong style="font-size:13px;flex:1">'+p.name.split(' ')[0]+'</strong>'
+      +'<span style="font-size:11px;padding:2px 10px;border-radius:99px;font-weight:600;background:'+(done===total?'#DCFCE7':'#FEF3C7')+';color:'+(done===total?'#16A34A':'#D97706')+'">'+done+'/'+total+' concluídas</span>'
+      +'</div>'
+      +p.tasks.map(t=>'<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 16px 8px 48px;background:'+( t.done?'#F9FAFB':'white')+';">'
+        +'<input type="checkbox" style="margin-top:3px;cursor:pointer" '+(t.done?'checked':'')+' onchange="toggleTaskDone(\''+t.id+'\')">'
+        +'<div style="flex:1">'
+          +'<div style="font-size:12px;font-weight:500;color:'+(t.done?'#9CA3AF':'var(--text)')+';text-decoration:'+(t.done?'line-through':'none')+'">'+t.description+'</div>'
+          +(t.comment?'<div style="font-size:11px;color:#0891B2;margin-top:2px">💬 '+t.comment+'</div>':'')
+          +'<div style="font-size:10px;color:var(--muted);margin-top:2px">Atribuída por: '+t.createdBy.split(' ')[0]+'</div>'
+        +'</div>'
+        +'<span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:'+(t.done?'#DCFCE7':'#FEF3C7')+';color:'+(t.done?'#16A34A':'#D97706')+'">'+(t.done?'✅':'⏳')+'</span>'
+        +'<button onclick="deleteTask(\''+t.id+'\')" style="background:none;border:none;cursor:pointer;color:#EF4444;font-size:13px;padding:2px 4px" title="Remover">🗑</button>'
+      +'</div>').join('')
+    +'</div>';
+  }).join('');
+  const totalPend=allThisWk.filter(t=>!t.done).length;
+  return'<div class="card">'
+    +'<div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9)">'
+    +'<h3 style="color:white;margin:0">👥 Tarefas da Equipe</h3>'
+    +'<span style="font-size:12px;color:rgba(255,255,255,.85)">'+totalPend+' pendente'+(totalPend!==1?'s':'')+' esta semana</span>'
+    +'</div>'
+    +'<div>'+rows+'</div></div>';
 }
 
 // MINHA SEMANA — CONTEÚDO (Gabriela) — a definir após reunião
 // ────────────────────────────────────────────────────────────
 function rMinhaSemanaConteudo(user){
-  return'<div class="card" style="margin:40px auto;max-width:500px;text-align:center">'
-    +'<div class="cb" style="padding:48px 32px">'
+  const wk=thisWeekKey();
+  return'<div class="card" style="margin:0 0 20px;text-align:center">'
+    +'<div class="cb" style="padding:32px">'
     +'<div style="font-size:48px;margin-bottom:16px">✍️</div>'
     +'<h3 style="margin-bottom:8px">Minha Semana — Conteúdo</h3>'
     +'<p style="color:var(--muted);font-size:13px">Esta área está sendo estruturada com base no fluxo de trabalho de conteúdo.<br><strong>Em breve!</strong></p>'
-    +'</div></div>';
+    +'</div></div>'
+    +renderTasksSection(user,wk);
 }
 
 // MINHA SEMANA — SOCIAL SELLERS
@@ -2114,7 +2164,7 @@ function rMinhaSemana(){
   const mk=currentTrackingMonthKey();
   const semanaisDone=myClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
   const mensaisDone=myClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
-  const totalLeads=myClients.reduce((sum,c)=>sum+(c.weeklyReports&&c.weeklyReports[wk]?c.weeklyReports[wk].leads||0:0),0);
+  const totalLeads=myClients.reduce((sum,c)=>sum+((c.prospects||[]).filter(p=>p.date===wk).length),0);
   // Due date badge for monthly (vence dia 10) — baseado no mês rastreado (mk), não no mês atual
   const today=new Date();
   const _ptMon={'Janeiro':0,'Fevereiro':1,'Março':2,'Abril':3,'Maio':4,'Junho':5,'Julho':6,'Agosto':7,'Setembro':8,'Outubro':9,'Novembro':10,'Dezembro':11};
@@ -2133,7 +2183,7 @@ function rMinhaSemana(){
   ${getMonthlyAlertHtml()}
   <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
     <div class="stat-card"><div class="stat-val" style="color:var(--primary)">${semanaisDone}/${myClients.length}</div><div class="stat-label">Semanais enviados</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalLeads}</div><div class="stat-label">Leads esta semana</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalLeads}</div><div class="stat-label">Prospects esta semana</div></div>
     <div class="stat-card"><div class="stat-val" style="color:#D97706">${mensaisDone}/${myClients.length}</div><div class="stat-label">Mensais ${mk}</div></div>
   </div>
 
@@ -2162,17 +2212,16 @@ function rMinhaSemana(){
       <span style="font-size:12px;color:rgba(255,255,255,.8)">${semanaisDone}/${myClients.length} enviados</span>
     </div>
     <div class="tw"><table>
-      <thead><tr><th>Cliente</th><th>Status</th><th>Leads</th><th>Arquivo / Link</th></tr></thead>
+      <thead><tr><th>Cliente</th><th>Status</th><th>Arquivo / Link</th></tr></thead>
       <tbody>
         ${myClients.map(c=>{
-          const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,file:null,link:'',leads:0};
+          const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,file:null,link:''};
           return`<tr>
             <td><div style="font-weight:600;font-size:13px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
             <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
               <input type="checkbox" onchange="toggleWeeklyReport('${c.id}','${wk}',this.checked)" ${wr.done?'checked':''}>
               <span style="font-size:11px;color:${wr.done?'#16A34A':'#9CA3AF'}">${wr.done?'✅ Enviado':'⏳ Pendente'}</span>
             </label></td>
-            <td><input type="number" class="mini" min="0" value="${wr.leads||0}" style="width:65px;text-align:center" onblur="updateWeeklyLeads('${c.id}','${wk}',this.value)" placeholder="0"></td>
             <td>
               ${wr.file?`<span style="font-size:11px;color:var(--primary);cursor:pointer" onclick="downloadRepFile('${c.id}','weekly','${wk}')">📎 ${wr.file.name.substring(0,15)}...</span>`:
                 wr.link?`<a href="${wr.link}" target="_blank" style="font-size:11px;color:var(--primary)">🔗 Link</a>`:''}
@@ -2223,7 +2272,10 @@ function rMinhaSemana(){
     </table></div>
   </div>
 
-  <!-- SEÇÃO 3: Prospecção da Semana -->
+  <!-- SEÇÃO 3: Tarefas Atribuídas -->
+  ${renderTasksSection(user,wk)}
+
+  <!-- SEÇÃO 4: Prospecção da Semana -->
   <div class="card" style="margin-bottom:16px">
     <div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA);border-radius:8px 8px 0 0">
       <div>
@@ -2465,7 +2517,79 @@ function updDel(cid,did,f,v){D.clients.find(c=>c.id===cid).deliverables.find(d=>
 function cycleContinuous(cid,caId){const c=D.clients.find(c=>c.id===cid);const ca=c.continuousActivities.find(a=>a.id===caId);const s=['ativo','pausado','inativo'];ca.status=s[(s.indexOf(ca.status)+1)%s.length];save();render();}
 function toggleWeeklyReport(cid,wk,done){const c=D.clients.find(c=>c.id===cid);if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,file:null,link:'',leads:0};c.weeklyReports[wk].done=done;save();render();}
 function toggleMonthlyReport(cid,mk,done){const c=D.clients.find(c=>c.id===cid);if(!c.monthlyReports[mk])c.monthlyReports[mk]={done:false,file:null,link:''};c.monthlyReports[mk].done=done;save();render();}
-function updateWeeklyLeads(cid,wk,v){const c=D.clients.find(c=>c.id===cid);if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,file:null,link:'',leads:0};c.weeklyReports[wk].leads=parseInt(v)||0;save();}
+function updateWeeklyLeads(cid,wk,v){const c=D.clients.find(c=>c.id===cid);if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,file:null,link:''};save();}
+
+// ── TAREFAS ATRIBUÍDAS ──────────────────────────────────────
+function openTaskModal(weekKey){
+  const user=S.currentUser;if(!user)return;
+  const members=D.team.filter(m=>m.id!==user.id);
+  document.getElementById('task-modal').style.display='flex';
+  document.getElementById('task-wk').value=weekKey||thisWeekKey();
+  document.getElementById('task-to').innerHTML=members.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  document.getElementById('task-desc').value='';
+  document.getElementById('task-comment').value='';
+}
+function closeTaskModal(){document.getElementById('task-modal').style.display='none';}
+function saveTask(){
+  const user=S.currentUser;if(!user)return;
+  const desc=document.getElementById('task-desc').value.trim();
+  if(!desc)return alert('Descreva a tarefa.');
+  const toId=document.getElementById('task-to').value;
+  const toMember=D.team.find(m=>m.id===toId);if(!toMember)return;
+  const wk=document.getElementById('task-wk').value||thisWeekKey();
+  const comment=document.getElementById('task-comment').value.trim();
+  D.assignedTasks.push({id:'t'+Date.now(),description:desc,weekKey:wk,assignedTo:toMember.name,assignedToId:toId,createdBy:user.name,createdById:user.id,done:false,createdAt:new Date().toISOString(),comment});
+  save();closeTaskModal();render();
+}
+function toggleTaskDone(taskId){
+  const t=D.assignedTasks.find(t=>t.id===taskId);if(!t)return;
+  t.done=!t.done;save();render();
+}
+function deleteTask(taskId){
+  if(!confirm('Remover esta tarefa?'))return;
+  D.assignedTasks=D.assignedTasks.filter(t=>t.id!==taskId);
+  save();render();
+}
+function renderTasksSection(user,wk){
+  const myTasks=D.assignedTasks.filter(t=>t.assignedToId===user.id&&t.weekKey===wk);
+  const myCreated=D.assignedTasks.filter(t=>t.createdById===user.id&&t.weekKey===wk);
+  const pendingCount=myTasks.filter(t=>!t.done).length;
+  const createdPendingCount=myCreated.filter(t=>!t.done).length;
+  return`<div class="card" style="margin-bottom:20px">
+    <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9)">
+      <div><h3 style="margin:0;color:white">📌 Tarefas Atribuídas</h3>
+      <span style="font-size:12px;color:rgba(255,255,255,.85)">${pendingCount} pendente${pendingCount!==1?'s':''} para você esta semana</span></div>
+      <button class="btn btn-s" onclick="openTaskModal('${wk}')" style="background:white;color:#0891B2;font-weight:700">+ Nova Tarefa</button>
+    </div>
+    <div style="padding:0">
+      ${myTasks.length?myTasks.map(t=>`
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #F3F4F6;background:${t.done?'#F9FAFB':'white'}">
+          <input type="checkbox" style="margin-top:3px;cursor:pointer" ${t.done?'checked':''} onchange="toggleTaskDone('${t.id}')">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500;color:${t.done?'#9CA3AF':'var(--text)'};text-decoration:${t.done?'line-through':'none'}">${t.description}</div>
+            ${t.comment?`<div style="font-size:11px;color:#0891B2;margin-top:3px">💬 ${t.comment}</div>`:''}
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">De: ${t.createdBy}</div>
+          </div>
+          <span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:${t.done?'#DCFCE7':'#FEF3C7'};color:${t.done?'#16A34A':'#D97706'}">${t.done?'✅ Feito':'⏳ Pendente'}</span>
+        </div>`).join('')
+      :`<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Nenhuma tarefa para você esta semana.</div>`}
+    </div>
+    ${myCreated.length?`
+    <div style="border-top:2px solid #F3F4F6">
+      <div style="padding:10px 16px;background:#F9FAFB;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Tarefas que você atribuiu (${createdPendingCount} pendente${createdPendingCount!==1?'s':''})</div>
+      ${myCreated.map(t=>`
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 16px;border-bottom:1px solid #F3F4F6;background:${t.done?'#F9FAFB':'white'}">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500;color:${t.done?'#9CA3AF':'var(--text)'};text-decoration:${t.done?'line-through':'none'}">${t.description}</div>
+            ${t.comment?`<div style="font-size:11px;color:#0891B2;margin-top:3px">💬 ${t.comment}</div>`:''}
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">Para: <strong>${t.assignedTo.split(' ')[0]}</strong></div>
+          </div>
+          <span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:${t.done?'#DCFCE7':'#FEF3C7'};color:${t.done?'#16A34A':'#D97706'}">${t.done?'✅ Feito':'⏳ Pendente'}</span>
+          <button onclick="deleteTask('${t.id}')" style="background:none;border:none;cursor:pointer;color:#EF4444;font-size:14px;padding:2px 4px" title="Remover">🗑</button>
+        </div>`).join('')}
+    </div>`:''}
+  </div>`;
+}
 function updateWeekReportLink(cid,wk,v){const c=D.clients.find(c=>c.id===cid);if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,file:null,link:'',leads:0};c.weeklyReports[wk].link=v;save();}
 function updateMonthReportLink(cid,mk,v){const c=D.clients.find(c=>c.id===cid);if(!c.monthlyReports[mk])c.monthlyReports[mk]={done:false,file:null,link:''};c.monthlyReports[mk].link=v;save();}
 function uploadReportFile(cid,type,key,input){
@@ -4137,5 +4261,37 @@ window.addEventListener('hashchange',handleNavigation);
   }
 })();
 </script>
+
+<!-- MODAL: Nova Tarefa -->
+<div id="task-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:white;border-radius:16px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="background:linear-gradient(135deg,#0891B2,#0EA5E9);padding:18px 22px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between">
+      <h3 style="margin:0;color:white;font-size:15px">📌 Nova Tarefa</h3>
+      <button onclick="closeTaskModal()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div class="fg">
+        <label>Descrição da tarefa *</label>
+        <textarea id="task-desc" rows="3" placeholder="Descreva o que precisa ser feito..."></textarea>
+      </div>
+      <div class="fg">
+        <label>Atribuir para</label>
+        <select id="task-to"></select>
+      </div>
+      <div class="fg">
+        <label>Semana (sexta-feira)</label>
+        <input type="date" id="task-wk">
+      </div>
+      <div class="fg">
+        <label>Comentário opcional</label>
+        <input id="task-comment" type="text" placeholder="Contexto ou instrução adicional...">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+        <button class="btn btn-o" onclick="closeTaskModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveTask()">Salvar Tarefa</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
