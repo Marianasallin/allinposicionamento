@@ -571,6 +571,13 @@ let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:
 let D=(()=>{try{const s=localStorage.getItem('allin');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT))}catch{return JSON.parse(JSON.stringify(DEFAULT))}})();
 let save=()=>localStorage.setItem('allin',JSON.stringify(D));
 if(!D.assignedTasks)D.assignedTasks=[];
+// Migra notas/datas antigas (campo único) para histórico de notas (lista)
+(D.team||[]).forEach(m=>{
+  if(!m.notesLog)m.notesLog=[];
+  const _td=new Date().toISOString().slice(0,10);
+  if(m.notes&&m.notes.trim()&&!m.notesLog.length){m.notesLog.push({id:'n'+Date.now()+Math.floor(Math.random()*1000),date:_td,text:m.notes.trim()});m.notes='';}
+  if((m.importantDate||m.importantDateNote)&&!m._idMig){m.notesLog.push({id:'n'+Date.now()+Math.floor(Math.random()*1000),date:m.importantDate||_td,text:'📌 '+(m.importantDateNote||'Data importante')});m._idMig=true;m.importantDate='';m.importantDateNote='';}
+});
 const getC=()=>D.clients.find(c=>c.id===S.clientId);
 const getM=()=>D.team.find(m=>m.id===S.memberId);
 const TEAM_NAMES=()=>D.team.map(m=>m.name);
@@ -2308,9 +2315,19 @@ function rMinhaSemana(){
 // TEAM
 // ────────────────────────────────────────────────────────────
 function rTeam(){
+  if(!S.teamAuth){
+    return`<div class="card" style="max-width:420px;margin:40px auto">
+      <div class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8);border-radius:12px 12px 0 0"><h3 style="margin:0;color:white">🔐 Área Restrita — Equipe</h3></div>
+      <div class="cb" style="text-align:center;padding:28px 24px">
+        <p style="color:var(--muted);margin-bottom:20px;font-size:13px">Esta área é exclusiva da gestão (Mari &amp; Naiara). Digite a senha para acessar.</p>
+        <div class="fg" style="margin-bottom:18px;text-align:left"><label>Senha</label><input id="team-pwd" type="password" placeholder="Digite a senha..." style="text-align:center;font-size:14px" onkeypress="if(event.key==='Enter')verifyTeamPwd()"></div>
+        <button class="btn btn-p" onclick="verifyTeamPwd()" style="width:100%">Acessar</button>
+      </div>
+    </div>`;
+  }
   const wk=thisWeekKey();
   const mk=currentTrackingMonthKey();
-  const canEdit=S.teamAuth;
+  const canEdit=true;
 
   const totalClients=D.clients.filter(c=>c.contractStatus==='ativo').length;
   const assigned=D.clients.filter(c=>c.assignees.length>0&&c.contractStatus==='ativo').length;
@@ -2387,22 +2404,31 @@ function rTeam(){
             <div class="fg"><label>Capacidade máx.</label><input type="number" min="1" max="50" id="tm-cap-${m.id}" value="${m.capacity||10}"></div>
           </div>
           <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📌 Informações Pessoais (Privado)</div>
-          <textarea class="nf" id="tm-pinfo-${m.id}" placeholder="Formação, experiência, habilidades, contexto pessoal..." style="min-height:70px;margin-bottom:8px">${m.personalInfo||''}</textarea>
-          <div class="fgrid" style="margin-bottom:8px">
-            <div class="fg"><label>Data Importante</label><input type="date" id="tm-idate-${m.id}" value="${m.importantDate||''}"></div>
-            <div class="fg"><label>Descrição</label><input id="tm-idesc-${m.id}" value="${m.importantDateNote||''}" placeholder="Ex: Aniversário da filha"></div>
+          <textarea class="nf" id="tm-pinfo-${m.id}" placeholder="Formação, experiência, habilidades, contexto pessoal..." style="min-height:70px;margin-bottom:6px">${m.personalInfo||''}</textarea>
+          <button class="btn btn-o btn-s" onclick="saveMemberCard('${m.id}')" style="margin-bottom:14px">💾 Salvar dados cadastrais</button>
+
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📝 Histórico de Notas / 1:1</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+            ${(m.notesLog||[]).length?[...m.notesLog].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(n=>`
+              <div style="background:#F9FAFB;border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;gap:8px;align-items:flex-start">
+                <span style="font-size:10px;font-weight:700;color:var(--primary);background:#EFF6FF;padding:2px 7px;border-radius:99px;white-space:nowrap">${n.date?new Date(n.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—'}</span>
+                <div style="flex:1;font-size:12px;line-height:1.4;white-space:pre-wrap">${n.text}</div>
+                <button onclick="deleteMemberNote('${m.id}','${n.id}')" style="background:none;border:none;cursor:pointer;color:#EF4444;font-size:13px;padding:0 2px" title="Remover">🗑</button>
+              </div>`).join(''):`<div style="font-size:12px;color:var(--muted);padding:4px 0">Nenhuma nota registrada ainda.</div>`}
           </div>
-          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Notas de 1:1 / Desenvolvimento</div>
-          <textarea class="nf" id="tm-notes-${m.id}" placeholder="Anotações de reuniões, feedbacks, sugestões de desenvolvimento...">${m.notes||''}</textarea>
-          <button class="btn btn-p" onclick="saveMemberCard('${m.id}')" style="width:100%;margin-top:10px">💾 Salvar alterações</button>
+          <div style="background:#F0F9FF;border:1px dashed #93C5FD;border-radius:8px;padding:10px">
+            <div style="display:flex;gap:8px;margin-bottom:6px">
+              <input type="date" id="tm-ndate-${m.id}" value="${new Date().toISOString().slice(0,10)}" style="font-size:12px;padding:7px 9px;border:1px solid var(--border);border-radius:6px">
+              <textarea id="tm-ntext-${m.id}" placeholder="Nova observação, feedback ou data importante..." style="flex:1;min-height:46px;font-size:12px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;font-family:inherit;resize:vertical"></textarea>
+            </div>
+            <button class="btn btn-p btn-s" onclick="addMemberNote('${m.id}')" style="width:100%">+ Adicionar nota</button>
+          </div>
         </div>`:''}
       </div>
     </div>`;
   }).join('');
 
-  const headerRight=canEdit
-    ?`<div style="display:flex;gap:8px"><button class="btn btn-o btn-s" onclick="S.teamAuth=false;render()">🔒 Bloquear edição</button><button class="btn btn-p btn-s" onclick="addMember()">+ Adicionar</button></div>`
-    :`<button class="btn btn-o btn-s" onclick="unlockTeamEdit()">🔐 Editar cadastros (Mari & Naiara)</button>`;
+  const headerRight=`<div style="display:flex;gap:8px"><button class="btn btn-o btn-s" onclick="S.teamAuth=false;render()">🔒 Bloquear acesso</button><button class="btn btn-p btn-s" onclick="addMember()">+ Adicionar</button></div>`;
 
   return`
   <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
@@ -2668,10 +2694,22 @@ function saveMemberCard(mid){
   if(g('tm-bday'))m.birthday=g('tm-bday').value;
   if(g('tm-cap'))m.capacity=parseInt(g('tm-cap').value)||10;
   if(g('tm-pinfo'))m.personalInfo=g('tm-pinfo').value;
-  if(g('tm-idate'))m.importantDate=g('tm-idate').value;
-  if(g('tm-idesc'))m.importantDateNote=g('tm-idesc').value;
-  if(g('tm-notes'))m.notes=g('tm-notes').value;
-  save();toast('✅ Alterações salvas!');render();
+  save();toast('✅ Dados salvos!');render();
+}
+function addMemberNote(mid){
+  const m=D.team.find(m=>m.id===mid);if(!m)return;
+  const dEl=document.getElementById('tm-ndate-'+mid),tEl=document.getElementById('tm-ntext-'+mid);
+  const text=(tEl?tEl.value:'').trim();
+  if(!text){toast('✏️ Escreva a observação antes de adicionar.');return;}
+  if(!m.notesLog)m.notesLog=[];
+  m.notesLog.push({id:'n'+Date.now(),date:(dEl&&dEl.value)||new Date().toISOString().slice(0,10),text});
+  save();toast('✅ Nota adicionada!');render();
+}
+function deleteMemberNote(mid,nid){
+  const m=D.team.find(m=>m.id===mid);if(!m||!m.notesLog)return;
+  if(!confirm('Remover esta nota?'))return;
+  m.notesLog=m.notesLog.filter(n=>n.id!==nid);
+  save();toast('🗑️ Nota removida');render();
 }
 function openResultModal(cid){
   const html=`<div class="overlay" id="rm-overlay" onclick="if(event.target===this)closeResultModal()">
@@ -4223,6 +4261,7 @@ window.addEventListener('hashchange',handleNavigation);
         if(!c.continuousActivities)c.continuousActivities=[];
       });
       if(!data.team)data.team=[];
+      (data.team||[]).forEach(function(m){if(!m.notesLog)m.notesLog=[];});
       if(!data.assignedTasks)data.assignedTasks=[];
       return data;
     }
