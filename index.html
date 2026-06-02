@@ -2205,7 +2205,10 @@ function rMinhaSemana(){
       }).join('')}
   </div>
 
-  <!-- SEÇÃO 1: Relatórios Semanais -->
+  <!-- SEÇÃO 1: Tarefas Atribuídas -->
+  ${renderTasksSection(user,wk)}
+
+  <!-- SEÇÃO 2: Relatórios Semanais -->
   <div class="card" style="margin-bottom:20px">
     <div class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8);border-radius:8px 8px 0 0">
       <h3 style="margin:0;color:white">⚡ Relatórios Semanais — Sexta ${wkLabel}</h3>
@@ -2271,9 +2274,6 @@ function rMinhaSemana(){
       </tbody>
     </table></div>
   </div>
-
-  <!-- SEÇÃO 3: Tarefas Atribuídas -->
-  ${renderTasksSection(user,wk)}
 
   <!-- SEÇÃO 4: Prospecção da Semana -->
   <div class="card" style="margin-bottom:16px">
