@@ -136,6 +136,10 @@ input.mini:focus{outline:none;border-color:var(--primary)}
 .res-card{background:white;border:1px solid var(--border);border-radius:var(--radius);padding:18px;text-align:center}
 .res-num{font-size:30px;font-weight:800;line-height:1}
 .res-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+.meta-acc>summary{cursor:pointer;list-style:none;user-select:none}
+.meta-acc>summary::-webkit-details-marker{display:none}
+.meta-acc>summary .arr{font-size:10px;color:var(--muted);transition:transform .2s;display:inline-block}
+.meta-acc[open]>summary .arr{transform:rotate(90deg)}
 @media(max-width:900px){#sidebar{width:56px}.ni span:not(.ni-icon){display:none}.sb-logo span,.sb-footer,.sb-logo h2{display:none}#main{margin-left:56px}.stats-grid{grid-template-columns:repeat(2,1fr)}.fgrid{grid-template-columns:1fr}}
 
 /* ============ PORTAL PREMIUM STYLES ============ */
@@ -2082,7 +2086,11 @@ function rMinhaSemanaGestao(user){
     +'<div class="stat-card"><div class="stat-val" style="color:#057642">'+(revenue>0?'R$ '+revenue.toLocaleString('pt-BR'):'R$ 0')+'</div><div class="stat-label">Receita (prospecção)</div></div>'
     +'</div>'
 
-    // Meta de leads (topo)
+    // Tarefas (topo)
+    +renderTasksSection(user,wk)
+    +rTarefasEquipe(wk)
+
+    // Meta de leads
     +rLeadGoalEquipe(S.gestaoFilterMonth)
 
     // Performance da equipe
@@ -2116,13 +2124,7 @@ function rMinhaSemanaGestao(user){
     +'<div class="ch" style="background:'+(expiring.length||overdue.length?'linear-gradient(135deg,#DC2626,#EF4444)':'linear-gradient(135deg,#16A34A,#22C55E)')+'">'
     +'<h3 style="color:white;margin:0">'+(expiring.length||overdue.length?'⚠️ Alertas da Semana':'✅ Alertas da Semana')+'</h3>'
     +'<span style="font-size:12px;color:rgba(255,255,255,.85)">'+(expiring.length+overdue.length+noSeller.length)+' item(s)</span></div>'
-    +'<div>'+alertsHtml+'</div></div>'
-
-    // Tarefas pessoais
-    +renderTasksSection(user,wk)
-
-    // Visão geral das tarefas do time
-    +rTarefasEquipe(wk);
+    +'<div>'+alertsHtml+'</div></div>';
 }
 
 function rLeadGoalEquipe(monthKey){
@@ -2138,14 +2140,17 @@ function rLeadGoalEquipe(monthKey){
     if(!mc.length)return'';
     const metBatida=mc.filter(c=>getClientLeadsForMonth(c,monthKey)>=c.monthlyLeadGoal).length;
     totalMetaBatida+=metBatida;
-    return`<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    return`<details class="meta-acc" style="margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <summary style="padding:10px 12px;background:#F9FAFB;display:flex;align-items:center;gap:8px">
+        <span class="arr">▶</span>
         <div class="av av-s" style="background:${m.color}">${m.initials}</div>
-        <strong style="font-size:13px">${m.name.split(' ')[0]}</strong>
+        <strong style="font-size:13px;flex:1">${m.name.split(' ')[0]}</strong>
         <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:${metBatida===mc.length&&mc.length?'#DCFCE7':'#F3F4F6'};color:${metBatida===mc.length&&mc.length?'#16A34A':'#6B7280'}">${metBatida}/${mc.length} metas batidas${metBatida===mc.length&&mc.length?' 🎉':''}</span>
+      </summary>
+      <div style="padding:10px 12px">
+        ${mc.map(c=>renderLeadGoalBar(getClientLeadsForMonth(c,monthKey),c.monthlyLeadGoal,c.name.split(' ').slice(0,2).join(' '),monthKey,true)).join('')}
       </div>
-      ${mc.map(c=>renderLeadGoalBar(getClientLeadsForMonth(c,monthKey),c.monthlyLeadGoal,c.name.split(' ').slice(0,2).join(' '),monthKey,true)).join('')}
-    </div>`;
+    </details>`;
   }).filter(Boolean).join('');
 
   if(!sellerBlocks)return`<div class="card" style="margin-bottom:20px">
