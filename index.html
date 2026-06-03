@@ -967,9 +967,8 @@ function rDash(){
     </div>`;
   }).join(''):'';
 
-  const html=`<div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+  const html=`<div class="stats-grid" style="grid-template-columns:repeat(2,1fr)">
     <div class="stat" onclick="nav('clients',{statusFilter:'ativo'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--primary)">${ativos.length}</div><div class="stat-lbl">Clientes Ativos</div></div>
-    <div class="stat" onclick="nav('clients',{statusFilter:'finalizado'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--green)">${finalizados.length}</div><div class="stat-lbl">Clientes Finalizados</div></div>
     <div class="stat" onclick="nav('clients',{statusFilter:'vencido'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--red)">${vencidos.length}</div><div class="stat-lbl">Contratos Vencidos</div></div>
   </div>
   <div class="card" style="margin-bottom:18px;overflow:hidden;border:none;box-shadow:0 4px 20px rgba(232,98,42,.15)">
