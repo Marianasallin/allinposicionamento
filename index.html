@@ -2918,7 +2918,22 @@ async function lerContratoPDF(cid,inputEl){
       achados.push('Vencimento ~'+fim.toLocaleDateString('pt-BR')+' (assinatura + '+meses+' meses)');
     }
 
-    setStatus(achados.length?('✅ '+achados.join(' · ')+' — confira e clique em 💾 Salvar'):'⚠️ não consegui identificar os campos neste PDF');
+    // Bloco do CONTRATANTE (cliente) = depois de "de outro lado"
+    const cliBlock=texto.split(/de outro lado/i)[1]||texto;
+
+    // CNPJ/CPF do cliente (documento declarado no contrato, excluindo o da ALL IN)
+    const docM=cliBlock.match(/(?:CNPJ|CPF)\s*sob\s*n[º°.\s]*([\d][\d.\/-]{9,17}\d)/i);
+    if(docM&&docM[1]!=='55.802.590/0001-68'&&$('ct-cnpj')){$('ct-cnpj').value=docM[1];achados.push('Documento: '+docM[1]);}
+
+    // Endereço do cliente
+    const addrM=cliBlock.match(/com endere[çc]o\s+(.+?)\s*,?\s*doravante/i);
+    if(addrM&&$('ct-addr')){$('ct-addr').value=addrM[1].replace(/\s+/g,' ').trim();achados.push('Endereço preenchido');}
+
+    // CPF da pessoa que assinou (exclui o CPF da ALL IN) — informativo
+    const cpfCli=[...texto.matchAll(/(\d{3}\.\d{3}\.\d{3}-\d{2})/g)].map(m=>m[1]).filter(c=>c!=='074.094.746-02')[0];
+    if(cpfCli&&!(docM&&docM[1]===cpfCli))achados.push('CPF da signatária: '+cpfCli);
+
+    setStatus(achados.length?('✅ '+achados.join(' · ')+' — confira e clique em 💾 Salvar (Nicho é manual)'):'⚠️ não consegui identificar os campos neste PDF');
   }catch(err){
     setStatus('⚠️ erro ao ler o PDF: '+(err&&err.message||err));
   }
