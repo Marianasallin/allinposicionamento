@@ -2887,10 +2887,19 @@ async function lerContratoPDF(cid,inputEl){
     const c=D.clients.find(x=>x.id===cid);
     const achados=[];
 
-    // VALOR (mensal) — prioriza o R$ associado a "mensal"/"de cada mês"; senão o primeiro
-    let vmensal=texto.match(/R\$\s*([\d.]+,\d{2})\s*[^R$]{0,25}?(?:mensal|de cada m[êe]s)/i);
-    if(!vmensal)vmensal=texto.match(/R\$\s*([\d.]+,\d{2})/);
-    if(vmensal&&$('ct-val')){$('ct-val').value=vmensal[1];achados.push('Valor mensal R$ '+vmensal[1]);}
+    // Meses de vigência (usado no valor total e no vencimento)
+    const _mesesM=texto.match(/vig[êe]ncia\s+por\s+(\d+)|(\d+)\s*\(?[a-zç]*\)?\s*meses/i);
+    const meses=_mesesM?parseInt(_mesesM[1]||_mesesM[2]):12;
+
+    // VALOR TOTAL = soma das parcelas (mensal × meses, parcelado Nx, ou parcela única)
+    let _total=0;
+    for(const l of texto.matchAll(/R\$\s*([\d.]+,\d{2})([^R$]{0,45})/g)){
+      const val=parseFloat(l[1].replace(/\./g,'').replace(',','.'));
+      const ctx=l[2].toLowerCase();
+      if(/mensal|de cada m[êe]s/.test(ctx))_total+=val*meses;
+      else{const nx=ctx.match(/(\d+)\s*x/);_total+=nx?val*parseInt(nx[1]):val;}
+    }
+    if(_total>0&&$('ct-val')){const _fmt=_total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});$('ct-val').value=_fmt;achados.push('Valor total R$ '+_fmt);}
 
     // FORMA DE PAGAMENTO — palavra ao lado do valor, ou no texto
     let pm='';
@@ -2950,8 +2959,6 @@ async function lerContratoPDF(cid,inputEl){
       if(mm){const pos=mm.index;const ant=todasDatas.filter(x=>x.idx<pos);if(ant.length)dataAssin=ant[ant.length-1].d;}
     }
     if(!dataAssin&&todasDatas.length)dataAssin=todasDatas.map(x=>x.d).sort((a,b)=>b-a)[0];
-    const mesesM=texto.match(/vig[êe]ncia\s+por\s+(\d+)|(\d+)\s*\(?[a-zç]*\)?\s*meses/i);
-    const meses=mesesM?parseInt(mesesM[1]||mesesM[2]):12;
     if(dataAssin){
       const fim=new Date(dataAssin.getFullYear(),dataAssin.getMonth()+meses,dataAssin.getDate());
       if($('ct-sd'))$('ct-sd').value=dataAssin.toISOString().slice(0,10);
