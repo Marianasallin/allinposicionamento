@@ -292,6 +292,7 @@ function SC(s){return{concluido:'bc',andamento:'ba',pendente:'bp',atrasado:'br'}
 function CS(s){return{pendente:'andamento',andamento:'concluido',concluido:'pendente',atrasado:'pendente'}[s]||'pendente'}
 function WC(s){return{concluido:'wc',andamento:'wa',pendente:'wp'}[s]||'wp'}
 function prog(c){const t=c.deliverables.length,d=c.deliverables.filter(x=>x.status==='concluido').length;return t?Math.round(d/t*100):0}
+function abbrevNome(n){const w=(n||'').trim().split(/\s+/);return w[0]+(w[1]?' '+w[1][0]+'.':'');}
 function progGP(c){
   const now=new Date();now.setHours(23,59,59,0);
   const allFris=fridaysFrom(c.startDate);
@@ -999,8 +1000,21 @@ function rDash(){
   },100);
   return html;
 }
-function getMonthlyLeadsData(){const months={};D.clients.forEach(c=>{(c.results||[]).forEach(r=>{if(!months[r.month])months[r.month]=0;months[r.month]+=(r.leads||0)})});const labels=Object.keys(months).slice(-4);const data=labels.map(m=>months[m]||0);return{labels,data}}
-function getLeadsbyVendorData(){const vendors={};D.clients.forEach(c=>{const assignee=c.assignees[0]||'Sem atribuição';const firstName=assignee.split(' ')[0];if(!vendors[firstName])vendors[firstName]=0;(c.results||[]).forEach(r=>{vendors[firstName]+=(r.leads||0)})});const labels=Object.keys(vendors);const data=labels.map(v=>vendors[v]);return{labels,data}}
+function getMonthlyLeadsData(){
+  // Conta leads reais (prospects cadastrados) por mês — começa a partir de quando houver prospects
+  const ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const months={};
+  D.clients.forEach(c=>(c.prospects||[]).forEach(p=>{if(!p.date)return;const d=new Date(p.date+'T12:00:00');const k=ptM[d.getMonth()]+' '+d.getFullYear();months[k]=(months[k]||0)+1;}));
+  const labels=Object.keys(months).sort((a,b)=>{const[ma,ya]=a.split(' '),[mb,yb]=b.split(' ');return(parseInt(ya)*12+ptM.indexOf(ma))-(parseInt(yb)*12+ptM.indexOf(mb));}).slice(-6);
+  return{labels,data:labels.map(m=>months[m]||0)};
+}
+function getLeadsbyVendorData(){
+  // Conta leads reais (prospects) por Social Seller responsável
+  const vendors={};
+  D.clients.forEach(c=>{const a=(c.assignees||[])[0];if(!a||a==='N/A')return;const fn=a.split(' ')[0];vendors[fn]=(vendors[fn]||0)+(c.prospects||[]).length;});
+  const labels=Object.keys(vendors);
+  return{labels,data:labels.map(v=>vendors[v])};
+}
 
 // ────────────────────────────────────────────────────────────
 // CLIENTS
@@ -1110,8 +1124,8 @@ function rClients(){
   const cards=list.map(c=>{
     const daysRemaining=getContractDaysRemaining(c.contractDue);
     const ssList=(c.assignees||[]).filter(a=>a&&a!=='N/A');
-    const ss=(c.assignees||[])[0]==='N/A'?'Não se aplica':(ssList.length?ssList.map(a=>a.split(' ')[0]).join(', '):'Sem SS');
-    const content=(c.contentOwners||[]).length?(c.contentOwners||[]).map(a=>a.split(' ')[0]).join(' + '):'—';
+    const ss=(c.assignees||[])[0]==='N/A'?'Não se aplica':(ssList.length?ssList.map(abbrevNome).join(', '):'Sem SS');
+    const content=(c.contentOwners||[]).length?(c.contentOwners||[]).map(abbrevNome).join(' + '):'—';
     return`<div class="cc" onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})" style="display:flex;align-items:center;gap:12px;padding:9px 14px;cursor:pointer">
       <div class="av av-s" style="background:${c.color};flex-shrink:0">${c.initials}</div>
       <div style="flex:1;min-width:0">
