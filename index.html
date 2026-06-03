@@ -241,6 +241,7 @@ input.mini:focus{outline:none;border-color:var(--primary)}
 .portal-login-forgot a:hover{text-decoration:underline;color:#082C74}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -1620,6 +1621,13 @@ function rDetail(){
           ${c.contractLink?`<a class="btn btn-p btn-s" href="${c.contractLink}" target="_blank" rel="noopener" style="white-space:nowrap;display:inline-flex;align-items:center;text-decoration:none">🔗 Abrir</a>`:''}
         </div>
       </div>
+      ${_fin?`<div style="background:#F0F9FF;border:1px dashed #93C5FD;border-radius:8px;padding:12px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px">🤖 Preencher automático pelo contrato (PDF)</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Suba o PDF do contrato e o sistema lê e preenche Valor, Forma de Pagamento, Vencimento e Produto. Confira antes de salvar.</div>
+        <input type="file" id="ct-pdf-reader" accept=".pdf" style="display:none" onchange="lerContratoPDF('${c.id}',this)">
+        <button class="btn btn-p btn-s" onclick="document.getElementById('ct-pdf-reader').click()">📄 Ler contrato e preencher</button>
+        <span id="ct-pdf-status" style="font-size:11px;color:var(--muted);margin-left:8px"></span>
+      </div>`:''}
       <span class="sec-h">Informações Contratuais</span>
       <div class="fgrid3" style="margin-bottom:16px">
         <div class="fg"><label>Produto(s)</label>
@@ -2855,6 +2863,64 @@ function saveContrato(cid){
     reader.readAsDataURL(file);
   }else{
     save();toast('✅ Contrato salvo!');render();
+  }
+}
+async function lerContratoPDF(cid,inputEl){
+  const file=inputEl.files&&inputEl.files[0];
+  if(!file)return;
+  const statusEl=document.getElementById('ct-pdf-status');
+  const setStatus=(t)=>{if(statusEl)statusEl.textContent=t;};
+  if(typeof pdfjsLib==='undefined'){setStatus('⚠️ leitor de PDF não carregou, recarregue a página');return;}
+  setStatus('⏳ lendo contrato...');
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    let texto='';
+    for(let i=1;i<=pdf.numPages;i++){
+      const page=await pdf.getPage(i);
+      const tc=await page.getTextContent();
+      texto+=tc.items.map(it=>it.str).join(' ')+'\n';
+    }
+    const low=texto.toLowerCase();
+    const fname=(file.name||'').toLowerCase();
+    const achados=[];
+
+    // VALOR (mensal) — primeiro "R$ x.xxx,xx"
+    const vm=texto.match(/R\$\s*([\d.]+,\d{2})/);
+    if(vm&&$('ct-val')){$('ct-val').value=vm[1];achados.push('Valor R$ '+vm[1]);}
+
+    // FORMA DE PAGAMENTO — palavra ao lado do valor, ou no texto
+    let pm='';
+    const pmAdj=texto.match(/R\$\s*[\d.]+,\d{2}\s+([A-Za-zÀ-ÿ]+)/);
+    const pmTxt=((pmAdj&&pmAdj[1])||low);
+    if(/boleto/i.test(pmTxt)||/boleto/.test(low))pm='boleto';
+    else if(/pix/.test(low))pm='pix';
+    else if(/cart[ãa]o/.test(low))pm='cartao';
+    else if(/transfer[êe]ncia/.test(low))pm='transferencia';
+    if(pm&&$('ct-pm')){$('ct-pm').value=pm;achados.push('Pagamento: '+pm);}
+
+    // PRODUTO — pelo nome do arquivo + texto
+    const setProd=(label)=>{const id='ctp-'+label.replace(/[\s\/]/g,'-');const el=document.getElementById(id);if(el){el.checked=true;el.dispatchEvent(new Event('change'));}};
+    let prod='';
+    if(/gest[ãa]o de perfil|estrutura[çc][ãa]o de perfil/.test(fname+' '+low)){setProd('Gestão de Perfil');prod='Gestão de Perfil';}
+    if(/implementa[çc][ãa]o comercial/.test(fname+' '+low)){setProd('Implementação Comercial');prod=prod?prod+' + Implementação Comercial':'Implementação Comercial';}
+    if(prod)achados.push('Produto: '+prod);
+
+    // VENCIMENTO (término) = última data de assinatura + meses de vigência
+    const datas=[...texto.matchAll(/(\d{2})\/(\d{2})\/(\d{4})/g)].map(m=>new Date(+m[3],+m[2]-1,+m[1]));
+    const mesesM=texto.match(/(\d+)\s*\(?[a-zç]*\)?\s*meses/i);
+    const meses=mesesM?parseInt(mesesM[1]):12;
+    if(datas.length&&$('ct-cd')){
+      const base=new Date(Math.max.apply(null,datas));
+      const fim=new Date(base.getFullYear(),base.getMonth()+meses,base.getDate());
+      $('ct-cd').value=fim.toISOString().slice(0,10);
+      achados.push('Vencimento ~'+fim.toLocaleDateString('pt-BR')+' (assinatura + '+meses+' meses)');
+    }
+
+    setStatus(achados.length?('✅ '+achados.join(' · ')+' — confira e clique em 💾 Salvar'):'⚠️ não consegui identificar os campos neste PDF');
+  }catch(err){
+    setStatus('⚠️ erro ao ler o PDF: '+(err&&err.message||err));
   }
 }
 function delContractFile(cid){
