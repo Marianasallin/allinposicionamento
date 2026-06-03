@@ -926,6 +926,7 @@ function rDashProspeccao(){
 function rDash(){
   const ativos=D.clients.filter(c=>c.contractStatus==='ativo');
   const vencidos=D.clients.filter(c=>c.contractStatus==='vencido');
+  const finalizados=D.clients.filter(c=>c.contractStatus==='finalizado');
   const allD=D.clients.flatMap(c=>c.deliverables);
   const done=allD.filter(d=>d.status==='concluido').length;
   const going=allD.filter(d=>d.status==='andamento').length;
@@ -968,7 +969,7 @@ function rDash(){
 
   const html=`<div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
     <div class="stat" onclick="nav('clients',{statusFilter:'ativo'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--primary)">${ativos.length}</div><div class="stat-lbl">Clientes Ativos</div></div>
-    <div class="stat" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--green)">${done}</div><div class="stat-lbl">Concluídas</div></div>
+    <div class="stat" onclick="nav('clients',{statusFilter:'finalizado'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--green)">${finalizados.length}</div><div class="stat-lbl">Clientes Finalizados</div></div>
     <div class="stat" onclick="nav('clients',{statusFilter:'vencido'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--red)">${vencidos.length}</div><div class="stat-lbl">Contratos Vencidos</div></div>
   </div>
   <div class="card" style="margin-bottom:18px;overflow:hidden;border:none;box-shadow:0 4px 20px rgba(232,98,42,.15)">
@@ -1855,14 +1856,14 @@ function rWeeklyPending(){
   // Date picker value = Friday of selected week (yyyy-mm-dd)
   const pickerVal=wk;
 
-  const totalClients=D.clients.filter(c=>c.contractStatus!=='inativo'&&c.products.includes('Gestão de Perfil'));
+  const totalClients=D.clients.filter(c=>(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')&&c.products.includes('Gestão de Perfil'));
 
   const allSemanaisDone=totalClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
   const allMensaisDone=totalClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
   const totalLeads=totalClients.reduce((sum,c)=>sum+((c.prospects||[]).filter(p=>p.date===wk).length),0);
 
   const memberCards=D.team.filter(m=>m.id!=='mariana-souza'&&m.id!=='naiara-faria').map(member=>{
-    const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(member.name)&&c.contractStatus!=='inativo'&&c.products.includes('Gestão de Perfil'));
+    const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(member.name)&&(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')&&c.products.includes('Gestão de Perfil'));
     if(!myClients.length)return'';
     const semDone=myClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
     const menDone=myClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
@@ -1919,7 +1920,7 @@ function rWeeklyPending(){
   </div>
   <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px">
     <div style="font-size:13px;color:#1D4ED8">
-      📅 <strong>Reunião de Sexta</strong> — Semana ${wkLabel} &nbsp;|&nbsp; ${D.clients.filter(c=>c.contractStatus!=='inativo').length} clientes ativos
+      📅 <strong>Reunião de Sexta</strong> — Semana ${wkLabel} &nbsp;|&nbsp; ${D.clients.filter(c=>(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')).length} clientes ativos
       ${!isCurrentWeek?'<span style="margin-left:8px;padding:2px 8px;background:#FEF3C7;color:#D97706;border-radius:99px;font-size:11px;font-weight:600">semana anterior</span>':''}
     </div>
     <div style="display:flex;align-items:center;gap:8px">
@@ -2273,7 +2274,7 @@ function rMinhaSemana(){
   const isConteudo=user.role==='Head de Conteúdo';
   if(isGestao)return rMinhaSemanaGestao(user);
   if(isConteudo)return rMinhaSemanaConteudo(user);
-  const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(user.name)&&c.contractStatus!=='inativo'&&c.products.includes('Gestão de Perfil'));
+  const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(user.name)&&(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')&&c.products.includes('Gestão de Perfil'));
 
   // Collect all unique Fridays across user's clients (sorted)
   const allFriKeys=[...new Set(myClients.flatMap(c=>fridaysFrom(c.startDate).map(f=>getWeekKey(f))))].sort();
