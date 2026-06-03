@@ -1612,6 +1612,13 @@ function rDetail(){
         </div>
         <button class="btn btn-o btn-s" onclick="document.getElementById('contract-file').click()">📤 Enviar</button>
         ${c.contractFile?`<button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="delContractFile('${c.id}')">🗑️ Remover</button>`:''}</div>
+      <div class="fg" style="margin-bottom:16px">
+        <label>🔗 Link do Contrato <span style="font-weight:400;text-transform:none;color:var(--muted)">(Google Drive, Docs, etc.)</span></label>
+        <div style="display:flex;gap:8px">
+          <input id="ct-contract-link" type="url" value="${c.contractLink||''}" placeholder="https://drive.google.com/..." style="flex:1">
+          ${c.contractLink?`<a class="btn btn-p btn-s" href="${c.contractLink}" target="_blank" rel="noopener" style="white-space:nowrap;display:inline-flex;align-items:center;text-decoration:none">🔗 Abrir</a>`:''}
+        </div>
+      </div>
       <span class="sec-h">Informações Contratuais</span>
       <div class="fgrid3" style="margin-bottom:16px">
         <div class="fg"><label>Produto(s)</label>
@@ -2826,6 +2833,7 @@ function saveContrato(cid){
   c.cnpj=$('ct-cnpj').value;
   c.address=$('ct-addr').value;
   c.monthlyLeadGoal=parseInt($('ct-lead-goal').value)||0;
+  if($('ct-contract-link'))c.contractLink=$('ct-contract-link').value.trim();
 
   const fileInput=$('contract-file');
   if(fileInput&&fileInput.files.length>0){
