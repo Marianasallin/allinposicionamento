@@ -2886,9 +2886,10 @@ async function lerContratoPDF(cid,inputEl){
     const fname=(file.name||'').toLowerCase();
     const achados=[];
 
-    // VALOR (mensal) — primeiro "R$ x.xxx,xx"
-    const vm=texto.match(/R\$\s*([\d.]+,\d{2})/);
-    if(vm&&$('ct-val')){$('ct-val').value=vm[1];achados.push('Valor R$ '+vm[1]);}
+    // VALOR (mensal) — prioriza o R$ associado a "mensal"/"de cada mês"; senão o primeiro
+    let vmensal=texto.match(/R\$\s*([\d.]+,\d{2})\s*[^R$]{0,25}?(?:mensal|de cada m[êe]s)/i);
+    if(!vmensal)vmensal=texto.match(/R\$\s*([\d.]+,\d{2})/);
+    if(vmensal&&$('ct-val')){$('ct-val').value=vmensal[1];achados.push('Valor mensal R$ '+vmensal[1]);}
 
     // FORMA DE PAGAMENTO — palavra ao lado do valor, ou no texto
     let pm='';
@@ -2900,12 +2901,12 @@ async function lerContratoPDF(cid,inputEl){
     else if(/transfer[êe]ncia/.test(low))pm='transferencia';
     if(pm&&$('ct-pm')){$('ct-pm').value=pm;achados.push('Pagamento: '+pm);}
 
-    // PRODUTO — pelo nome do arquivo + texto
+    // PRODUTO — nome do arquivo + texto. Implementação = quando há boleto de implementação.
     const setProd=(label)=>{const id='ctp-'+label.replace(/[\s\/]/g,'-');const el=document.getElementById(id);if(el){el.checked=true;el.dispatchEvent(new Event('change'));}};
-    let prod='';
-    if(/gest[ãa]o de perfil|estrutura[çc][ãa]o de perfil/.test(fname+' '+low)){setProd('Gestão de Perfil');prod='Gestão de Perfil';}
-    if(/implementa[çc][ãa]o comercial/.test(fname+' '+low)){setProd('Implementação Comercial');prod=prod?prod+' + Implementação Comercial':'Implementação Comercial';}
-    if(prod)achados.push('Produto: '+prod);
+    const prods=[];
+    if(/gest[ãa]o de perfil|estrutura[çc][ãa]o de perfil/.test(fname+' '+low)){setProd('Gestão de Perfil');prods.push('Gestão de Perfil');}
+    if(/implementa[çc][ãa]o comercial|boleto\s+implementa[çc][ãa]o|implementa[çc][ãa]o\s+\d{2}\/\d{2}/.test(fname+' '+low)){setProd('Implementação Comercial');prods.push('Implementação Comercial');}
+    if(prods.length)achados.push('Produto: '+prods.join(' + '));
 
     // Bloco do CONTRATANTE (cliente) = depois de "de outro lado"
     const cliBlock=texto.split(/de outro lado/i)[1]||texto;
@@ -2922,13 +2923,26 @@ async function lerContratoPDF(cid,inputEl){
     const cpfCli=[...texto.matchAll(/(\d{3}\.\d{3}\.\d{3}-\d{2})/g)].map(m=>m[1]).filter(c=>c!=='074.094.746-02')[0];
     if(cpfCli&&!(docM&&docM[1]===cpfCli))achados.push('CPF da signatária: '+cpfCli);
 
-    // INÍCIO = dia em que a CLIENTE assinou (trilha de auditoria no fim) · VENCIMENTO = início + vigência
+    // INÍCIO = dia em que a CLIENTE assinou · VENCIMENTO = início + vigência
+    // Coleta todas as datas (formatos DD/MM/AAAA e "DD mês AAAA") com posição no texto
+    const _mes={jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11};
+    const todasDatas=[];
+    let _m;
+    let _re1=/(\d{2})\/(\d{2})\/(\d{4})/g;
+    while(_m=_re1.exec(texto))todasDatas.push({idx:_m.index,d:new Date(+_m[3],+_m[2]-1,+_m[1])});
+    let _re2=/(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zç]*\.?\s+(\d{4})/gi;
+    while(_m=_re2.exec(texto))todasDatas.push({idx:_m.index,d:new Date(+_m[3],_mes[_m[2].toLowerCase().slice(0,3)],+_m[1])});
+
     let dataAssin=null;
-    const assina=[...texto.matchAll(/(\d{2})\/(\d{2})\/(\d{4})[\s\S]{0,160}?CPF\s*(\d{3}\.\d{3}\.\d{3}-\d{2})[\s\S]{0,40}?assinou/gi)];
-    for(const a of assina){ if(a[4]===cpfCli) dataAssin=new Date(+a[3],+a[2]-1,+a[1]); }
-    if(!dataAssin){ const ds=[...texto.matchAll(/(\d{2})\/(\d{2})\/(\d{4})/g)].map(m=>new Date(+m[3],+m[2]-1,+m[1])); if(ds.length)dataAssin=new Date(Math.max.apply(null,ds)); }
-    const mesesM=texto.match(/(\d+)\s*\(?[a-zç]*\)?\s*meses/i);
-    const meses=mesesM?parseInt(mesesM[1]):12;
+    if(cpfCli){
+      // acha a posição do CPF do cliente seguido de "assinou"; pega a data imediatamente anterior
+      const re3=new RegExp(cpfCli.replace(/[.\-]/g,'\\$&')+'[\\s\\S]{0,40}?assinou','i');
+      const mm=texto.match(re3);
+      if(mm){const pos=mm.index;const ant=todasDatas.filter(x=>x.idx<pos);if(ant.length)dataAssin=ant[ant.length-1].d;}
+    }
+    if(!dataAssin&&todasDatas.length)dataAssin=todasDatas.map(x=>x.d).sort((a,b)=>b-a)[0];
+    const mesesM=texto.match(/vig[êe]ncia\s+por\s+(\d+)|(\d+)\s*\(?[a-zç]*\)?\s*meses/i);
+    const meses=mesesM?parseInt(mesesM[1]||mesesM[2]):12;
     if(dataAssin){
       const fim=new Date(dataAssin.getFullYear(),dataAssin.getMonth()+meses,dataAssin.getDate());
       if($('ct-sd'))$('ct-sd').value=dataAssin.toISOString().slice(0,10);
