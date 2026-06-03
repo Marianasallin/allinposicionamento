@@ -2907,17 +2907,6 @@ async function lerContratoPDF(cid,inputEl){
     if(/implementa[çc][ãa]o comercial/.test(fname+' '+low)){setProd('Implementação Comercial');prod=prod?prod+' + Implementação Comercial':'Implementação Comercial';}
     if(prod)achados.push('Produto: '+prod);
 
-    // VENCIMENTO (término) = última data de assinatura + meses de vigência
-    const datas=[...texto.matchAll(/(\d{2})\/(\d{2})\/(\d{4})/g)].map(m=>new Date(+m[3],+m[2]-1,+m[1]));
-    const mesesM=texto.match(/(\d+)\s*\(?[a-zç]*\)?\s*meses/i);
-    const meses=mesesM?parseInt(mesesM[1]):12;
-    if(datas.length&&$('ct-cd')){
-      const base=new Date(Math.max.apply(null,datas));
-      const fim=new Date(base.getFullYear(),base.getMonth()+meses,base.getDate());
-      $('ct-cd').value=fim.toISOString().slice(0,10);
-      achados.push('Vencimento ~'+fim.toLocaleDateString('pt-BR')+' (assinatura + '+meses+' meses)');
-    }
-
     // Bloco do CONTRATANTE (cliente) = depois de "de outro lado"
     const cliBlock=texto.split(/de outro lado/i)[1]||texto;
 
@@ -2929,9 +2918,23 @@ async function lerContratoPDF(cid,inputEl){
     const addrM=cliBlock.match(/com endere[çc]o\s+(.+?)\s*,?\s*doravante/i);
     if(addrM&&$('ct-addr')){$('ct-addr').value=addrM[1].replace(/\s+/g,' ').trim();achados.push('Endereço preenchido');}
 
-    // CPF da pessoa que assinou (exclui o CPF da ALL IN) — informativo
+    // CPF do CLIENTE = signatário que NÃO é a ALL IN (Mariana Lopes 074.094.746-02)
     const cpfCli=[...texto.matchAll(/(\d{3}\.\d{3}\.\d{3}-\d{2})/g)].map(m=>m[1]).filter(c=>c!=='074.094.746-02')[0];
     if(cpfCli&&!(docM&&docM[1]===cpfCli))achados.push('CPF da signatária: '+cpfCli);
+
+    // INÍCIO = dia em que a CLIENTE assinou (trilha de auditoria no fim) · VENCIMENTO = início + vigência
+    let dataAssin=null;
+    const assina=[...texto.matchAll(/(\d{2})\/(\d{2})\/(\d{4})[\s\S]{0,160}?CPF\s*(\d{3}\.\d{3}\.\d{3}-\d{2})[\s\S]{0,40}?assinou/gi)];
+    for(const a of assina){ if(a[4]===cpfCli) dataAssin=new Date(+a[3],+a[2]-1,+a[1]); }
+    if(!dataAssin){ const ds=[...texto.matchAll(/(\d{2})\/(\d{2})\/(\d{4})/g)].map(m=>new Date(+m[3],+m[2]-1,+m[1])); if(ds.length)dataAssin=new Date(Math.max.apply(null,ds)); }
+    const mesesM=texto.match(/(\d+)\s*\(?[a-zç]*\)?\s*meses/i);
+    const meses=mesesM?parseInt(mesesM[1]):12;
+    if(dataAssin){
+      const fim=new Date(dataAssin.getFullYear(),dataAssin.getMonth()+meses,dataAssin.getDate());
+      if($('ct-sd'))$('ct-sd').value=dataAssin.toISOString().slice(0,10);
+      if($('ct-cd'))$('ct-cd').value=fim.toISOString().slice(0,10);
+      achados.push('Início '+dataAssin.toLocaleDateString('pt-BR')+' · Vencimento '+fim.toLocaleDateString('pt-BR'));
+    }
 
     setStatus(achados.length?('✅ '+achados.join(' · ')+' — confira e clique em 💾 Salvar (Nicho é manual)'):'⚠️ não consegui identificar os campos neste PDF');
   }catch(err){
