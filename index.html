@@ -1108,40 +1108,24 @@ function rClients(){
 
   const statusLabel={ativo:'Ativo',vencido:'Vencido',finalizado:'Finalizado'};
   const cards=list.map(c=>{
-    const isGP=c.products.includes('Gestão de Perfil');
-    const gp=isGP?progGP(c):null;
-    const p=gp?gp.pct:prog(c);
-    const pbarColor=p===0?'#9CA3AF':p<50?'#EF4444':p<80?'#F59E0B':'#10B981';
-    const pends=c.deliverables.filter(d=>d.status==='pendente'||d.status==='atrasado');
     const daysRemaining=getContractDaysRemaining(c.contractDue);
-    return`<div class="cc" style="position:relative;overflow:visible;display:flex;flex-direction:column">
-      <div class="cc-top" onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})" style="cursor:pointer;flex:1">
-        <div class="av av-m" style="background:${c.color}">${c.initials}</div>
-        <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between">
-          <div>
-            <div class="cname">${c.name}</div>
-            <div style="font-size:12px;font-weight:600;color:${c.color};margin-bottom:2px">👤 ${(c.assignees||[])[0]==='N/A'?'<span style="color:#9CA3AF;font-weight:400">Não se aplica</span>':(c.assignees||[]).filter(a=>a&&a!=='N/A').length?(c.assignees||[]).filter(a=>a&&a!=='N/A').map(a=>a.split(' ')[0]).join(', '):'Sem Social Seller'}</div>
-            ${(c.contentOwners||[]).length?`<div style="font-size:11px;color:#057642;margin-bottom:4px">✍️ ${(c.contentOwners||[]).map(a=>a.split(' ')[0]).join(' + ')}</div>`:'<div style="font-size:11px;color:var(--muted);margin-bottom:4px">✍️ Sem responsável de conteúdo</div>'}
-            <div class="tags">${c.products.map(pr=>`<span class="tag" style="font-size:10px">${pr}</span>`).join('')}</div>
-          </div>
-        </div>
-        <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;min-width:70px">
-          <div style="font-size:20px;font-weight:900;color:${pbarColor}">${p}%</div>
-          <span class="pill pill-${c.contractStatus}" style="font-size:9px;padding:2px 8px;white-space:nowrap">${statusLabel[c.contractStatus]}</span>
-        </div>
+    const ssList=(c.assignees||[]).filter(a=>a&&a!=='N/A');
+    const ss=(c.assignees||[])[0]==='N/A'?'Não se aplica':(ssList.length?ssList.map(a=>a.split(' ')[0]).join(', '):'Sem SS');
+    const content=(c.contentOwners||[]).length?(c.contentOwners||[]).map(a=>a.split(' ')[0]).join(' + '):'—';
+    return`<div class="cc" onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})" style="display:flex;align-items:center;gap:12px;padding:9px 14px;cursor:pointer">
+      <div class="av av-s" style="background:${c.color};flex-shrink:0">${c.initials}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🎯 ${ss} &nbsp;·&nbsp; ✍️ ${content}</div>
       </div>
-      <div style="padding:8px 12px 10px;border-top:1px solid var(--border);background:#FAFAFA">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span style="font-size:10px;color:var(--muted)">${isGP?`✉️ ${gp.wkDone}/${gp.wkTotal} sem · 📊 ${gp.mDone}/${gp.mTotal} men`:'Progresso geral'}</span>
-          <span style="font-size:10px;font-weight:600;color:${pbarColor}">${p}%</span>
-        </div>
-        <div class="pb-track" style="height:6px;margin-bottom:8px"><div class="pb-fill" style="width:${p}%;background:${pbarColor};height:6px"></div></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-          <div style="font-size:11px;font-weight:600;color:var(--text)">📅 ${daysRemaining}</div>
-          <button class="btn btn-p btn-s" style="white-space:nowrap;font-size:10px;padding:3px 8px" onclick="event.stopPropagation();window.open(window.location.origin+window.location.pathname+'#portal/${c.token}','_blank')" title="Portal do Cliente">🌐</button>
-        </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:180px;flex-shrink:0">
+        ${c.products.map(pr=>`<span class="tag" style="font-size:9px">${pr}</span>`).join('')}
       </div>
-      ${pends.length?`<div class="alert-s" style="margin-top:0;border-top:none">${pends.slice(0,2).map(d=>`<div class="drow"><span class="dname" style="font-size:11px">${d.name}</span><span class="dresp" style="font-size:10px">${d.responsible||'—'}</span></div>`).join('')}${pends.length>2?`<div style="font-size:9px;color:var(--muted);padding:4px 12px">+${pends.length-2} pendentes</div>`:''}</div>`:''}
+      <div style="text-align:right;min-width:118px;flex-shrink:0">
+        <span class="pill pill-${c.contractStatus}" style="font-size:9px;padding:2px 8px">${statusLabel[c.contractStatus]}</span>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">📅 ${daysRemaining}</div>
+      </div>
+      <button class="btn btn-p btn-s" style="flex-shrink:0;font-size:11px;padding:5px 9px" onclick="event.stopPropagation();window.open(window.location.origin+window.location.pathname+'#portal/${c.token}','_blank')" title="Portal do Cliente">🌐</button>
     </div>`;
   }).join('');
 
@@ -1174,7 +1158,7 @@ function rClients(){
     </select>
   </div>
   <div class="sh"><h2>${list.length} cliente${list.length!==1?'s':''}</h2><button class="btn btn-p btn-s" onclick="addClient()">+ Novo</button></div>
-  <div class="grid2">${cards||'<div style="color:var(--muted);padding:20px">Nenhum cliente encontrado.</div>'}</div>`;
+  <div style="display:flex;flex-direction:column;gap:8px">${cards||'<div style="color:var(--muted);padding:20px">Nenhum cliente encontrado.</div>'}</div>`;
 }
 
 // ────────────────────────────────────────────────────────────
