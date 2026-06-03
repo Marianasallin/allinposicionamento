@@ -1694,7 +1694,7 @@ function rDetail(){
       <span class="sec-h">Dados da Empresa</span>
       <div class="fgrid" style="margin-bottom:8px">
         <div class="fg"><label>Nicho / Área de Atuação</label><input id="ct-ni" value="${c.nicho||''}" placeholder="Ex: Advocacia, Engenharia..."></div>
-        <div class="fg"><label>CNPJ / CPF</label><input id="ct-cnpj" value="${c.cnpj||''}" placeholder="00.000.000/0001-00"></div>
+        <div class="fg"><label>CNPJ / CPF <span style="font-weight:400;text-transform:none;color:var(--muted)">🔑 (senha do portal do cliente)</span></label><input id="ct-cnpj" value="${c.cnpj||''}" placeholder="00.000.000/0001-00"></div>
         <div class="fg" style="grid-column:1/-1"><label>Endereço</label><input id="ct-addr" value="${c.address||''}" placeholder="Rua, número, cidade, estado"></div>
       </div>
       <span class="sec-h">🎯 Meta de Leads</span>
@@ -1714,7 +1714,7 @@ function rDetail(){
         <div class="fg"><label>Nome completo</label><input id="fp-n" value="${c.name}"></div>
         <div class="fg"><label>E-mail</label><input id="fp-e" type="email" value="${c.email||''}"></div>
         <div class="fg"><label>Telefone / WhatsApp</label><input id="fp-p" value="${c.phone||''}"></div>
-        <div class="fg"><label>Data de Nascimento <span style="font-weight:400;text-transform:none;color:var(--muted)">(senha do portal do cliente)</span></label><input type="text" id="fp-bday" value="${_bd}" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric"></div>
+        <div class="fg"><label>Data de Nascimento</label><input type="text" id="fp-bday" value="${_bd}" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric"></div>
         <div class="fg"><label>LinkedIn (URL)</label><input id="fp-l" value="${c.linkedin||''}"></div>
       </div>
       <span class="sec-h">🔐 Acessos (Privado)</span>
@@ -3156,11 +3156,10 @@ function confirmNC(){
   D.clients.push(c);save();closeNC();
   nav('clients',{clientId:c.id,tab:'entregas'});toast('✅ Cliente adicionado!');
   // Abrir email de boas-vindas com as credenciais
-  if(c.email && c.birthday){
+  if(c.email && c.cnpj){
     const firstName=c.name.split(' ')[0];
     const portalUrl=window.location.origin+window.location.pathname+'#portal';
-    const formatBd=(bd)=>{if(!bd)return'sua data de nascimento';if(bd.includes('-')){const[y,m,d]=bd.split('-');return`${d}/${m}/${y}`;}return bd;};
-    const senha=formatBd(c.birthday);
+    const senha=c.cnpj+' (seu CPF, somente números)';
     const subject=encodeURIComponent('Seu acesso ao Portal All In');
     const body=encodeURIComponent(`Olá, ${firstName}!\n\nSeu acesso ao Portal All In está pronto. Acesse abaixo:\n\n🌐 Link: ${portalUrl}\n📧 Email: ${c.email}\n🔑 Senha: ${senha}\n\nNo portal você acompanha suas entregas, resultados e próximas reuniões.\n\nQualquer dúvida, estou à disposição!\n\nAbraços,\nMari`);
     setTimeout(()=>{window.open(`mailto:${c.email}?subject=${subject}&body=${body}`);},800);
@@ -3945,19 +3944,17 @@ function validateClientEmail(email){
 }
 
 function validateClientPassword(client,password){
-  // Convert birthday to DD/MM/YYYY format for password validation
-  if(!client.birthday) return false;
-  const formatBirthday=(dateStr)=>{
-    // If birthday is YYYY-MM-DD format
-    if(dateStr.includes('-')){
-      const [y,m,d]=dateStr.split('-');
-      return `${d}/${m}/${y}`;
-    }
-    // If already in DD/MM/YYYY format
-    return dateStr;
-  };
-  const birthdayPassword=formatBirthday(client.birthday);
-  return password.trim()===birthdayPassword;
+  const typed=(password||'').trim();
+  const onlyDigits=s=>(s||'').replace(/\D/g,'');
+  // Senha = CPF/CNPJ do cliente (campo "CNPJ / CPF"), comparando só os dígitos
+  const doc=onlyDigits(client.cnpj);
+  if(doc&&onlyDigits(typed)===doc)return true;
+  // Reserva: data de nascimento (cadastros antigos, evita travar acesso)
+  if(client.birthday){
+    const fmt=(d)=>d.includes('-')?(()=>{const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;})():d;
+    if(typed===fmt(client.birthday))return true;
+  }
+  return false;
 }
 
 function loginClientPortal(email,password){
@@ -4060,18 +4057,12 @@ function openForgotPasswordModal(){
     return;
   }
 
-  if(!client.birthday){
-    toast('⚠️ Nenhuma data de nascimento registrada. Converse com Mari.');
+  if(!client.cnpj){
+    toast('⚠️ Nenhum CPF registrado para este cliente. Converse com a Mari.');
     return;
   }
 
-  // Show birthday in a friendly way
-  const [day,month,year]=client.birthday.includes('/')?client.birthday.split('/'):['','',''];
-  const monthNames=['','janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-  const monthName=monthNames[parseInt(month)] || month;
-  const readableDate=`${day} de ${monthName} de ${year}`;
-
-  alert(`Olá ${client.name}!\n\nSua primeira senha é sua data de nascimento:\n\n${client.birthday}\n\n(${readableDate})\n\nUse este código para acessar o portal.`);
+  alert(`Olá ${client.name}!\n\nSua senha de acesso é o seu CPF (somente os números):\n\n${client.cnpj}\n\nUse este código para acessar o portal.`);
 }
 
 function navPortal(view){S.portalView=view;S.portalMonthIdx=0;render();}
