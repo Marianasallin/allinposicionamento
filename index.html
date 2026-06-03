@@ -1601,6 +1601,7 @@ function rDetail(){
   else if(S.tab==='contrato'){
     const pmLabels={pix:'PIX',boleto:'Boleto',cartao:'Cartão de Crédito',transferencia:'Transferência','':'—'};
     const hasFile=c.contractFile?'✅ Arquivo anexado':'Sem arquivo';
+    const _fin=S.currentUser&&(S.currentUser.role==='CEO'||S.currentUser.role==='Gestão');
     body=`<div class="card"><div class="ch"><h3>📋 Dados do Contrato</h3><button class="btn btn-p btn-s" onclick="saveContrato('${c.id}')">💾 Salvar</button></div>
     <div class="cb">
       <span class="sec-h">📎 Arquivo do Contrato</span>
@@ -1644,8 +1645,8 @@ function rDetail(){
         </div>
         <div class="fg"><label>Vencimento</label><input id="ct-cd" type="date" value="${c.contractDue?new Date(c.contractDue).toISOString().split('T')[0]:''}"></div>
         <div class="fg"><label>Data de Início</label><input id="ct-sd" type="date" value="${c.startDate||''}"></div>
-        <div class="fg"><label>Valor do Contrato</label><input id="ct-val" placeholder="R$ 0,00" value="${c.contractValue||''}"></div>
-        <div class="fg"><label>Forma de Pagamento</label>
+        ${_fin?`<div class="fg"><label>Valor do Contrato 🔒</label><input id="ct-val" placeholder="R$ 0,00" value="${c.contractValue||''}"></div>
+        <div class="fg"><label>Forma de Pagamento 🔒</label>
           <select id="ct-pm">
             <option value="">— Selecionar —</option>
             <option value="pix" ${c.paymentMethod==='pix'?'selected':''}>PIX</option>
@@ -1654,13 +1655,13 @@ function rDetail(){
             <option value="transferencia" ${c.paymentMethod==='transferencia'?'selected':''}>Transferência</option>
           </select>
         </div>
-        <div class="fg"><label>Status do Pagamento</label>
+        <div class="fg"><label>Status do Pagamento 🔒</label>
           <select id="ct-ps">
             <option value="em-dia" ${c.paymentStatus==='em-dia'?'selected':''}>Em dia</option>
             <option value="atrasado" ${c.paymentStatus==='atrasado'?'selected':''}>Atrasado</option>
             <option value="cancelado" ${c.paymentStatus==='cancelado'?'selected':''}>Cancelado</option>
           </select>
-        </div>
+        </div>`:''}
         <div class="fg"><label>Social Seller Responsável 👤</label>
           <select id="ct-asgn">
             <option value="">— Sem responsável —</option>
@@ -2826,9 +2827,9 @@ function saveContrato(cid){
   c.contractStatus=$('ct-cs').value;
   const cdv=$('ct-cd').value;c.contractDue=cdv?new Date(cdv).getTime():null;
   c.startDate=$('ct-sd').value;
-  c.contractValue=$('ct-val').value;
-  c.paymentMethod=$('ct-pm').value;
-  c.paymentStatus=$('ct-ps').value;
+  if($('ct-val'))c.contractValue=$('ct-val').value;
+  if($('ct-pm'))c.paymentMethod=$('ct-pm').value;
+  if($('ct-ps'))c.paymentStatus=$('ct-ps').value;
   const newAsgn=$('ct-asgn').value;
   c.assignees=newAsgn?[newAsgn]:[];
   c.mainOwner=newAsgn;
