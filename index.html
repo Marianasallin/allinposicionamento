@@ -4422,17 +4422,19 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbTimer=null;
     let _fbWriting=false;
     let _fbReady=false;
+    let _localDirty=false;
 
     // Override save() para escrever no Firebase + localStorage
     const _lsave=save;
     save=()=>{
       _lsave();
+      _localDirty=true;
       if(!_fbReady)return;
       if(_fbTimer)clearTimeout(_fbTimer);
       _fbWriting=true;
       _fbTimer=setTimeout(()=>{
         _db.ref('allin').set(JSON.parse(JSON.stringify(D)))
-          .then(()=>setTimeout(()=>{_fbWriting=false;},1000))
+          .then(()=>{_localDirty=false;setTimeout(()=>{_fbWriting=false;},1000);})
           .catch(()=>{_fbWriting=false;});
       },800);
     };
@@ -4464,14 +4466,15 @@ window.addEventListener('hashchange',handleNavigation);
     function startSync(){
       // Sincronização inicial: Firebase → local (ou local → Firebase se vazio)
       _db.ref('allin').get().then(snap=>{
-        if(snap.exists()){
+        if(snap.exists()&&!_localDirty){
           D=sanitizeD(snap.val());
           localStorage.setItem('allin',JSON.stringify(D));
           render();
           toast('☁️ Sincronizado');
         } else {
-          // Firebase vazio — enviar dados locais
+          // Servidor vazio OU há edição local pendente → o que está local prevalece e sobe pra nuvem
           _db.ref('allin').set(JSON.parse(JSON.stringify(D)));
+          _localDirty=false;
         }
         _fbReady=true;
 
