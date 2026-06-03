@@ -2836,6 +2836,19 @@ function savePessoal(cid){
 function saveContrato(cid){
   const c=D.clients.find(c=>c.id===cid);
   c.products=['Gestão de Perfil','Implementação Comercial','Mentoria','Consultoria'].filter(p=>document.getElementById('ctp-'+p.replace(/[\s\/]/g,'-'))?.checked);
+  // Ajusta as entregas conforme os produtos (adiciona o que falta; não remove pra não perder progresso)
+  if(!c.deliverables)c.deliverables=[];
+  if(c.products.includes('Implementação Comercial')&&!c.deliverables.some(d=>d.product==='Implementação Comercial')){
+    c.deliverables=[...c.deliverables,...icDels().map(d=>({...d}))];
+  }
+  if(c.products.includes('Gestão de Perfil')){
+    if(!c.deliverables.some(d=>d.product==='Gestão de Perfil'))c.deliverables=[...c.deliverables,...gpDels().map(d=>({...d}))];
+    if(!c.continuousActivities||!c.continuousActivities.length)c.continuousActivities=[
+      {id:'ca1',name:'Gestão do Perfil LinkedIn',status:'ativo'},
+      {id:'ca2',name:'Gestão das Campanhas (Waalaxy)',status:'ativo'},
+      {id:'ca3',name:'Leads gerados / encaminhados',status:'ativo'}
+    ];
+  }
   c.contractStatus=$('ct-cs').value;
   const cdv=$('ct-cd').value;c.contractDue=cdv?new Date(cdv).getTime():null;
   c.startDate=$('ct-sd').value;
