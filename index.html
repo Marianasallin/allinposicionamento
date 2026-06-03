@@ -1696,6 +1696,8 @@ function rDetail(){
     </div></div>`;
   }
   else if(S.tab==='pessoal'){
+    let _bd=c.birthday||'';
+    if(_bd.includes('/')){const _p=_bd.split('/');if(_p.length===3)_bd=_p[2]+'-'+_p[1].padStart(2,'0')+'-'+_p[0].padStart(2,'0');}
     body=`<div class="card"><div class="ch"><h3>👤 Dados Pessoais</h3><button class="btn btn-p btn-s" onclick="savePessoal('${c.id}')">💾 Salvar</button></div>
     <div class="cb">
       <span class="sec-h">Contato</span>
@@ -1703,6 +1705,7 @@ function rDetail(){
         <div class="fg"><label>Nome completo</label><input id="fp-n" value="${c.name}"></div>
         <div class="fg"><label>E-mail</label><input id="fp-e" type="email" value="${c.email||''}"></div>
         <div class="fg"><label>Telefone / WhatsApp</label><input id="fp-p" value="${c.phone||''}"></div>
+        <div class="fg"><label>Data de Nascimento <span style="font-weight:400;text-transform:none;color:var(--muted)">(senha do portal do cliente)</span></label><input type="date" id="fp-bday" value="${_bd}"></div>
         <div class="fg"><label>LinkedIn (URL)</label><input id="fp-l" value="${c.linkedin||''}"></div>
       </div>
       <span class="sec-h">🔐 Acessos (Privado)</span>
@@ -2810,6 +2813,7 @@ function savePessoal(cid){
   const c=D.clients.find(c=>c.id===cid);
   c.name=$('fp-n').value;c.email=$('fp-e').value;c.phone=$('fp-p').value;
   c.linkedin=$('fp-l').value;
+  if($('fp-bday'))c.birthday=$('fp-bday').value;
   if($('fp-lilogin'))c.linkedinLogin=$('fp-lilogin').value;
   if($('fp-lisenha'))c.linkedinSenha=$('fp-lisenha').value;
   if($('fp-wxlogin'))c.waalaxyLogin=$('fp-wxlogin').value;
