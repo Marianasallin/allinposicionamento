@@ -2082,6 +2082,9 @@ function rMinhaSemanaGestao(user){
     +'<div class="stat-card"><div class="stat-val" style="color:#057642">'+(revenue>0?'R$ '+revenue.toLocaleString('pt-BR'):'R$ 0')+'</div><div class="stat-label">Receita (prospecção)</div></div>'
     +'</div>'
 
+    // Meta de leads (topo)
+    +rLeadGoalEquipe(S.gestaoFilterMonth)
+
     // Performance da equipe
     +'<div class="card" style="margin-bottom:20px">'
     +'<div class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8)">'
@@ -2119,10 +2122,7 @@ function rMinhaSemanaGestao(user){
     +renderTasksSection(user,wk)
 
     // Visão geral das tarefas do time
-    +rTarefasEquipe(wk)
-
-    // Meta de leads por funcionária
-    +rLeadGoalEquipe(S.gestaoFilterMonth);
+    +rTarefasEquipe(wk);
 }
 
 function rLeadGoalEquipe(monthKey){
@@ -2328,7 +2328,37 @@ function rMinhaSemana(){
   <!-- SEÇÃO 1: Tarefas Atribuídas -->
   ${renderTasksSection(user,wk)}
 
-  <!-- SEÇÃO 2: Relatórios Semanais -->
+  <!-- SEÇÃO 2: Meta de Leads do Mês -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="ch" style="background:linear-gradient(135deg,#16A34A,#22C55E);border-radius:8px 8px 0 0">
+      <div>
+        <h3 style="margin:0;color:white">🏆 Meta de Leads — ${_goalMonth}</h3>
+        <span style="font-size:12px;color:rgba(255,255,255,.85)">${_goalClients.length?`${_goalMet}/${_goalClients.length} meta${_goalMet===1?'':'s'} batida${_goalMet===1?'':'s'}`:'Nenhuma meta configurada'}</span>
+      </div>
+      ${_goalMet>0?`<span style="font-size:26px">🎉</span>`:''}
+    </div>
+    <div class="cb">
+      ${_goalClients.length?`
+        ${_goalClients.map(c=>{
+          const cur=getClientLeadsForMonth(c,_goalMonth);
+          return renderLeadGoalBar(cur,c.monthlyLeadGoal,c.name.split(' ').slice(0,2).join(' '),_goalMonth,false);
+        }).join('')}
+        ${_histMonths.length?`
+        <div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:12px">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Histórico de meses anteriores</div>
+          ${_histMonths.map(hm=>{
+            const hmMet=_goalClients.filter(c=>getClientLeadsForMonth(c,hm)>=c.monthlyLeadGoal).length;
+            return`<div style="margin-bottom:10px">
+              <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">${hm} — ${hmMet}/${_goalClients.length} metas batidas</div>
+              ${_goalClients.map(c=>renderLeadGoalBar(getClientLeadsForMonth(c,hm),c.monthlyLeadGoal,c.name.split(' ').slice(0,2).join(' '),hm,true)).join('')}
+            </div>`;
+          }).join('')}
+        </div>`:''}
+      `:`<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Nenhuma meta de leads configurada ainda.<br>Vá em <strong>Clientes → Contrato</strong> para definir a meta de cada cliente.</div>`}
+    </div>
+  </div>
+
+  <!-- SEÇÃO 3: Relatórios Semanais -->
   <div class="card" style="margin-bottom:20px">
     <div class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8);border-radius:8px 8px 0 0">
       <h3 style="margin:0;color:white">⚡ Relatórios Semanais — Sexta ${wkLabel}</h3>
@@ -2421,36 +2451,6 @@ function rMinhaSemana(){
           <button class="btn btn-o btn-s" onclick="nav('clients',{clientId:'${c.id}',tab:'prospeccao'})" style="white-space:nowrap;font-size:11px">Ver todos →</button>
         </div>`;
       }).join('')}
-    </div>
-  </div>
-
-  <!-- SEÇÃO 5: Meta de Leads do Mês -->
-  <div class="card" style="margin-bottom:16px">
-    <div class="ch" style="background:linear-gradient(135deg,#16A34A,#22C55E);border-radius:8px 8px 0 0">
-      <div>
-        <h3 style="margin:0;color:white">🏆 Meta de Leads — ${_goalMonth}</h3>
-        <span style="font-size:12px;color:rgba(255,255,255,.85)">${_goalClients.length?`${_goalMet}/${_goalClients.length} meta${_goalMet===1?'':'s'} batida${_goalMet===1?'':'s'}`:'Nenhuma meta configurada'}</span>
-      </div>
-      ${_goalMet>0?`<span style="font-size:26px">🎉</span>`:''}
-    </div>
-    <div class="cb">
-      ${_goalClients.length?`
-        ${_goalClients.map(c=>{
-          const cur=getClientLeadsForMonth(c,_goalMonth);
-          return renderLeadGoalBar(cur,c.monthlyLeadGoal,c.name.split(' ').slice(0,2).join(' '),_goalMonth,false);
-        }).join('')}
-        ${_histMonths.length?`
-        <div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:12px">
-          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Histórico de meses anteriores</div>
-          ${_histMonths.map(hm=>{
-            const hmMet=_goalClients.filter(c=>getClientLeadsForMonth(c,hm)>=c.monthlyLeadGoal).length;
-            return`<div style="margin-bottom:10px">
-              <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">${hm} — ${hmMet}/${_goalClients.length} metas batidas</div>
-              ${_goalClients.map(c=>renderLeadGoalBar(getClientLeadsForMonth(c,hm),c.monthlyLeadGoal,c.name.split(' ').slice(0,2).join(' '),hm,true)).join('')}
-            </div>`;
-          }).join('')}
-        </div>`:''}
-      `:`<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Nenhuma meta de leads configurada ainda.<br>Vá em <strong>Clientes → Contrato</strong> para definir a meta de cada cliente.</div>`}
     </div>
   </div>`;
 }
