@@ -583,6 +583,8 @@ const getM=()=>D.team.find(m=>m.id===S.memberId);
 const TEAM_NAMES=()=>D.team.map(m=>m.name);
 const TEAM_PASSWORD='allin2026';
 const ADMIN_PASSWORD='allin@time';
+let teamCadOpen={};
+let teamCardOpen={};
 
 // MIGRATE TOKENS - Ensure all clients have tokens
 D.clients.forEach(c=>{if(!c.token)c.token=generateToken();});
@@ -804,6 +806,8 @@ if(!D.team.find(m=>m.id==='naiara-faria')){
 
 // MIGRATE LEADS — Add leads array to existing clients (Mai/2026)
 D.clients.forEach(c=>{if(!c.leads)c.leads=[];});
+// MIGRATE LEAD GOAL
+D.clients.forEach(c=>{if(c.monthlyLeadGoal===undefined)c.monthlyLeadGoal=0;});
 
 // MIGRATE EMAIL & BIRTHDAY - Initialize for portal login
 D.clients.forEach((c,i)=>{
@@ -1171,6 +1175,33 @@ function rClients(){
 // ────────────────────────────────────────────────────────────
 // CLIENT DETAIL
 // ────────────────────────────────────────────────────────────
+function getClientLeadsForMonth(c,monthKey){
+  const ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  return(c.prospects||[]).filter(p=>{
+    if(!p.date||!p.replied)return false;
+    const d=new Date(p.date+'T12:00:00');
+    return ptM[d.getMonth()]+' '+d.getFullYear()===monthKey;
+  }).length;
+}
+function renderLeadGoalBar(current,goal,clientName,monthKey,compact){
+  if(!goal)return'';
+  const pct=Math.min(Math.round(current/goal*100),100);
+  const met=current>=goal;
+  const barColor=met?'#16A34A':pct>=70?'#D97706':'#EF4444';
+  const bgColor=met?'#F0FDF4':pct>=70?'#FFFBEB':'#FFF1F2';
+  const borderColor=met?'#BBF7D0':pct>=70?'#FDE68A':'#FECDD3';
+  const sz=compact?'11px':'12px';
+  return`<div style="background:${bgColor};border:1px solid ${borderColor};border-radius:8px;padding:${compact?'7px 10px':'10px 12px'};margin-bottom:6px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+      <span style="font-size:${sz};font-weight:600">${clientName}</span>
+      <span style="font-size:${sz};font-weight:700;color:${barColor}">${current}/${goal} leads${met?' 🎉':''}</span>
+    </div>
+    <div style="background:#E5E7EB;border-radius:99px;height:6px">
+      <div style="width:${pct}%;background:${barColor};border-radius:99px;height:6px"></div>
+    </div>
+    ${met?`<div style="margin-top:4px;font-size:10px;font-weight:700;color:#16A34A">🎉 Parabéns! Você cumpriu a meta de ${monthKey} do cliente ${clientName}!</div>`:`<div style="margin-top:3px;font-size:10px;color:var(--muted)">${pct}% da meta atingida</div>`}
+  </div>`;
+}
 function calcResultados(c){
   // Agrupa prospects por mês e calcula métricas automaticamente
   const pros=c.prospects||[];
@@ -1644,6 +1675,11 @@ function rDetail(){
         <div class="fg"><label>CNPJ / CPF</label><input id="ct-cnpj" value="${c.cnpj||''}" placeholder="00.000.000/0001-00"></div>
         <div class="fg" style="grid-column:1/-1"><label>Endereço</label><input id="ct-addr" value="${c.address||''}" placeholder="Rua, número, cidade, estado"></div>
       </div>
+      <span class="sec-h">🎯 Meta de Leads</span>
+      <div class="fgrid" style="margin-bottom:8px">
+        <div class="fg"><label>Meta de Leads (mensal)</label><input type="number" id="ct-lead-goal" min="0" value="${c.monthlyLeadGoal||0}" placeholder="0" style="max-width:140px"></div>
+        <div class="fg" style="display:flex;align-items:flex-end"><span style="font-size:12px;color:var(--muted);padding-bottom:10px">Número de leads que a Social Seller deve prospectar por mês para este cliente.</span></div>
+      </div>
     </div></div>`;
   }
   else if(S.tab==='pessoal'){
@@ -1655,6 +1691,14 @@ function rDetail(){
         <div class="fg"><label>E-mail</label><input id="fp-e" type="email" value="${c.email||''}"></div>
         <div class="fg"><label>Telefone / WhatsApp</label><input id="fp-p" value="${c.phone||''}"></div>
         <div class="fg"><label>LinkedIn (URL)</label><input id="fp-l" value="${c.linkedin||''}"></div>
+      </div>
+      <span class="sec-h">🔐 Acessos (Privado)</span>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Credenciais de acesso às contas do cliente. Preencher apenas quando a equipe tiver acesso.</p>
+      <div class="fgrid" style="margin-bottom:8px">
+        <div class="fg"><label>LinkedIn — Login / E-mail</label><input id="fp-lilogin" value="${c.linkedinLogin||''}" placeholder="login do LinkedIn" autocomplete="off"></div>
+        <div class="fg"><label>LinkedIn — Senha</label><input id="fp-lisenha" type="text" value="${c.linkedinSenha||''}" placeholder="senha do LinkedIn" autocomplete="off"></div>
+        <div class="fg"><label>Waalaxy — Login / E-mail</label><input id="fp-wxlogin" value="${c.waalaxyLogin||''}" placeholder="login do Waalaxy" autocomplete="off"></div>
+        <div class="fg"><label>Waalaxy — Senha</label><input id="fp-wxsenha" type="text" value="${c.waalaxySenha||''}" placeholder="senha do Waalaxy" autocomplete="off"></div>
       </div>
     </div></div>`;
   }
@@ -2075,7 +2119,68 @@ function rMinhaSemanaGestao(user){
     +renderTasksSection(user,wk)
 
     // Visão geral das tarefas do time
-    +rTarefasEquipe(wk);
+    +rTarefasEquipe(wk)
+
+    // Meta de leads por funcionária
+    +rLeadGoalEquipe(S.gestaoFilterMonth);
+}
+
+function rLeadGoalEquipe(monthKey){
+  const sellers=D.team.filter(m=>m.role==='Social Seller'||m.role==='Assistente');
+  const _ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  // meses com dados para histórico
+  const _allM=[...new Set(D.clients.flatMap(c=>(c.prospects||[]).map(p=>{if(!p.date)return null;const d=new Date(p.date+'T12:00:00');return _ptM[d.getMonth()]+' '+d.getFullYear();}).filter(Boolean)))].sort((a,b)=>{const[mA,yA]=a.split(' ');const[mB,yB]=b.split(' ');return(parseInt(yB)*12+_ptM.indexOf(mB))-(parseInt(yA)*12+_ptM.indexOf(mA));});
+  const _histM=_allM.filter(m=>m!==monthKey).slice(0,2);
+
+  let totalMetaBatida=0;
+  const sellerBlocks=sellers.map(m=>{
+    const mc=D.clients.filter(c=>c.contractStatus==='ativo'&&(c.assignees||[]).includes(m.name)&&c.monthlyLeadGoal>0);
+    if(!mc.length)return'';
+    const metBatida=mc.filter(c=>getClientLeadsForMonth(c,monthKey)>=c.monthlyLeadGoal).length;
+    totalMetaBatida+=metBatida;
+    return`<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div class="av av-s" style="background:${m.color}">${m.initials}</div>
+        <strong style="font-size:13px">${m.name.split(' ')[0]}</strong>
+        <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:${metBatida===mc.length&&mc.length?'#DCFCE7':'#F3F4F6'};color:${metBatida===mc.length&&mc.length?'#16A34A':'#6B7280'}">${metBatida}/${mc.length} metas batidas${metBatida===mc.length&&mc.length?' 🎉':''}</span>
+      </div>
+      ${mc.map(c=>renderLeadGoalBar(getClientLeadsForMonth(c,monthKey),c.monthlyLeadGoal,c.name.split(' ').slice(0,2).join(' '),monthKey,true)).join('')}
+    </div>`;
+  }).filter(Boolean).join('');
+
+  if(!sellerBlocks)return`<div class="card" style="margin-bottom:20px">
+    <div class="ch" style="background:linear-gradient(135deg,#16A34A,#22C55E)">
+      <h3 style="color:white;margin:0">🏆 Meta de Leads — ${monthKey}</h3>
+      <span style="font-size:12px;color:rgba(255,255,255,.85)">Nenhuma meta configurada</span>
+    </div>
+    <div class="cb" style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Nenhuma meta de leads configurada ainda.<br>Vá em <strong>Clientes → Contrato</strong> para definir a meta de cada cliente.</div>
+  </div>`;
+
+  const histHtml=_histM.length?`<div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:12px">
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Histórico</div>
+    ${_histM.map(hm=>{
+      const hmTot=sellers.reduce((s,m)=>{
+        const mc=D.clients.filter(c=>c.contractStatus==='ativo'&&(c.assignees||[]).includes(m.name)&&c.monthlyLeadGoal>0);
+        return s+mc.filter(c=>getClientLeadsForMonth(c,hm)>=c.monthlyLeadGoal).length;
+      },0);
+      const hmAll=sellers.reduce((s,m)=>s+D.clients.filter(c=>c.contractStatus==='ativo'&&(c.assignees||[]).includes(m.name)&&c.monthlyLeadGoal>0).length,0);
+      return`<div style="font-size:12px;padding:6px 0;border-bottom:1px solid #F3F4F6;display:flex;justify-content:space-between">
+        <span style="font-weight:600">${hm}</span>
+        <span style="color:${hmTot===hmAll&&hmAll?'#16A34A':'#6B7280'};font-weight:700">${hmTot}/${hmAll} metas batidas${hmTot===hmAll&&hmAll?' 🎉':''}</span>
+      </div>`;
+    }).join('')}
+  </div>`:'';
+
+  return`<div class="card" style="margin-bottom:20px">
+    <div class="ch" style="background:linear-gradient(135deg,#16A34A,#22C55E)">
+      <h3 style="color:white;margin:0">🏆 Meta de Leads — ${monthKey}</h3>
+      <span style="font-size:13px;font-weight:700;color:white">${totalMetaBatida} metas batidas no total${totalMetaBatida>0?' 🎉':''}</span>
+    </div>
+    <div class="cb">
+      ${sellerBlocks}
+      ${histHtml}
+    </div>
+  </div>`;
 }
 
 function rTarefasEquipe(wk){
@@ -2184,6 +2289,15 @@ function rMinhaSemana(){
     :daysUntil10<=3
       ?`<span style="background:#FEF3C7;color:#D97706;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px">⏰ Vence em ${daysUntil10} dia${daysUntil10===1?'':'s'}</span>`
       :`<span style="background:#DCFCE7;color:#16A34A;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px">📅 Vence dia 10/${String(_mkMonth+1).padStart(2,'0')}</span>`;
+
+  // Meta de leads — mês selecionado
+  const _goalMonth=S.minhaSemanaFilterMonth;
+  const _goalClients=myClients.filter(c=>c.monthlyLeadGoal>0);
+  const _goalMet=_goalClients.filter(c=>getClientLeadsForMonth(c,_goalMonth)>=c.monthlyLeadGoal).length;
+  // Meses com prospects para histórico
+  const _ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const _allMonths=[...new Set(myClients.flatMap(c=>(c.prospects||[]).map(p=>{if(!p.date)return null;const d=new Date(p.date+'T12:00:00');return _ptM[d.getMonth()]+' '+d.getFullYear();}).filter(Boolean)))].sort((a,b)=>{const[mA,yA]=a.split(' ');const[mB,yB]=b.split(' ');return(parseInt(yB)*12+_ptM.indexOf(mB))-(parseInt(yA)*12+_ptM.indexOf(mA));});
+  const _histMonths=_allMonths.filter(m=>m!==_goalMonth).slice(0,3);
 
   return`
   ${getMonthlyAlertHtml()}
@@ -2308,6 +2422,36 @@ function rMinhaSemana(){
         </div>`;
       }).join('')}
     </div>
+  </div>
+
+  <!-- SEÇÃO 5: Meta de Leads do Mês -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="ch" style="background:linear-gradient(135deg,#16A34A,#22C55E);border-radius:8px 8px 0 0">
+      <div>
+        <h3 style="margin:0;color:white">🏆 Meta de Leads — ${_goalMonth}</h3>
+        <span style="font-size:12px;color:rgba(255,255,255,.85)">${_goalClients.length?`${_goalMet}/${_goalClients.length} meta${_goalMet===1?'':'s'} batida${_goalMet===1?'':'s'}`:'Nenhuma meta configurada'}</span>
+      </div>
+      ${_goalMet>0?`<span style="font-size:26px">🎉</span>`:''}
+    </div>
+    <div class="cb">
+      ${_goalClients.length?`
+        ${_goalClients.map(c=>{
+          const cur=getClientLeadsForMonth(c,_goalMonth);
+          return renderLeadGoalBar(cur,c.monthlyLeadGoal,c.name.split(' ').slice(0,2).join(' '),_goalMonth,false);
+        }).join('')}
+        ${_histMonths.length?`
+        <div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:12px">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Histórico de meses anteriores</div>
+          ${_histMonths.map(hm=>{
+            const hmMet=_goalClients.filter(c=>getClientLeadsForMonth(c,hm)>=c.monthlyLeadGoal).length;
+            return`<div style="margin-bottom:10px">
+              <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">${hm} — ${hmMet}/${_goalClients.length} metas batidas</div>
+              ${_goalClients.map(c=>renderLeadGoalBar(getClientLeadsForMonth(c,hm),c.monthlyLeadGoal,c.name.split(' ').slice(0,2).join(' '),hm,true)).join('')}
+            </div>`;
+          }).join('')}
+        </div>`:''}
+      `:`<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Nenhuma meta de leads configurada ainda.<br>Vá em <strong>Clientes → Contrato</strong> para definir a meta de cada cliente.</div>`}
+    </div>
   </div>`;
 }
 
@@ -2349,14 +2493,17 @@ function rTeam(){
     const icPend=icDels.filter(d=>d.status==='pendente').length;
 
     return`<div class="card">
-      <div class="ch">
+      <div class="ch" onclick="toggleTeamCard('${m.id}')" style="cursor:pointer;user-select:none">
         <div style="display:flex;align-items:center;gap:12px">
           <div class="av av-m" style="background:${m.color}">${m.initials}</div>
           <div><strong style="font-size:14px">${m.name}</strong><br><span style="font-size:11px;color:var(--muted)">${m.role} · ${m.dept}</span></div>
         </div>
-        <span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;background:${isContent?'#ECFDF5':'#EFF6FF'};color:${isContent?'#057642':'#1D4ED8'}">${isContent?'✍️ Conteúdo':'🎯 Social Selling'}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;background:${isContent?'#ECFDF5':'#EFF6FF'};color:${isContent?'#057642':'#1D4ED8'}">${isContent?'✍️ Conteúdo':'🎯 Social Selling'}</span>
+          <span id="tcard-arrow-${m.id}" style="font-size:16px;color:var(--muted);display:inline-block;transition:transform .2s">▾</span>
+        </div>
       </div>
-      <div class="cb">
+      <div id="tcard-body-${m.id}" class="cb">
         <div style="display:grid;grid-template-columns:repeat(${isContent?2:3},1fr);gap:8px;margin-bottom:14px">
           <div style="background:#F9FAFB;border-radius:8px;padding:10px;text-align:center">
             <div style="font-size:22px;font-weight:800;color:var(--primary)">${myClients.length}</div>
@@ -2394,7 +2541,11 @@ function rTeam(){
         </div>
         ${canEdit?`
         <div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:12px">
-          <div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">✏️ Cadastro (editável)</div>
+          <div onclick="toggleTeamCad('${m.id}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;margin-bottom:8px">
+            <div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px">✏️ Cadastro (editável)</div>
+            <span id="tc-arrow-${m.id}" style="font-size:16px;color:var(--primary);display:inline-block;transform:rotate(-90deg);transition:transform .2s">▾</span>
+          </div>
+          <div id="tc-body-${m.id}" style="display:none">
           <div class="fgrid" style="margin-bottom:10px">
             <div class="fg"><label>Cargo</label><input id="tm-role-${m.id}" value="${m.role||''}"></div>
             <div class="fg"><label>Departamento</label><input id="tm-dept-${m.id}" value="${m.dept||''}"></div>
@@ -2406,6 +2557,7 @@ function rTeam(){
           <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📌 Informações Pessoais (Privado)</div>
           <textarea class="nf" id="tm-pinfo-${m.id}" placeholder="Formação, experiência, habilidades, contexto pessoal..." style="min-height:70px;margin-bottom:6px">${m.personalInfo||''}</textarea>
           <button class="btn btn-o btn-s" onclick="saveMemberCard('${m.id}')" style="margin-bottom:14px">💾 Salvar dados cadastrais</button>
+          </div>`/* fim tc-body (campos) */+`
 
           <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📝 Histórico de Notas / 1:1</div>
           <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
@@ -2644,6 +2796,10 @@ function savePessoal(cid){
   const c=D.clients.find(c=>c.id===cid);
   c.name=$('fp-n').value;c.email=$('fp-e').value;c.phone=$('fp-p').value;
   c.linkedin=$('fp-l').value;
+  if($('fp-lilogin'))c.linkedinLogin=$('fp-lilogin').value;
+  if($('fp-lisenha'))c.linkedinSenha=$('fp-lisenha').value;
+  if($('fp-wxlogin'))c.waalaxyLogin=$('fp-wxlogin').value;
+  if($('fp-wxsenha'))c.waalaxySenha=$('fp-wxsenha').value;
   c.initials=initials(c.name);save();toast('✅ Dados salvos!');render();
 }
 function saveContrato(cid){
@@ -2662,6 +2818,7 @@ function saveContrato(cid){
   c.nicho=$('ct-ni').value;
   c.cnpj=$('ct-cnpj').value;
   c.address=$('ct-addr').value;
+  c.monthlyLeadGoal=parseInt($('ct-lead-goal').value)||0;
 
   const fileInput=$('contract-file');
   if(fileInput&&fileInput.files.length>0){
@@ -2684,6 +2841,20 @@ function delContractFile(cid){
 }
 function saveNotas(cid){D.clients.find(c=>c.id===cid).notes=$('cn').value;save();toast('✅ Notas salvas!')}
 function updM(mid,f,v){const m=D.team.find(m=>m.id===mid);if(m){m[f]=v;save()}}
+function toggleTeamCad(mid){
+  teamCadOpen[mid]=!teamCadOpen[mid];
+  const body=document.getElementById('tc-body-'+mid);
+  const arrow=document.getElementById('tc-arrow-'+mid);
+  if(body)body.style.display=teamCadOpen[mid]?'block':'none';
+  if(arrow)arrow.style.transform=teamCadOpen[mid]?'rotate(0deg)':'rotate(-90deg)';
+}
+function toggleTeamCard(mid){
+  teamCardOpen[mid]=teamCardOpen[mid]===false?true:false;
+  const body=document.getElementById('tcard-body-'+mid);
+  const arrow=document.getElementById('tcard-arrow-'+mid);
+  if(body)body.style.display=teamCardOpen[mid]===false?'none':'block';
+  if(arrow)arrow.style.transform=teamCardOpen[mid]===false?'rotate(-90deg)':'rotate(0deg)';
+}
 function saveMemberCard(mid){
   const m=D.team.find(m=>m.id===mid);if(!m)return;
   const g=id=>document.getElementById(id+'-'+mid);
