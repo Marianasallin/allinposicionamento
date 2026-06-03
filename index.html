@@ -1697,7 +1697,7 @@ function rDetail(){
   }
   else if(S.tab==='pessoal'){
     let _bd=c.birthday||'';
-    if(_bd.includes('/')){const _p=_bd.split('/');if(_p.length===3)_bd=_p[2]+'-'+_p[1].padStart(2,'0')+'-'+_p[0].padStart(2,'0');}
+    if(/^\d{4}-\d{2}-\d{2}$/.test(_bd)){const _p=_bd.split('-');_bd=_p[2]+'/'+_p[1]+'/'+_p[0];}
     body=`<div class="card"><div class="ch"><h3>👤 Dados Pessoais</h3><button class="btn btn-p btn-s" onclick="savePessoal('${c.id}')">💾 Salvar</button></div>
     <div class="cb">
       <span class="sec-h">Contato</span>
@@ -1705,7 +1705,7 @@ function rDetail(){
         <div class="fg"><label>Nome completo</label><input id="fp-n" value="${c.name}"></div>
         <div class="fg"><label>E-mail</label><input id="fp-e" type="email" value="${c.email||''}"></div>
         <div class="fg"><label>Telefone / WhatsApp</label><input id="fp-p" value="${c.phone||''}"></div>
-        <div class="fg"><label>Data de Nascimento <span style="font-weight:400;text-transform:none;color:var(--muted)">(senha do portal do cliente)</span></label><input type="date" id="fp-bday" value="${_bd}"></div>
+        <div class="fg"><label>Data de Nascimento <span style="font-weight:400;text-transform:none;color:var(--muted)">(senha do portal do cliente)</span></label><input type="text" id="fp-bday" value="${_bd}" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric"></div>
         <div class="fg"><label>LinkedIn (URL)</label><input id="fp-l" value="${c.linkedin||''}"></div>
       </div>
       <span class="sec-h">🔐 Acessos (Privado)</span>
