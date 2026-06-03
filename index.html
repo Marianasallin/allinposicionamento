@@ -1716,6 +1716,8 @@ function rDetail(){
         <div class="fg"><label>LinkedIn — Senha</label><input id="fp-lisenha" type="text" value="${c.linkedinSenha||''}" placeholder="senha do LinkedIn" autocomplete="off"></div>
         <div class="fg"><label>Waalaxy — Login / E-mail</label><input id="fp-wxlogin" value="${c.waalaxyLogin||''}" placeholder="login do Waalaxy" autocomplete="off"></div>
         <div class="fg"><label>Waalaxy — Senha</label><input id="fp-wxsenha" type="text" value="${c.waalaxySenha||''}" placeholder="senha do Waalaxy" autocomplete="off"></div>
+        <div class="fg"><label>Instagram — Login / @</label><input id="fp-iglogin" value="${c.instagramLogin||''}" placeholder="@ ou e-mail do Instagram" autocomplete="off"></div>
+        <div class="fg"><label>Instagram — Senha</label><input id="fp-igsenha" type="text" value="${c.instagramSenha||''}" placeholder="senha do Instagram" autocomplete="off"></div>
       </div>
     </div></div>`;
   }
@@ -2819,6 +2821,8 @@ function savePessoal(cid){
   if($('fp-lisenha'))c.linkedinSenha=$('fp-lisenha').value;
   if($('fp-wxlogin'))c.waalaxyLogin=$('fp-wxlogin').value;
   if($('fp-wxsenha'))c.waalaxySenha=$('fp-wxsenha').value;
+  if($('fp-iglogin'))c.instagramLogin=$('fp-iglogin').value;
+  if($('fp-igsenha'))c.instagramSenha=$('fp-igsenha').value;
   c.initials=initials(c.name);save();toast('✅ Dados salvos!');render();
 }
 function saveContrato(cid){
