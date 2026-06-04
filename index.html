@@ -2126,7 +2126,8 @@ function rMinhaSemanaGestao(user){
     +'<div class="card" style="margin-bottom:20px">'
     +'<div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA)">'
     +'<h3 style="color:white;margin:0">🎯 Funil de Prospecção — '+mk+'</h3></div>'
-    +'<div class="cb"><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;text-align:center">'
+    +'<div class="cb">'
+    +(allPros.length?('<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;text-align:center">'
     +'<div><div style="font-size:28px;font-weight:800;color:#0077B5">'+allPros.length+'</div><div style="font-size:11px;color:var(--muted)">📩 Prospectados</div></div>'
     +'<div style="display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--muted)">→</div>'
     +'<div><div style="font-size:28px;font-weight:800;color:#7C3AED">'+fRep+'</div><div style="font-size:11px;color:var(--muted)">💬 Responderam</div></div>'
@@ -2138,7 +2139,9 @@ function rMinhaSemanaGestao(user){
     +'<div style="font-size:32px;font-weight:900;color:#16A34A">'+fClosed+'</div>'
     +'<div style="font-size:12px;color:#16A34A;font-weight:600">✅ Fechamentos ('+convRate+'% conversão)</div>'
     +(revenue>0?'<div style="font-size:14px;font-weight:700;color:#057642;margin-top:4px">R$ '+revenue.toLocaleString('pt-BR')+'</div>':'')
-    +'</div></div></div>'
+    +'</div>')
+    :('<div style="text-align:center;padding:24px 16px;color:var(--muted);font-size:13px">📭 Nenhum prospect cadastrado em '+mk+' ainda.<br><span style="font-size:12px">Este funil preenche <strong>automaticamente</strong> conforme a equipe cadastra os prospects na aba <strong>Prospecção</strong> de cada cliente. Não precisa preencher aqui.</span></div>'))
+    +'</div></div>'
 
     // Alertas
     +'<div class="card" style="margin-bottom:20px">'
