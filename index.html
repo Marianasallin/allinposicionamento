@@ -2902,13 +2902,16 @@ async function lerContratoPDF(cid,inputEl){
     const _mesesM=texto.match(/vig[êe]ncia\s+por\s+(\d+)|(\d+)\s*\(?[a-zç]*\)?\s*meses/i);
     const meses=_mesesM?parseInt(_mesesM[1]||_mesesM[2]):12;
 
-    // VALOR TOTAL = soma das parcelas (mensal × meses, parcelado Nx, ou parcela única)
-    let _total=0;
+    // Análise das linhas de pagamento: valor total + tipo (recorrente=Gestão / parcelado=Implementação)
+    let _total=0,_temRecorrente=false,_temParcelaOuImpl=false;
     for(const l of texto.matchAll(/R\$\s*([\d.]+,\d{2})([^R$]{0,45})/g)){
       const val=parseFloat(l[1].replace(/\./g,'').replace(',','.'));
       const ctx=l[2].toLowerCase();
-      if(/mensal|de cada m[êe]s/.test(ctx))_total+=val*meses;
-      else{const nx=ctx.match(/(\d+)\s*x/);_total+=nx?val*parseInt(nx[1]):val;}
+      const nx=ctx.match(/(\d+)\s*x\b/);                                  // parcelas: 1x, 5x, 3x...
+      const recorrente=/de cada m[êe]s|mensal/.test(ctx)&&!nx;           // mensalidade verdadeira (sem Nx)
+      if(recorrente){_total+=val*meses;_temRecorrente=true;}
+      else if(nx){_total+=val*parseInt(nx[1]);_temParcelaOuImpl=true;}
+      else{_total+=val;if(/implementa[çc][ãa]o/.test(ctx))_temParcelaOuImpl=true;}
     }
     if(_total>0&&$('ct-val')){const _fmt=_total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});$('ct-val').value=_fmt;achados.push('Valor total R$ '+_fmt);}
 
@@ -2925,12 +2928,12 @@ async function lerContratoPDF(cid,inputEl){
     // PRODUTO — mensal = Gestão de Perfil; parcelado/implementação/estruturação comercial = Implementação Comercial
     const setProd=(label)=>{const id='ctp-'+label.replace(/[\s\/]/g,'-');const el=document.getElementById(id);if(el){el.checked=true;el.dispatchEvent(new Event('change'));}};
     const prods=[];
-    const temMensal=/mensal|de cada m[êe]s/.test(low);
-    const temImplant=/boleto\s+implementa[çc][ãa]o|implementa[çc][ãa]o\s+\d{2}\/\d{2}/.test(low);
     const fnGP=/gest[ãa]o de perfil/.test(fname);
-    const fnComercial=/estrutura[çc][ãa]o comercial|implementa[çc][ãa]o comercial|comercial/.test(fname);
-    if(temMensal||fnGP){setProd('Gestão de Perfil');prods.push('Gestão de Perfil');}
-    if(temImplant||fnComercial||(!temMensal&&!fnGP)){setProd('Implementação Comercial');prods.push('Implementação Comercial');}
+    const fnComercial=/estrutura[çc][ãa]o comercial|implementa[çc][ãa]o comercial/.test(fname);
+    const ehGP=_temRecorrente||fnGP;                                    // só Gestão se houver mensalidade recorrente
+    const ehIC=_temParcelaOuImpl||fnComercial||!ehGP;                   // parcelado/implementação/estruturação comercial
+    if(ehGP){setProd('Gestão de Perfil');prods.push('Gestão de Perfil');}
+    if(ehIC){setProd('Implementação Comercial');prods.push('Implementação Comercial');}
     if(prods.length)achados.push('Produto: '+prods.join(' + '));
 
     // Bloco do CONTRATANTE (cliente) = depois de "de outro lado"
