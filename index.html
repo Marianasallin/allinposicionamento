@@ -2930,8 +2930,11 @@ async function lerContratoPDF(cid,inputEl){
     const prods=[];
     const fnGP=/gest[ãa]o de perfil/.test(fname);
     const fnComercial=/estrutura[çc][ãa]o comercial|implementa[çc][ãa]o comercial/.test(fname);
-    const ehGP=_temRecorrente||fnGP;                                    // só Gestão se houver mensalidade recorrente
-    const ehIC=_temParcelaOuImpl||fnComercial||!ehGP;                   // parcelado/implementação/estruturação comercial
+    const ehGP=_temRecorrente||fnGP;                                    // tem mensalidade recorrente = Gestão de Perfil
+    // Implementação Comercial = pacote avulso (estruturação comercial / parcelado SEM mensalidade).
+    // Taxa de "implementação" dentro de um contrato de Gestão é só setup — NÃO vira produto IC.
+    let ehIC=fnComercial||(_temParcelaOuImpl&&!ehGP);
+    if(!ehGP&&!ehIC)ehIC=true;                                          // sem gestão e sem sinal → Implementação
     if(ehGP){setProd('Gestão de Perfil');prods.push('Gestão de Perfil');}
     if(ehIC){setProd('Implementação Comercial');prods.push('Implementação Comercial');}
     if(prods.length)achados.push('Produto: '+prods.join(' + '));
