@@ -4221,7 +4221,15 @@ document.addEventListener('click',function(e){
 });
 
 function rPortalDashboard(c){
-  const res=c.results||[];
+  // Lista completa de meses de 2026 (Janeiro → mês atual), mesclando os resultados já lançados
+  const _ptMdash=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const _nowD=new Date();
+  const _curIdx=_nowD.getFullYear()===2026?_nowD.getMonth():(_nowD.getFullYear()>2026?11:0);
+  const _existing={};(c.results||[]).forEach(function(r){if(r&&r.month)_existing[r.month]=r;});
+  const res=[];
+  for(let _m=0;_m<=_curIdx;_m++){const _key=_ptMdash[_m]+' 2026';res.push(_existing[_key]||{month:_key,prospects:0,leads:0,meetings:0,sales:0,revenue:0});}
+  res.reverse();// mais recente primeiro
+  const hasRealData=(c.results||[]).length>0;
   const idx=Math.min(S.portalMonthIdx,Math.max(res.length-1,0));
   const sel=res.length?res[idx]:{prospects:0,leads:0,meetings:0,sales:0,month:''};
   const prev=res.length?res[idx+1]:null;
@@ -4264,7 +4272,7 @@ function rPortalDashboard(c){
       </div>
       ${monthPicker}
     </div>
-    ${res.length===0?`<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:14px 18px;margin-bottom:24px;font-size:12px;color:#92400E">📊 Nenhum resultado registrado ainda. Os dados mensais aparecerão aqui quando lançados.</div>`:''}
+    ${!hasRealData?`<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:14px 18px;margin-bottom:24px;font-size:12px;color:#92400E">📊 Nenhum resultado registrado ainda. Os dados mensais aparecerão aqui quando lançados.</div>`:''}
     <div class="portal-metrics">
       <div class="portal-metric">
         <div class="portal-metric-header"><div class="portal-metric-icon">👥</div>${trend(sel.prospects||0,prev&&prev.prospects)}</div>
@@ -4412,9 +4420,10 @@ function rPortalProspeccao(c){
       +'</div>'
       // Checkboxes
       +'<div style="padding:14px 18px">'
-        +'<div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;margin-bottom:10px">Atualizar Status</div>'
+        +'<div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;margin-bottom:10px">Atualizar Status — confirme o que já aconteceu com este lead</div>'
         +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px">'
-          +chk(p.id,'replied',p.replied,'💬 Respondeu')
+          +chk(p.id,'sentMessage',p.sentMessage,'📩 Entrei em contato')
+          +chk(p.id,'replied',p.replied,'💬 Lead respondeu')
           +chk(p.id,'scheduledMeeting',p.scheduledMeeting,'📅 Agendou Reunião')
           +chk(p.id,'hadMeeting',p.hadMeeting,'🤝 Fez Reunião')
           +chk(p.id,'contractClosed',p.contractClosed,'✅ Fechou Contrato')
@@ -4431,8 +4440,11 @@ function rPortalProspeccao(c){
         +'</div>'
         // Contract value (if closed) + reason (if not closed) + notes
         +(p.contractClosed
-          ?'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">💰 Valor do Contrato (R$)</label>'
-            +'<input type="number" value="'+(p.contractValue||'')+'" placeholder="0,00" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'contractValue\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>'
+          ?'<div style="margin-bottom:10px;background:linear-gradient(135deg,#FEF9C3,#FDE68A);border:2px solid #F59E0B;border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(245,158,11,.2)">'
+            +'<div style="font-size:14px;font-weight:800;color:#92400E;margin-bottom:4px">🎉 Parabéns pelo contrato fechado! 💰</div>'
+            +'<div style="font-size:12px;color:#B45309;margin-bottom:10px;line-height:1.4">⚠️ <strong>Muito importante:</strong> informe abaixo o <strong>valor do contrato fechado</strong>. Esse dado é essencial para o acompanhamento dos seus resultados com a gente — por favor, preencha com atenção.</div>'
+            +'<label style="font-size:11px;font-weight:700;color:#92400E;display:block;margin-bottom:4px">Valor do Contrato (R$)</label>'
+            +'<input type="number" value="'+(p.contractValue||'')+'" placeholder="Ex: 5000,00" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'contractValue\',this.value)" style="width:100%;border:2px solid #F59E0B;border-radius:8px;padding:11px 12px;font-size:17px;font-weight:700;color:#92400E;background:white;box-sizing:border-box"></div>'
           :'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">❌ Motivo de não fechar (se aplicável)</label>'
             +'<input value="'+(p.reasonNotClosed||'')+'" placeholder="Ex: sem budget, sem interesse..." onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'reasonNotClosed\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>')
         +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">📝 Observações</label>'
@@ -4440,15 +4452,13 @@ function rPortalProspeccao(c){
       +'</div></div>';
   }).join('');
 
-  const empty='<div style="background:white;border-radius:12px;padding:48px;text-align:center;color:#9CA3AF;box-shadow:0 2px 8px rgba(0,0,0,.06)">Nenhum prospect cadastrado ainda.</div>';
+  const empty='<div style="background:white;border-radius:12px;padding:48px;text-align:center;color:#9CA3AF;box-shadow:0 2px 8px rgba(0,0,0,.06)">Nenhum lead cadastrado ainda.<br><span style="font-size:12px">Os leads que nosso time gerar para você aparecerão aqui.</span></div>';
 
   return '<div>'
-    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">'
-      +'<div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)"><div style="font-size:28px;font-weight:800;color:#7C3AED">'+total+'</div><div style="font-size:11px;color:#6B7280">Total</div></div>'
-      +'<div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)"><div style="font-size:28px;font-weight:800;color:#D97706">'+pending+'</div><div style="font-size:11px;color:#6B7280">Aguardando</div></div>'
-      +'<div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)"><div style="font-size:28px;font-weight:800;color:#0D3D9B">'+meetings+'</div><div style="font-size:11px;color:#6B7280">Reuniões</div></div>'
-      +'<div style="background:white;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)"><div style="font-size:28px;font-weight:800;color:#16A34A">'+closed+'</div><div style="font-size:11px;color:#6B7280">Fechamentos</div></div>'
-    +'</div>'
+    +'<div class="portal-hero" style="margin-bottom:24px"><div>'
+      +'<h1>🎯 Seus Leads</h1>'
+      +'<p>'+total+' lead(s) gerado(s) pelo nosso time · confirme abaixo o andamento de cada um</p>'
+    +'</div></div>'
     +(pros.length?cards:empty)
     +'</div>';
 }
@@ -4530,11 +4540,11 @@ function rClientPortalAuth(){
   const navItems=[
     {id:'dashboard',icon:'📊',label:'Dashboard'},
     {id:'entregas',icon:'📦',label:'Entregas'},
-    {id:'prospeccao',icon:'🎯',label:'Prospecção'},
+    {id:'prospeccao',icon:'🎯',label:'Leads'},
     {id:'reunioes',icon:'🤝',label:'Reuniões'},
     {id:'relatorios',icon:'📈',label:'Relatórios'},
   ];
-  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Prospecção',reunioes:'Reuniões',relatorios:'Relatórios'};
+  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',reunioes:'Reuniões',relatorios:'Relatórios'};
   const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,prospeccao:rPortalProspeccao,reunioes:rPortalReunioes,relatorios:rPortalRelatorios};
   const mainContent=(contentMap[pv]||rPortalDashboard)(c);
   return`<div class="portal-wrapper">
