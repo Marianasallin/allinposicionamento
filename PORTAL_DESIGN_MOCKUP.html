@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal do Cliente - Design Mockup | ALL IN</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f8f9fa;
+    color: #1a1a1e;
+  }
+
+  /* ============ LOGIN PAGE DESIGN ============ */
+  .login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0077B5 0%, #005885 100%);
+    padding: 20px;
+  }
+
+  .login-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 420px;
+    padding: 50px 40px;
+    text-align: center;
+  }
+
+  .logo-container {
+    margin-bottom: 30px;
+  }
+
+  .logo-container svg {
+    width: 120px;
+    height: auto;
+    margin: 0 auto;
+    display: block;
+  }
+
+  .login-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 20px 0 8px;
+    color: #1a1a1e;
+  }
+
+  .login-subtitle {
+    color: #6b7280;
+    font-size: 14px;
+    margin-bottom: 32px;
+    line-height: 1.5;
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+    text-align: left;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.3s;
+  }
+
+  .form-group input:focus {
+    outline: none;
+    border-color: #0077B5;
+    box-shadow: 0 0 0 3px rgba(0, 119, 181, 0.1);
+  }
+
+  .password-container {
+    position: relative;
+  }
+
+  .password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #6b7280;
+    padding: 0;
+  }
+
+  .btn-login {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #0077B5, #00A0DC);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 12px;
+  }
+
+  .btn-login:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 119, 181, 0.3);
+  }
+
+  .forgot-password {
+    margin-top: 20px;
+  }
+
+  .forgot-password a {
+    color: #0077B5;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .forgot-password a:hover {
+    text-decoration: underline;
+    color: #005885;
+  }
+
+  /* ============ PORTAL PAGE DESIGN ============ */
+  .portal-wrapper {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #f8f9fa 0%, #f0f2f5 100%);
+  }
+
+  .portal-header {
+    background: linear-gradient(135deg, #0077B5 0%, #005885 100%);
+    color: white;
+    padding: 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .portal-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 400px;
+    height: 400px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+  }
+
+  .portal-header::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -30%;
+    width: 300px;
+    height: 300px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+  }
+
+  .portal-header-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .portal-header-left h1 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .portal-header-left p {
+    font-size: 15px;
+    opacity: 0.95;
+    line-height: 1.5;
+  }
+
+  .portal-header-right {
+    display: flex;
+    gap: 12px;
+  }
+
+  .btn-logout {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .btn-logout:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: white;
+  }
+
+  .portal-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+
+  .section {
+    margin-bottom: 48px;
+  }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: #1a1a1e;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* ============ STATS SECTION ============ */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .stat-card.stat-blue { border-top: 3px solid #0077B5; }
+  .stat-card.stat-purple { border-top: 3px solid #8b5cf6; }
+  .stat-card.stat-green { border-top: 3px solid #10b981; }
+  .stat-card.stat-amber { border-top: 3px solid #f59e0b; }
+
+  .stat-number {
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .stat-number.blue { color: #0077B5; }
+  .stat-number.purple { color: #8b5cf6; }
+  .stat-number.green { color: #10b981; }
+  .stat-number.amber { color: #f59e0b; }
+
+  .stat-label {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ============ DELIVERABLES SECTION ============ */
+  .deliverables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .delivery-card {
+    border-radius: 16px;
+    color: white;
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    border: none;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .delivery-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    transform: translate(30%, -30%);
+  }
+
+  .delivery-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    transform: translate(-30%, 30%);
+  }
+
+  .delivery-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
+  }
+
+  .delivery-card.blue { background: linear-gradient(135deg, #0077B5, #00A0DC); }
+  .delivery-card.purple { background: linear-gradient(135deg, #005885, #0077B5); }
+  .delivery-card.green { background: linear-gradient(135deg, #2E5266, #0077B5); }
+  .delivery-card.orange { background: linear-gradient(135deg, #003D66, #005885); }
+  .delivery-card.pink { background: linear-gradient(135deg, #00A0DC, #2E5266); }
+  .delivery-card.cyan { background: linear-gradient(135deg, #F5E6D3, #00A0DC); }
+
+  .delivery-icon {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    font-size: 32px;
+    z-index: 1;
+  }
+
+  .delivery-content {
+    position: relative;
+    z-index: 2;
+  }
+
+  .delivery-name {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+
+  .delivery-product {
+    font-size: 13px;
+    opacity: 0.9;
+    margin-bottom: 12px;
+  }
+
+  .delivery-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .delivery-status {
+    opacity: 0.85;
+    font-weight: 500;
+  }
+
+  .delivery-date {
+    font-weight: 600;
+  }
+
+  /* ============ ARTS SECTION ============ */
+  .arts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .art-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s;
+  }
+
+  .art-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  }
+
+  .art-image {
+    width: 100%;
+    height: 200px;
+    background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .art-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .art-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #f59e0b;
+  }
+
+  .art-content {
+    padding: 18px;
+  }
+
+  .art-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #1a1a1e;
+  }
+
+  .art-description {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 14px;
+    line-height: 1.4;
+  }
+
+  .art-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .art-actions button {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-approve {
+    background: #DCFCE7;
+    color: #166534;
+  }
+
+  .btn-approve:hover {
+    background: #BBFBDA;
+  }
+
+  .btn-reject {
+    background: #FEE2E2;
+    color: #DC2626;
+  }
+
+  .btn-reject:hover {
+    background: #FCBDBD;
+  }
+
+  /* ============ ENCOUNTERS SECTION ============ */
+  .encounters-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .encounter-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    border-left: 4px solid #0077B5;
+    transition: all 0.3s;
+  }
+
+  .encounter-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transform: translateX(4px);
+  }
+
+  .encounter-date {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0077B5;
+    margin-bottom: 6px;
+  }
+
+  .encounter-attendees {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 10px;
+  }
+
+  .encounter-description {
+    font-size: 13px;
+    color: #1a1a1e;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+
+  .encounter-attachments {
+    font-size: 11px;
+    color: #6b7280;
+    padding-top: 8px;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 8px;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 768px) {
+    .login-card {
+      padding: 40px 24px;
+    }
+
+    .portal-header-content {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .portal-header-right {
+      justify-content: center;
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    .portal-header-left h1 {
+      font-size: 24px;
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
+    .deliverables-grid,
+    .arts-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* ============ DEMO MOCKUP HELPERS ============ */
+  .demo-note {
+    background: #FEF3C7;
+    border-left: 4px solid #f59e0b;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    color: #78350f;
+  }
+
+  .demo-tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .demo-tab {
+    padding: 10px 16px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.2s;
+  }
+
+  .demo-tab:hover {
+    border-color: #0077B5;
+    color: #0077B5;
+  }
+
+  .demo-tab.active {
+    background: #0077B5;
+    color: white;
+    border-color: #0077B5;
+  }
+</style>
+</head>
+<body>
+
+<div id="mockup-container"></div>
+
+<script>
+  const mockupData = {
+    clientName: 'Letícia Petean',
+    clientFirstName: 'Letícia',
+    latestMonth: {
+      prospects: 45,
+      meetings: 12,
+      sales: 8,
+      revenue: 40000
+    },
+    deliverables: [
+      { name: 'Estratégia Digital Q2', product: 'Consultoria Estratégica', status: 'Em Andamento', dueDate: '15/06/2026', icon: '🎯', color: 'blue' },
+      { name: 'Criação de Conteúdo', product: 'Content Marketing', status: 'Pendente', dueDate: '20/06/2026', icon: '📱', color: 'purple' },
+      { name: 'Campanha LinkedIn', product: 'Publicidade Digital', status: 'Concluído', dueDate: '10/06/2026', icon: '💼', color: 'green' },
+      { name: 'Análise de Concorrentes', product: 'Pesquisa de Mercado', status: 'Em Andamento', dueDate: '25/06/2026', icon: '📊', color: 'orange' },
+      { name: 'Branding Guidelines', product: 'Design', status: 'Pendente', dueDate: '30/06/2026', icon: '🎨', color: 'pink' },
+      { name: 'Relatório Mensal', product: 'Análise de Resultados', status: 'Atrasado', dueDate: '05/06/2026', icon: '📈', color: 'cyan' }
+    ],
+    arts: [
+      { title: 'Post Instagram - Dicas', platform: 'Instagram', description: 'Série de dicas sobre gestão de marketing', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="280" height="200"%3E%3Crect fill="%2306B6D4" width="280" height="200"/%3E%3Ctext x="140" y="100" font-size="18" fill="white" text-anchor="middle" dy=".3em"%3E📷 Instagram Post%3C/text%3E%3C/svg%3E' },
+      { title: 'Carrossel LinkedIn', platform: 'LinkedIn', description: 'Tendências de marketing digital 2026', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="280" height="200"%3E%3Crect fill="%230077B5" width="280" height="200"/%3E%3Ctext x="140" y="100" font-size="18" fill="white" text-anchor="middle" dy=".3em"%3E💼 LinkedIn Post%3C/text%3E%3C/svg%3E' },
+      { title: 'Banner Website', platform: 'Website', description: 'Hero section para homepage atualizada', image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="280" height="200"%3E%3Crect fill="%238B5CF6" width="280" height="200"/%3E%3Ctext x="140" y="100" font-size="18" fill="white" text-anchor="middle" dy=".3em"%3E🌐 Website Banner%3C/text%3E%3C/svg%3E' }
+    ],
+    encounters: [
+      { date: '18/05/2026', attendees: 'Mari, Carlos, Letícia', description: 'Discussão sobre nova estratégia de marketing e ajustes na campanha de LinkedIn.' },
+      { date: '10/05/2026', attendees: 'Mari, Letícia', description: 'Apresentação dos resultados de abril e planejamento de ações para maio.' },
+      { date: '01/05/2026', attendees: 'Mari, Carlos, Jones', description: 'Kick-off do projeto - alinhamento de objetivos e cronograma.' }
+    ]
+  };
+
+  function formatDate(dateStr) {
+    const [day, month, year] = dateStr.split('/');
+    const date = new Date(year, month - 1, day);
+    const options = { weekday: 'long', day: 'numeric', month: 'long' };
+    return new Intl.DateTimeFormat('pt-BR', options).format(date);
+  }
+
+  function renderLoginPage() {
+    return `
+      <div class="login-container">
+        <div class="login-card">
+          <div class="logo-container">
+            <svg viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="20" cy="15" r="8" fill="#0077B5"/>
+              <circle cx="37" cy="8" r="6" fill="#0077B5" opacity="0.7"/>
+              <circle cx="12" cy="32" r="5" fill="#0077B5" opacity="0.5"/>
+              <text x="50" y="50" font-family="Arial, sans-serif" font-weight="900" font-size="42" fill="#0077B5" letter-spacing="-1">ALL IN</text>
+            </svg>
+          </div>
+          <h2 class="login-title">Portal do Cliente</h2>
+          <p class="login-subtitle">Acompanhe suas entregas, resultados e encontros com nosso time</p>
+          <form onsubmit="switchView('portal'); return false;">
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" placeholder="seu.email@empresa.com.br" required>
+            </div>
+            <div class="form-group">
+              <label>Senha (data de nascimento)</label>
+              <div class="password-container">
+                <input type="password" id="pwField" placeholder="DD/MM/AAAA" required>
+                <button type="button" class="password-toggle" onclick="togglePw(event)">👁️</button>
+              </div>
+            </div>
+            <button type="submit" class="btn-login">🔓 Entrar no Portal</button>
+          </form>
+          <div class="forgot-password">
+            <a href="javascript:alert('Seu email foi encontrado! Sua primeira senha é sua data de nascimento.')">Esqueci minha senha</a>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPortalPage() {
+    return `
+      <div class="portal-wrapper">
+        <div class="portal-header">
+          <div class="portal-header-content">
+            <div class="portal-header-left">
+              <h1>👋 Bem-vindo, ${mockupData.clientFirstName}!</h1>
+              <p>Acompanhe suas entregas, resultados e encontros com nosso time</p>
+            </div>
+            <div class="portal-header-right">
+              <button class="btn-logout" onclick="switchView('login')">🚪 Sair</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="portal-content">
+          <div class="demo-note">
+            ℹ️ <strong>Mockup Preview:</strong> Este é um design melhorado com cards bonitos, moderno e impactante. Clique em "View Login" para ver a página de login.
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">📊 Resumo do Seu Mês</h2>
+            <div class="stats-grid">
+              <div class="stat-card stat-blue">
+                <div class="stat-number blue">${mockupData.latestMonth.prospects}</div>
+                <div class="stat-label">Prospecções</div>
+              </div>
+              <div class="stat-card stat-purple">
+                <div class="stat-number purple">${mockupData.latestMonth.meetings}</div>
+                <div class="stat-label">Reuniões</div>
+              </div>
+              <div class="stat-card stat-green">
+                <div class="stat-number green">${mockupData.latestMonth.sales}</div>
+                <div class="stat-label">Vendas</div>
+              </div>
+              <div class="stat-card stat-amber">
+                <div class="stat-number amber">R$ ${mockupData.latestMonth.revenue.toLocaleString('pt-BR')}</div>
+                <div class="stat-label">Faturamento Est.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">📦 Suas Entregas</h2>
+            <div class="deliverables-grid">
+              ${mockupData.deliverables.map(d => `
+                <div class="delivery-card ${d.color}" onclick="alert('Clique em um card abriria os detalhes da entrega: ${d.name}')">
+                  <div class="delivery-icon">${d.icon}</div>
+                  <div class="delivery-content">
+                    <div class="delivery-name">${d.name}</div>
+                    <div class="delivery-product">${d.product}</div>
+                    <div class="delivery-footer">
+                      <span class="delivery-status">${d.status}</span>
+                      <span class="delivery-date">${d.dueDate}</span>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">📱 Artes para Aprovação <span style="background: #DC2626; color: white; font-size: 11px; padding: 2px 8px; border-radius: 99px;">${mockupData.arts.length}</span></h2>
+            <div class="arts-grid">
+              ${mockupData.arts.map(art => `
+                <div class="art-card">
+                  <div class="art-image">
+                    <img src="${art.image}" alt="${art.title}">
+                    <span class="art-badge">${art.platform}</span>
+                  </div>
+                  <div class="art-content">
+                    <div class="art-title">${art.title}</div>
+                    <div class="art-description">${art.description}</div>
+                    <div class="art-actions">
+                      <button class="btn-approve" onclick="alert('✅ Você aprovou: ${art.title}')">✅ Aprovar</button>
+                      <button class="btn-reject" onclick="alert('❌ Você rejeitou: ${art.title}')">❌ Rejeitar</button>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">🤝 Últimos Encontros</h2>
+            <div class="encounters-list">
+              ${mockupData.encounters.map(enc => `
+                <div class="encounter-card">
+                  <div class="encounter-date">${formatDate(enc.date)}</div>
+                  <div class="encounter-attendees">👥 ${enc.attendees}</div>
+                  <div class="encounter-description">${enc.description}</div>
+                  <div class="encounter-attachments">📎 3 anexo(s) disponíveis</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function switchView(view) {
+    const container = document.getElementById('mockup-container');
+    if (view === 'login') {
+      container.innerHTML = renderLoginPage();
+    } else if (view === 'portal') {
+      container.innerHTML = renderPortalPage();
+    }
+  }
+
+  function togglePw(event) {
+    event.preventDefault();
+    const pwField = document.getElementById('pwField');
+    if (pwField.type === 'password') {
+      pwField.type = 'text';
+    } else {
+      pwField.type = 'password';
+    }
+  }
+
+  // Initial render - show login page
+  window.addEventListener('DOMContentLoaded', () => {
+    switchView('login');
+  });
+</script>
+
+</body>
+</html>

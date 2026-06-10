@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal All In - Cliente Premium</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #F5F7FA;
+    color: #1E293B;
+  }
+
+  /* ============ SIDEBAR ============ */
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 260px;
+    height: 100vh;
+    background: linear-gradient(180deg, #082C74 0%, #0A3A8E 100%);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 16px;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+  }
+
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+    padding: 0 8px;
+  }
+
+  .sidebar-logo img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sidebar-logo span {
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 12px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+  }
+
+  .nav-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+
+  .nav-item.active {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border-left: 3px solid #4A90E2;
+    padding-left: 9px;
+  }
+
+  .nav-icon {
+    font-size: 18px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .support-card {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .support-card h4 {
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .support-card p {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+
+  .btn-support {
+    width: 100%;
+    padding: 8px;
+    background: #4A90E2;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .btn-support:hover {
+    background: #3A7FD8;
+  }
+
+  /* ============ HEADER ============ */
+  .header {
+    position: fixed;
+    left: 260px;
+    top: 0;
+    right: 0;
+    height: 70px;
+    background: white;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    z-index: 999;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  .header-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1E293B;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .bell-icon {
+    cursor: pointer;
+    font-size: 18px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+
+  .bell-icon:hover {
+    opacity: 1;
+  }
+
+  .user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+  }
+
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0D3D9B, #4A90E2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1E293B;
+  }
+
+  .user-role {
+    font-size: 11px;
+    color: #64748B;
+  }
+
+  .dropdown-arrow {
+    font-size: 14px;
+    color: #64748B;
+  }
+
+  /* ============ MAIN CONTENT ============ */
+  .main {
+    margin-left: 260px;
+    margin-top: 70px;
+    padding: 32px;
+    min-height: calc(100vh - 70px);
+  }
+
+  .container {
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  /* ============ HERO SECTION ============ */
+  .hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 32px;
+  }
+
+  .hero-content h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #1E293B;
+  }
+
+  .hero-content p {
+    font-size: 14px;
+    color: #64748B;
+    line-height: 1.5;
+  }
+
+  .month-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #64748B;
+    transition: all 0.2s;
+  }
+
+  .month-filter:hover {
+    border-color: #0D3D9B;
+    background: #F8FAFF;
+  }
+
+  /* ============ METRICS CARDS ============ */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .metric-card {
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s;
+  }
+
+  .metric-card:hover {
+    border-color: #0D3D9B;
+    box-shadow: 0 4px 12px rgba(13, 61, 155, 0.08);
+  }
+
+  .metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .metric-icon {
+    font-size: 24px;
+  }
+
+  .metric-trend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #17B26A;
+    font-weight: 600;
+  }
+
+  .metric-trend.up::before {
+    content: '↑';
+  }
+
+  .metric-number {
+    font-size: 32px;
+    font-weight: 700;
+    color: #0D3D9B;
+    margin-bottom: 4px;
+  }
+
+  .metric-label {
+    font-size: 13px;
+    color: #64748B;
+    font-weight: 500;
+  }
+
+  /* ============ MAIN CONTENT GRID ============ */
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 24px;
+  }
+
+  /* ============ DELIVERABLES CARD ============ */
+  .deliverables-card {
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  }
+
+  .card-header {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1E293B;
+    margin-bottom: 20px;
+  }
+
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .timeline-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid #EEF2F7;
+    transition: background 0.2s;
+  }
+
+  .timeline-item:last-child {
+    border-bottom: none;
+  }
+
+  .timeline-item:hover {
+    background: #F8FAFF;
+  }
+
+  .timeline-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 2px solid #E2E8F0;
+  }
+
+  .timeline-dot.completed {
+    background: #17B26A;
+    border-color: #17B26A;
+  }
+
+  .timeline-dot.pending {
+    background: #F59E0B;
+    border-color: #F59E0B;
+  }
+
+  .timeline-dot.in-progress {
+    background: #4A90E2;
+    border-color: #4A90E2;
+  }
+
+  .timeline-content {
+    flex: 1;
+  }
+
+  .timeline-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1E293B;
+    margin-bottom: 2px;
+  }
+
+  .timeline-desc {
+    font-size: 12px;
+    color: #64748B;
+  }
+
+  .timeline-status {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .timeline-status.completed {
+    background: #DCFCE7;
+    color: #166534;
+  }
+
+  .timeline-status.pending {
+    background: #FEF3C7;
+    color: #92400E;
+  }
+
+  .timeline-status.in-progress {
+    background: #DBEAFE;
+    color: #0C4A6E;
+  }
+
+  .btn-action {
+    background: none;
+    border: none;
+    color: #4A90E2;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+    transition: color 0.2s;
+  }
+
+  .btn-action:hover {
+    color: #0D3D9B;
+  }
+
+  /* ============ SIDEBAR CARDS ============ */
+  .sidebar-card {
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    margin-bottom: 16px;
+  }
+
+  .sidebar-card-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  .meeting-date {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0D3D9B;
+    margin-bottom: 4px;
+  }
+
+  .meeting-month {
+    font-size: 12px;
+    color: #64748B;
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  .meeting-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1E293B;
+    margin-bottom: 6px;
+  }
+
+  .meeting-time {
+    font-size: 12px;
+    color: #64748B;
+    margin-bottom: 2px;
+  }
+
+  .meeting-attendees {
+    font-size: 11px;
+    color: #64748B;
+    margin-bottom: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #EEF2F7;
+  }
+
+  .btn-link {
+    display: inline-block;
+    color: #0D3D9B;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+
+  .btn-link:hover {
+    color: #082C74;
+  }
+
+  .quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .action-btn {
+    padding: 10px;
+    background: #F8FAFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    color: #0D3D9B;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .action-btn:hover {
+    background: #EFF6FF;
+    border-color: #0D3D9B;
+  }
+
+  .tip-card {
+    background: linear-gradient(135deg, #EFF6FF 0%, #F0F7FF 100%);
+    border: 1px solid #DBEAFE;
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .tip-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0D3D9B;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  .tip-text {
+    font-size: 12px;
+    color: #0C4A6E;
+    line-height: 1.5;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 1200px) {
+    .metrics-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .content-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .sidebar {
+      width: 100px;
+      padding: 16px 8px;
+    }
+
+    .header {
+      left: 100px;
+    }
+
+    .main {
+      margin-left: 100px;
+      padding: 16px;
+    }
+
+    .sidebar-logo span {
+      display: none;
+    }
+
+    .nav-item {
+      justify-content: center;
+      padding: 12px 8px;
+    }
+
+    .nav-icon {
+      margin: 0;
+    }
+
+    .metrics-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============ SIDEBAR ============ -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <span style="font-size: 24px;">🔷</span>
+      <span>All In</span>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-item active">
+        <span class="nav-icon">📊</span>
+        <span>Dashboard</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">📦</span>
+        <span>Entregas</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">🤝</span>
+        <span>Reuniões</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">📈</span>
+        <span>Relatórios</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">💰</span>
+        <span>Financeiro</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">🆘</span>
+        <span>Suporte</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">📄</span>
+        <span>Documentos</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">⚙️</span>
+        <span>Configurações</span>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="support-card">
+        <h4>Precisa de ajuda?</h4>
+        <p>Abra um chamado com nosso time de suporte</p>
+        <button class="btn-support">Abrir chamado</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HEADER ============ -->
+  <div class="header">
+    <div class="header-title">Dashboard</div>
+    <div class="header-right">
+      <div class="bell-icon">🔔</div>
+      <div class="user-profile">
+        <div class="avatar">LP</div>
+        <div class="user-info">
+          <div class="user-name">Letícia</div>
+          <div class="user-role">Visualizar perfil</div>
+        </div>
+        <div class="dropdown-arrow">▼</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MAIN CONTENT ============ -->
+  <div class="main">
+    <div class="container">
+      <!-- Hero Section -->
+      <div class="hero">
+        <div class="hero-content">
+          <h1>Olá, Letícia! 👋</h1>
+          <p>Acompanhe suas entregas, resultados e encontros com nosso time</p>
+        </div>
+        <div class="month-filter">
+          📅 Maio / 2026
+        </div>
+      </div>
+
+      <!-- Metrics Cards -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-icon">👥</div>
+            <div class="metric-trend up">18%</div>
+          </div>
+          <div class="metric-number">128</div>
+          <div class="metric-label">Prospecções</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-icon">🤝</div>
+            <div class="metric-trend up">12%</div>
+          </div>
+          <div class="metric-number">32</div>
+          <div class="metric-label">Reuniões</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-icon">🛒</div>
+            <div class="metric-trend up">27%</div>
+          </div>
+          <div class="metric-number">14</div>
+          <div class="metric-label">Vendas</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-icon">💵</div>
+            <div class="metric-trend up">31%</div>
+          </div>
+          <div class="metric-number">R$ 70k</div>
+          <div class="metric-label">Faturamento est.</div>
+        </div>
+      </div>
+
+      <!-- Content Grid -->
+      <div class="content-grid">
+        <!-- Main: Deliverables -->
+        <div class="deliverables-card">
+          <div class="card-header">Suas entregas</div>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-dot completed"></div>
+              <div class="timeline-content">
+                <div class="timeline-title">Onboarding</div>
+                <div class="timeline-desc">Implementação Comercial</div>
+              </div>
+              <div class="timeline-status completed">Concluído</div>
+              <button class="btn-action">→</button>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-dot in-progress"></div>
+              <div class="timeline-content">
+                <div class="timeline-title">Reunião de Boas Vindas</div>
+                <div class="timeline-desc">Implementação Comercial</div>
+              </div>
+              <div class="timeline-status in-progress">Em andamento</div>
+              <button class="btn-action">→</button>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-dot in-progress"></div>
+              <div class="timeline-content">
+                <div class="timeline-title">Explicar a Jornada</div>
+                <div class="timeline-desc">Implementação Comercial</div>
+              </div>
+              <div class="timeline-status in-progress">Em andamento</div>
+              <button class="btn-action">→</button>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-dot pending"></div>
+              <div class="timeline-content">
+                <div class="timeline-title">Relatório de Briefing</div>
+                <div class="timeline-desc">Implementação Comercial</div>
+              </div>
+              <div class="timeline-status pending">Em andamento</div>
+              <button class="btn-action">→</button>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-dot pending"></div>
+              <div class="timeline-content">
+                <div class="timeline-title">Plano de Ação</div>
+                <div class="timeline-desc">Implementação Comercial</div>
+              </div>
+              <div class="timeline-status pending">Pendente</div>
+              <button class="btn-action">→</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div>
+          <!-- Next Meeting -->
+          <div class="sidebar-card">
+            <div class="sidebar-card-title">📅 Próxima Reunião</div>
+            <div class="meeting-date">22</div>
+            <div class="meeting-month">Junho</div>
+            <div class="meeting-name">Acompanhamento Estratégico</div>
+            <div class="meeting-time">10:00 - 11:00</div>
+            <div class="meeting-attendees">👥 Com: Maria Silva</div>
+            <a href="#" class="btn-link">Ver agenda completa</a>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="sidebar-card">
+            <div class="sidebar-card-title">⚡ Ações Rápidas</div>
+            <div class="quick-actions">
+              <button class="action-btn">Solicitar reunião</button>
+              <button class="action-btn">Enviar documento</button>
+              <button class="action-btn">Ver relatórios</button>
+            </div>
+          </div>
+
+          <!-- Tip -->
+          <div class="tip-card">
+            <div class="tip-label">💡 Dica All In</div>
+            <div class="tip-text">Mantenha suas entregas sempre atualizadas para melhores resultados e acompanhamento.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

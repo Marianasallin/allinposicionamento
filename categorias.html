@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Categorias - All In</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a1a8f;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 20px;
+    gap: 10px;
+    font-family: 'Segoe UI', Arial, sans-serif;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 320px);
+    gap: 20px;
+  }
+  .card {
+    width: 320px;
+    height: 320px;
+    border-radius: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1536d4;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .card i {
+    font-size: 80px;
+  }
+  .c1 i { color: #FFD700; }
+  .c2 i { color: #FF9ECD; }
+  .c3 i { color: #FF6B6B; }
+  .c4 i { color: #FFD700; }
+  .c5 i { color: #FFA500; }
+  .c6 i { color: #FFD700; }
+  .c7 i { color: #90CAF9; }
+  .c8 i { color: #90CAF9; }
+
+  .btn {
+    background: white;
+    color: #0a1a8f;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 32px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+  #status {
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    background: rgba(0,0,0,0.25);
+    padding: 8px 24px;
+    border-radius: 99px;
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+
+  <button class="btn" onclick="downloadAll()">⬇️ Baixar todos os 8 PNGs</button>
+  <div id="status">Só o símbolo — 1280×1280px para o Drive</div>
+
+  <div class="grid">
+    <div class="card c1" id="card-1"><i class="fa-solid fa-lock-open"></i></div>
+    <div class="card c2" id="card-2"><i class="fa-solid fa-brain"></i></div>
+    <div class="card c3" id="card-3"><i class="fa-solid fa-bullseye"></i></div>
+    <div class="card c4" id="card-4"><i class="fa-solid fa-bell"></i></div>
+    <div class="card c5" id="card-5"><i class="fa-solid fa-box"></i></div>
+    <div class="card c6" id="card-6"><i class="fa-solid fa-sack-dollar"></i></div>
+    <div class="card c7" id="card-7"><i class="fa-solid fa-file-invoice"></i></div>
+    <div class="card c8" id="card-8"><i class="fa-solid fa-scale-balanced"></i></div>
+  </div>
+
+  <script>
+    const names = ['Gestao','Conhecimento','Marketing','Vendas','Entrega','Financeiro','Contabil','Juridico'];
+
+    async function exportCard(n) {
+      const el = document.getElementById('card-' + n);
+      const canvas = await html2canvas(el, { scale: 4, backgroundColor: null, useCORS: true, allowTaint: true, logging: false });
+      const link = document.createElement('a');
+      link.download = n + '_' + names[n-1] + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    async function downloadAll() {
+      const s = document.getElementById('status');
+      for (let i = 1; i <= 8; i++) {
+        s.textContent = '⏳ Gerando ' + i + ' de 8...';
+        await new Promise(r => setTimeout(r, 300));
+        await exportCard(i);
+        await new Promise(r => setTimeout(r, 800));
+      }
+      s.textContent = '✅ 8 imagens prontas em Downloads!';
+    }
+  </script>
+</body>
+</html>

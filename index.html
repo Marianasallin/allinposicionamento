@@ -140,6 +140,8 @@ input.mini:focus{outline:none;border-color:var(--primary)}
 .meta-acc>summary::-webkit-details-marker{display:none}
 .meta-acc>summary .arr{font-size:10px;color:var(--muted);transition:transform .2s;display:inline-block}
 .meta-acc[open]>summary .arr{transform:rotate(90deg)}
+details>summary::-webkit-details-marker{display:none}
+details[open]>summary .acc-arrow{transform:rotate(90deg)}
 @media(max-width:900px){#sidebar{width:56px}.ni span:not(.ni-icon){display:none}.sb-logo span,.sb-footer,.sb-logo h2{display:none}#main{margin-left:56px}.stats-grid{grid-template-columns:repeat(2,1fr)}.fgrid{grid-template-columns:1fr}}
 
 /* ============ PORTAL PREMIUM STYLES ============ */
@@ -1735,7 +1737,10 @@ function rDetail(){
   const daysRemaining=getContractDaysRemaining(c.contractDue);
   return`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
     <div class="back" style="margin:0" onclick="nav('clients',{clientId:null})">← Voltar</div>
-    <button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red);font-size:11px" onclick="deleteClient('${c.id}')">🗑️ Excluir Cliente</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-p btn-s" style="font-size:11px" onclick="compartilharAcesso('${c.id}')">📲 Enviar acesso ao portal</button>
+      <button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red);font-size:11px" onclick="deleteClient('${c.id}')">🗑️ Excluir Cliente</button>
+    </div>
   </div>
   <div class="dh">
     <div class="av av-l" style="background:${c.color}">${c.initials}</div>
@@ -1914,7 +1919,7 @@ function rWeeklyPending(){
   const isCurrentWeek=wk===thisWeekKey();
   return`<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
     <div class="stat-card"><div class="stat-val">${allSemanaisDone}/${totalClients.length}</div><div class="stat-label">Rel. Semanais da semana</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalLeads}</div><div class="stat-label">Prospects esta semana</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalLeads}</div><div class="stat-label">Leads esta semana</div></div>
     <div class="stat-card"><div class="stat-val" style="color:#D97706">${allMensaisDone}/${totalClients.length}</div><div class="stat-label">Rel. Mensais (${mk})</div></div>
   </div>
   <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -2276,7 +2281,8 @@ function rMinhaSemana(){
   const isConteudo=user.role==='Head de Conteúdo';
   if(isGestao)return rMinhaSemanaGestao(user);
   if(isConteudo)return rMinhaSemanaConteudo(user);
-  const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(user.name)&&(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')&&c.products.includes('Gestão de Perfil'));
+  const _isNayara=/na[iy]ara/i.test(user.name||'');
+  const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(user.name)&&(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')&&(c.products.includes('Gestão de Perfil')||(_isNayara&&c.products.includes('Implementação Comercial'))));
 
   // Collect all unique Fridays across user's clients (sorted)
   const allFriKeys=[...new Set(myClients.flatMap(c=>fridaysFrom(c.startDate).map(f=>getWeekKey(f))))].sort();
@@ -2332,7 +2338,7 @@ function rMinhaSemana(){
   ${getMonthlyAlertHtml()}
   <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
     <div class="stat-card"><div class="stat-val" style="color:var(--primary)">${semanaisDone}/${myClients.length}</div><div class="stat-label">Semanais enviados</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalLeads}</div><div class="stat-label">Prospects esta semana</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#16A34A">${totalLeads}</div><div class="stat-label">Leads esta semana</div></div>
     <div class="stat-card"><div class="stat-val" style="color:#D97706">${mensaisDone}/${myClients.length}</div><div class="stat-label">Mensais ${mk}</div></div>
   </div>
 
@@ -2353,6 +2359,21 @@ function rMinhaSemana(){
         return`<span class="fc ${S.minhaSemanaWk===fk?'active':''}" onclick="S.minhaSemanaWk='${fk}';render()" style="font-size:11px">${lbl}${isCur?' 📍':''}</span>`;
       }).join('')}
   </div>
+
+  <!-- Minhas anotações (bloco pessoal) -->
+  <details class="card" style="margin-bottom:16px" ${((D.team.find(m=>m.name===user.name)||{}).personalNotes||'').trim()?'open':''}>
+    <summary class="ch" style="background:linear-gradient(135deg,#0EA5E9,#38BDF8);border-radius:8px 8px 0 0;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px">
+      <span style="color:white;font-size:13px;transition:transform .2s" class="acc-arrow">▶</span>
+      <div>
+        <h3 style="margin:0;color:white">📝 Minhas anotações</h3>
+        <span style="font-size:12px;color:rgba(255,255,255,.85)">Seu bloco de notas pessoal — só você usa no dia a dia</span>
+      </div>
+    </summary>
+    <div class="cb">
+      <textarea id="ms-personal-notes" style="width:100%;min-height:120px;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;resize:vertical" placeholder="Anote aqui suas tarefas, lembretes, ideias do dia a dia..." onblur="updateUserNotes('${user.name.replace(/'/g,"\\'")}',this.value)">${((D.team.find(m=>m.name===user.name)||{}).personalNotes||'').replace(/</g,'&lt;')}</textarea>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">💾 Salva automaticamente ao clicar fora do campo.</div>
+    </div>
+  </details>
 
   <!-- SEÇÃO 1: Tarefas Atribuídas -->
   ${renderTasksSection(user,wk)}
@@ -2394,40 +2415,36 @@ function rMinhaSemana(){
       <span style="font-size:12px;color:rgba(255,255,255,.8)">${semanaisDone}/${myClients.length} enviados</span>
     </div>
     <div class="tw"><table>
-      <thead><tr><th>Cliente</th><th>Status</th><th>Arquivo / Link</th></tr></thead>
+      <thead><tr><th style="width:110px">Cliente</th><th style="width:90px">Status</th><th>💬 Mensagem enviada (WhatsApp)</th><th style="width:200px">Observação</th></tr></thead>
       <tbody>
         ${myClients.map(c=>{
-          const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,file:null,link:''};
+          const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,message:'',note:''};
           return`<tr>
             <td><div style="font-weight:600;font-size:13px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
             <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
               <input type="checkbox" onchange="toggleWeeklyReport('${c.id}','${wk}',this.checked)" ${wr.done?'checked':''}>
-              <span style="font-size:11px;color:${wr.done?'#16A34A':'#9CA3AF'}">${wr.done?'✅ Enviado':'⏳ Pendente'}</span>
+              <span style="font-size:11px;color:${wr.done?'#16A34A':'#9CA3AF'}">${wr.done?'✅':'⏳'}</span>
             </label></td>
-            <td>
-              ${wr.file?`<span style="font-size:11px;color:var(--primary);cursor:pointer" onclick="downloadRepFile('${c.id}','weekly','${wk}')">📎 ${wr.file.name.substring(0,15)}...</span>`:
-                wr.link?`<a href="${wr.link}" target="_blank" style="font-size:11px;color:var(--primary)">🔗 Link</a>`:''}
-              <div style="display:flex;gap:4px;margin-top:4px">
-                <button class="btn btn-o btn-s" onclick="document.getElementById('ms-wf-${c.id}-${wk}').click()">📎</button>
-                <input type="file" id="ms-wf-${c.id}-${wk}" style="display:none" accept=".pdf,.jpg,.png,.doc,.docx" onchange="uploadReportFile('${c.id}','weekly','${wk}',this)">
-                <input class="mini" type="url" placeholder="Link..." style="width:110px" value="${wr.link||''}" onblur="updateWeekReportLink('${c.id}','${wk}',this.value)">
-              </div>
-            </td>
+            <td><textarea class="mini" style="width:100%;min-height:46px;resize:vertical;font-family:inherit" placeholder="Cole aqui a mensagem que você mandou para o cliente..." onblur="updateWeekReportField('${c.id}','${wk}','message',this.value)">${(wr.message||'').replace(/</g,'&lt;')}</textarea></td>
+            <td><textarea class="mini" style="width:100%;min-height:46px;resize:vertical;font-family:inherit" placeholder="Observação..." onblur="updateWeekReportField('${c.id}','${wk}','note',this.value)">${(wr.note||'').replace(/</g,'&lt;')}</textarea></td>
           </tr>`;
         }).join('')}
       </tbody>
     </table></div>
   </div>
 
-  <!-- SEÇÃO 2: Relatório Mensal (fixo, independente da semana) -->
-  <div class="card" style="margin-bottom:16px">
-    <div class="ch" style="background:linear-gradient(135deg,#D97706,#F59E0B);border-radius:8px 8px 0 0">
-      <div>
-        <h3 style="margin:0;color:white">📊 Relatório Mensal — ${mk}</h3>
-        <span style="font-size:12px;color:rgba(255,255,255,.85)">Enviado uma vez por mês · ${mensaisDone}/${myClients.length} concluídos</span>
+  <!-- SEÇÃO 2: Relatório Mensal (recolhível, fechado por padrão) -->
+  <details class="card" style="margin-bottom:16px" ${daysUntil10>=0&&daysUntil10<=5&&mensaisDone<myClients.length?'open':''}>
+    <summary class="ch" style="background:linear-gradient(135deg,#D97706,#F59E0B);border-radius:8px 8px 0 0;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:white;font-size:13px;transition:transform .2s" class="acc-arrow">▶</span>
+        <div>
+          <h3 style="margin:0;color:white">📊 Relatório Mensal — ${mk}</h3>
+          <span style="font-size:12px;color:rgba(255,255,255,.85)">Enviado uma vez por mês · ${mensaisDone}/${myClients.length} concluídos · clique para abrir</span>
+        </div>
       </div>
       ${monthDueBadge}
-    </div>
+    </summary>
     <div class="tw"><table>
       <thead><tr><th>Cliente</th><th>Status</th><th>Arquivo / Link</th></tr></thead>
       <tbody>
@@ -2452,15 +2469,16 @@ function rMinhaSemana(){
         }).join('')}
       </tbody>
     </table></div>
-  </div>
+  </details>
 
   <!-- SEÇÃO 4: Prospecção da Semana -->
   <div class="card" style="margin-bottom:16px">
-    <div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA);border-radius:8px 8px 0 0">
+    <div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA);border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center">
       <div>
-        <h3 style="margin:0;color:white">🎯 Prospecção da Semana</h3>
-        <span style="font-size:12px;color:rgba(255,255,255,.85)">Prospects adicionados nesta semana por cliente</span>
+        <h3 style="margin:0;color:white">🎯 Leads da Semana</h3>
+        <span style="font-size:12px;color:rgba(255,255,255,.85)">Leads adicionados nesta semana por cliente</span>
       </div>
+      <button class="btn btn-s" style="background:white;color:#7C3AED;border:none;font-weight:700;white-space:nowrap" onclick="exportarLeadsPDF('${user.name.replace(/'/g,"\\'")}','${S.minhaSemanaFilterMonth}')">📄 Exportar Leads (PDF)</button>
     </div>
     <div style="padding:0">
       ${myClients.map(c=>{
@@ -2470,13 +2488,13 @@ function rMinhaSemana(){
         return`<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #F3F4F6">
           <div style="flex:1">
             <div style="font-weight:600;font-size:13px">${c.name.split(' ').slice(0,2).join(' ')}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px">Total: ${totalProspects} prospects · ${closedProspects} fechados</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">Total: ${totalProspects} leads · ${closedProspects} fechados</div>
           </div>
           <div style="text-align:center;min-width:60px">
             <div style="font-size:20px;font-weight:800;color:${weekProspects.length>0?'#7C3AED':'#9CA3AF'}">${weekProspects.length}</div>
             <div style="font-size:9px;color:var(--muted)">esta semana</div>
           </div>
-          <button class="btn btn-p btn-s" onclick="openProspectModal('${c.id}',null)" style="background:#7C3AED;border-color:#7C3AED;white-space:nowrap">+ Prospect</button>
+          <button class="btn btn-p btn-s" onclick="openProspectModal('${c.id}',null)" style="background:#7C3AED;border-color:#7C3AED;white-space:nowrap">+ Lead</button>
           <button class="btn btn-o btn-s" onclick="nav('clients',{clientId:'${c.id}',tab:'prospeccao'})" style="white-space:nowrap;font-size:11px">Ver todos →</button>
         </div>`;
       }).join('')}
@@ -2725,6 +2743,44 @@ function cycleDel(cid,did){const d=D.clients.find(c=>c.id===cid).deliverables.fi
 function updDel(cid,did,f,v){D.clients.find(c=>c.id===cid).deliverables.find(d=>d.id===did)[f]=v;save()}
 function cycleContinuous(cid,caId){const c=D.clients.find(c=>c.id===cid);const ca=c.continuousActivities.find(a=>a.id===caId);const s=['ativo','pausado','inativo'];ca.status=s[(s.indexOf(ca.status)+1)%s.length];save();render();}
 function toggleWeeklyReport(cid,wk,done){const c=D.clients.find(c=>c.id===cid);if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,file:null,link:'',leads:0};c.weeklyReports[wk].done=done;save();render();}
+function updateWeekReportField(cid,wk,field,v){const c=D.clients.find(c=>c.id===cid);if(!c)return;if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,message:'',note:'',leads:0};c.weeklyReports[wk][field]=v;save();}
+function updateUserNotes(name,v){const m=D.team.find(m=>m.name===name);if(!m)return;m.personalNotes=v;save();toast('💾 Anotações salvas');}
+function exportarLeadsPDF(userName,monthKey){
+  const _ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const _isNay=/na[iy]ara/i.test(userName||'');
+  const cls=D.clients.filter(c=>c.assignees&&c.assignees.includes(userName)&&(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')&&(c.products.includes('Gestão de Perfil')||(_isNay&&c.products.includes('Implementação Comercial'))));
+  let totalLeads=0,totalFech=0,rows='';
+  cls.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')).forEach(c=>{
+    const leads=(c.prospects||[]).filter(p=>{if(!p.date)return false;const d=new Date(p.date+'T12:00:00');return _ptM[d.getMonth()]+' '+d.getFullYear()===monthKey;});
+    if(!leads.length)return;
+    totalLeads+=leads.length;
+    rows+=`<tr style="background:#F3E8FF"><td colspan="4" style="font-weight:700;padding:8px 10px;border-top:2px solid #7C3AED">${c.name} <span style="font-weight:400;color:#666">— ${leads.length} lead(s)</span></td></tr>`;
+    leads.forEach(p=>{
+      const fech=p.contractClosed;if(fech)totalFech++;
+      rows+=`<tr>
+        <td style="padding:6px 10px;border-bottom:1px solid #eee">${(p.name||'—').replace(/</g,'&lt;')}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #eee">${(p.contact||p.email||p.linkedin||'—').replace(/</g,'&lt;')}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #eee">${p.date||'—'}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:600;color:${fech?'#16A34A':'#666'}">${fech?'✅ Fechou contrato':(p.responded?'Respondeu':'—')}</td>
+      </tr>`;
+    });
+  });
+  if(!totalLeads){toast('Nenhum lead encontrado em '+monthKey);return;}
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Leads ${monthKey} — ${userName}</title>
+    <style>body{font-family:Arial,sans-serif;color:#1a1a2e;margin:30px}h1{color:#7C3AED;margin:0 0 4px}.sub{color:#666;font-size:13px;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;font-size:12px}th{background:#7C3AED;color:#fff;text-align:left;padding:8px 10px}
+    .resumo{display:flex;gap:24px;margin:14px 0;font-size:14px}.resumo b{color:#7C3AED;font-size:20px}
+    @media print{body{margin:0}}</style></head><body>
+    <h1>📄 Relatório de Leads — ALL IN</h1>
+    <div class="sub">Social Seller: <b>${userName}</b> &nbsp;•&nbsp; Período: <b>${monthKey}</b> &nbsp;•&nbsp; Gerado em ${new Date().toLocaleDateString('pt-BR')}</div>
+    <div class="resumo"><div>Total de leads: <b>${totalLeads}</b></div><div>Contratos fechados: <b>${totalFech}</b></div></div>
+    <table><thead><tr><th>Lead</th><th>Contato</th><th>Data</th><th>Situação</th></tr></thead><tbody>${rows}</tbody></table>
+    <p style="margin-top:24px;color:#999;font-size:11px">ALL IN — Posicionamento e Desenvolvimento • Documento gerado pelo sistema</p>
+    <script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>`;
+  const w=window.open('','_blank');
+  if(!w){toast('Permita pop-ups para exportar o PDF');return;}
+  w.document.write(html);w.document.close();
+}
 function toggleMonthlyReport(cid,mk,done){const c=D.clients.find(c=>c.id===cid);if(!c.monthlyReports[mk])c.monthlyReports[mk]={done:false,file:null,link:''};c.monthlyReports[mk].done=done;save();render();}
 function updateWeeklyLeads(cid,wk,v){const c=D.clients.find(c=>c.id===cid);if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,file:null,link:''};save();}
 
@@ -3325,10 +3381,6 @@ function openProspectModal(cid, pid){
         <div class="fg"><label>Localização</label><input id="pm-loc" value="${v.location}" placeholder="São Paulo, SP"></div>
         <div class="fg"><label>Telefone</label><input id="pm-phone" value="${v.phone}" placeholder="+55 11 99999-9999"></div>
         <div class="fg"><label>Email</label><input id="pm-email" value="${v.email}" placeholder="email@exemplo.com"></div>
-        <div class="fg" style="display:flex;align-items:center;gap:8px;padding-top:20px">
-          <input type="checkbox" id="pm-sent" ${v.sentMessage?'checked':''} style="width:16px;height:16px">
-          <label for="pm-sent" style="margin:0;cursor:pointer">Enviou mensagem?</label>
-        </div>
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E5E7EB">🤝 Follow-up (Cliente preenche no portal)</div>
       <div class="fgrid3" style="margin-bottom:16px">
@@ -3378,7 +3430,7 @@ function saveProspect(cid,pid){
     location:$('pm-loc').value,
     phone:$('pm-phone').value,
     email:$('pm-email').value,
-    sentMessage:$('pm-sent').checked,
+    sentMessage:(idx>=0&&c.prospects[idx]?c.prospects[idx].sentMessage:false),
     replied:$('pm-rep').checked,
     scheduledMeeting:$('pm-sch').checked,
     hadMeeting:$('pm-met').checked,
@@ -3496,6 +3548,46 @@ function genClientLink(cid){
         </div>
         <div style="padding:12px;background:#F9FAFB;border-radius:8px;border-left:3px solid var(--primary);font-size:12px">
           <strong>💡 Dica:</strong> O cliente verá apenas suas informações, entregas e artes para aprovação. Envie este link por WhatsApp ou e-mail.
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+
+function compartilharAcesso(cid){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c)return;
+  const base=window.location.origin+window.location.pathname;
+  const linkDireto=base+'#portal/'+c.token;
+  const loginUrl=base+'#portal';
+  const senha=(c.cnpj&&c.cnpj.trim())?c.cnpj:(c.birthday||'(preencher CPF na aba Contrato)');
+  const first=c.name.split(' ')[0];
+  const msg='Olá, '+first+'! 🎉 Seu portal exclusivo da ALL IN está pronto. Acesse e acompanhe suas entregas, resultados e reuniões:\n\n🔗 '+linkDireto+'\n\nOu entre em '+loginUrl+' com:\n📧 E-mail: '+(c.email||'(seu e-mail)')+'\n🔑 Senha: '+senha+' (seu CPF/CNPJ, só os números)\n\nQualquer dúvida, estou à disposição! 💙';
+  const fone=(c.phone||'').replace(/\D/g,'');
+  const wa=fone?('https://wa.me/'+(fone.length<=11?'55'+fone:fone)+'?text='+encodeURIComponent(msg)):'';
+  const html=`<div class="overlay" id="acc-overlay" onclick="if(event.target===this)document.getElementById('acc-overlay').remove()">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-hd"><h3>📲 Enviar acesso ao portal — ${c.name.split(' ').slice(0,2).join(' ')}</h3><button class="btn btn-o btn-s" onclick="document.getElementById('acc-overlay').remove()">✕</button></div>
+      <div class="modal-body">
+        <div style="margin-bottom:14px">
+          <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">🔗 Link direto (cliente entra sem senha)</label>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <input type="text" value="${linkDireto}" readonly style="flex:1;padding:9px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:#F9FAFB">
+            <button class="btn btn-o btn-s" onclick="navigator.clipboard.writeText('${linkDireto}');toast('✅ Link copiado!')">📋</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:14px">
+          <div style="flex:1"><label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">📧 E-mail</label><div style="font-size:13px;margin-top:4px;word-break:break-all">${c.email||'<span style=\"color:#DC2626\">sem e-mail</span>'}</div></div>
+          <div style="flex:1"><label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">🔑 Senha (CPF/CNPJ)</label><div style="font-size:13px;margin-top:4px;font-weight:600">${senha}</div></div>
+        </div>
+        <div style="margin-bottom:14px">
+          <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">💬 Mensagem pronta</label>
+          <textarea id="acc-msg" readonly style="width:100%;min-height:130px;margin-top:4px;padding:9px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical">${msg}</textarea>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-o" style="flex:1" onclick="navigator.clipboard.writeText(document.getElementById('acc-msg').value);toast('✅ Mensagem copiada!')">📋 Copiar mensagem</button>
+          ${wa?`<a class="btn btn-p" style="flex:1;text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center" href="${wa}" target="_blank" rel="noopener">📲 Abrir no WhatsApp</a>`:'<button class="btn btn-p" style="flex:1" disabled title="Cadastre o telefone do cliente">📲 WhatsApp (sem telefone)</button>'}
         </div>
       </div>
     </div>
