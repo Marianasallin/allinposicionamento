@@ -756,52 +756,7 @@ if(!localStorage.getItem('allin_migv3')){
   localStorage.setItem('allin_migv3','1');
 }
 
-// MIGRATION v5 — prospects de TESTE para Leticia Petean (remover depois pelo botão 🗑️)
-if(!localStorage.getItem('allin_migv5')){
-  const _lp=D.clients.find(c=>c.name==='Leticia Petean');
-  if(_lp&&(!_lp.prospects||_lp.prospects.length===0)){
-    _lp.prospects=[
-      {id:'test_p1',date:'2026-06-01',conductedBy:'Iasmim Flávia Marques Soares',linkedinUrl:'https://www.linkedin.com/in/exemplo1',name:'Carlos Eduardo Lima',role:'Diretor Comercial',location:'São Paulo, SP',phone:'+55 11 99999-1111',email:'carlos@empresa.com.br',sentMessage:true,replied:false,scheduledMeeting:false,hadMeeting:false,followUp1:'',followUp2:'',followUp3:'',contractClosed:false,contractValue:'',reasonNotClosed:'',notes:''},
-      {id:'test_p2',date:'2026-06-03',conductedBy:'Iasmim Flávia Marques Soares',linkedinUrl:'https://www.linkedin.com/in/exemplo2',name:'Ana Paula Rodrigues',role:'CEO',location:'Belo Horizonte, MG',phone:'+55 31 98888-2222',email:'ana@negocio.com.br',sentMessage:true,replied:true,scheduledMeeting:true,hadMeeting:false,followUp1:'',followUp2:'',followUp3:'',contractClosed:false,contractValue:'',reasonNotClosed:'',notes:'Muito interessada, aguardando agenda'},
-      {id:'test_p3',date:'2026-05-20',conductedBy:'Iasmim Flávia Marques Soares',linkedinUrl:'https://www.linkedin.com/in/exemplo3',name:'Roberto Alves Santos',role:'Fundador',location:'Rio de Janeiro, RJ',phone:'+55 21 97777-3333',email:'roberto@startup.io',sentMessage:true,replied:true,scheduledMeeting:true,hadMeeting:true,followUp1:'2026-05-25',followUp2:'',followUp3:'',contractClosed:true,contractValue:'2500',reasonNotClosed:'',notes:'Fechou contrato em 25/05'}
-    ];
-    save();
-  }
-  localStorage.setItem('allin_migv5','1');
-}
-
-// FORCE MIGRATION v4 — sincroniza encontros e resultados do localhost para o site
-if(!localStorage.getItem('allin_migv4')){
-  const _encData={
-    'Leticia Petean':{
-      encounters:[
-        {id:'enc1',date:'2026-05-10',description:'Apresentação da jornada IC, alinhamento de expectativas e revisão do perfil LinkedIn. Decidimos priorizar conexões no setor financeiro nas próximas semanas.',attendees:['Mariana Souza','Iasmim Flávia Marques Soares'],transcriptionLink:'https://docs.google.com/encontro1-transcricao',recordingLink:'https://drive.google.com/encontro1-gravacao',attachments:[],notes:'Cliente muito engajada. Próximo encontro em 2 semanas.'},
-        {id:'enc2',date:'2026-05-24',description:'Revisão do Play Book de Vendas e validação do ICP. Aprovamos os scripts de abordagem para conexão fria.',attendees:['Iasmim Flávia Marques Soares'],transcriptionLink:'https://docs.google.com/encontro2-transcricao',recordingLink:'',attachments:[],notes:''}
-      ],
-      results:[
-        {id:'r4',month:'Maio 2026',prospects:87,leads:34,meetings:12,sales:3},
-        {id:'r3',month:'Abril 2026',prospects:72,leads:28,meetings:9,sales:2},
-        {id:'r2',month:'Março 2026',prospects:61,leads:21,meetings:7,sales:1},
-        {id:'r1',month:'Fevereiro 2026',prospects:45,leads:15,meetings:5,sales:1}
-      ]
-    }
-  };
-  D.clients.forEach(c=>{
-    const p=_encData[c.name];
-    if(!p)return;
-    if(p.encounters&&p.encounters.length){
-      if(!c.encounters)c.encounters={list:[]};
-      if(!c.encounters.list)c.encounters.list=[];
-      // Only add if list is empty (don't overwrite real data)
-      if(c.encounters.list.length===0)c.encounters.list=p.encounters;
-    }
-    if(p.results&&p.results.length){
-      if(!c.results||c.results.length===0)c.results=p.results;
-    }
-  });
-  save();
-  localStorage.setItem('allin_migv4','1');
-}
+// (Migrações migv5/migv4 de dados fictícios da Leticia removidas — eram só dados de demonstração)
 
 // MIGRATE TEAM - Ensure Mariana and Naiara exist
 if(!D.team.find(m=>m.id==='mariana-souza')){
@@ -920,7 +875,7 @@ function rDashProspeccao(){
     }).join('');
     return'<div class="card" style="margin-top:20px;margin-bottom:20px">'
       +'<div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA)">'
-      +'<h3 style="color:white;margin:0">🎯 Prospecção — '+monthLabel+'</h3></div>'
+      +'<h3 style="color:white;margin:0">🎯 Leads — '+monthLabel+'</h3></div>'
       +'<div class="tw"><table><thead><tr><th>Social Seller</th><th>Este Mês</th><th>Total</th><th>Reuniões</th><th>Fechamentos</th><th>Conversão</th></tr></thead>'
       +'<tbody>'+tbody+'</tbody></table></div></div>';
   }catch(e){return'';}
@@ -1253,20 +1208,20 @@ function rDetailResultados(c){
         +'<td style="font-size:12px;color:#16A34A;font-weight:600">'+revStr+'</td>'
         +'</tr>';
     }).join('');
-    const emptyMsg='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Nenhum prospect cadastrado ainda.<br><small>Adicione prospects na aba 🎯 Prospecção para ver os resultados aqui.</small></td></tr>';
+    const emptyMsg='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Nenhum lead cadastrado ainda.<br><small>Adicione leads na aba 🎯 Leads para ver os resultados aqui.</small></td></tr>';
     const revenueTotal=totR>0?'<div class="res-card"><div class="res-num" style="color:#057642">R$ '+totR.toLocaleString('pt-BR')+'</div><div class="res-lbl">Receita Total</div></div>':'';
     return '<div class="stats-grid" style="grid-template-columns:repeat('+( totR>0?5:4)+',1fr);margin-bottom:20px">'
-      +'<div class="res-card"><div class="res-num" style="color:#0077B5">'+totP+'</div><div class="res-lbl">Prospectos</div></div>'
-      +'<div class="res-card"><div class="res-num" style="color:#7C3AED">'+totL+'</div><div class="res-lbl">Leads (Responderam)</div></div>'
+      +'<div class="res-card"><div class="res-num" style="color:#0077B5">'+totP+'</div><div class="res-lbl">Leads</div></div>'
+      +'<div class="res-card"><div class="res-num" style="color:#7C3AED">'+totL+'</div><div class="res-lbl">Responderam</div></div>'
       +'<div class="res-card"><div class="res-num" style="color:#E8622A">'+totM+'</div><div class="res-lbl">Reuniões</div></div>'
       +'<div class="res-card"><div class="res-num" style="color:#16A34A">'+totS+' <span style="font-size:14px">('+convRate+'%)</span></div><div class="res-lbl">Fechamentos</div></div>'
       +revenueTotal
       +'</div>'
       +'<div class="card">'
       +'<div class="ch"><h3>📈 Resultados por Mês</h3>'
-      +'<span style="font-size:11px;color:var(--muted);font-style:italic">Calculado automaticamente da Prospecção 🔄</span></div>'
+      +'<span style="font-size:11px;color:var(--muted);font-style:italic">Calculado automaticamente dos Leads 🔄</span></div>'
       +'<div class="tw"><table>'
-      +'<thead><tr><th>Mês</th><th style="text-align:center">Prospectos</th><th style="text-align:center">Leads</th><th style="text-align:center">Reuniões</th><th style="text-align:center">Fechamentos</th><th>Receita</th></tr></thead>'
+      +'<thead><tr><th>Mês</th><th style="text-align:center">Leads</th><th style="text-align:center">Responderam</th><th style="text-align:center">Reuniões</th><th style="text-align:center">Fechamentos</th><th>Receita</th></tr></thead>'
       +'<tbody>'+(months.length?rows:emptyMsg)+'</tbody>'
       +'</table></div></div>';
   }catch(e){return '<div class="card"><div class="cb"><p style="color:red">Erro: '+e.message+'</p></div></div>';}
@@ -1304,11 +1259,11 @@ function rDetailProspeccao(c){
         +'</td></tr>';
     }).join('');
     const tableHtml=pros.length===0
-      ?'<div style="text-align:center;padding:40px;color:var(--muted)">Nenhum prospect ainda. Clique em "+ Adicionar Prospect".</div>'
+      ?'<div style="text-align:center;padding:40px;color:var(--muted)">Nenhum lead ainda. Clique em "+ Adicionar Lead".</div>'
       :'<div class="tw"><table><thead><tr><th>Data</th><th>Nome</th><th>Cargo</th><th>LinkedIn</th><th>Condutor</th><th>Msg</th><th>Resp.</th><th>Reunião</th><th>Fechou</th><th>Valor</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
     return '<div class="card">'
-      +'<div class="ch"><h3>🎯 Prospecção</h3>'
-      +'<button class="btn btn-p btn-s" onclick="openProspectModal(\''+cid+'\',null)">+ Adicionar Prospect</button></div>'
+      +'<div class="ch"><h3>🎯 Leads</h3>'
+      +'<button class="btn btn-p btn-s" onclick="openProspectModal(\''+cid+'\',null)">+ Adicionar Lead</button></div>'
       +'<div class="cb">'
       +'<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">'
       +'<div class="stat-card"><div class="stat-val" style="color:var(--primary)">'+pros.length+'</div><div class="stat-label">Total</div></div>'
@@ -1321,7 +1276,7 @@ function rDetailProspeccao(c){
 function rDetail(){
   const c=getC();if(!c)return'';
   const p=prog(c);
-  const tabs={entregas:'📦 Entregas',prospeccao:'🎯 Prospecção',conteudo:'📅 Conteúdo Mensal',encontros:'🤝 Encontros',artes:'📱 Artes',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
+  const tabs={entregas:'📦 Entregas',prospeccao:'🎯 Leads',conteudo:'📅 Conteúdo Mensal',encontros:'🤝 Encontros',artes:'📱 Artes',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
   const tabHtml=Object.entries(tabs).map(([k,v])=>`<div class="tab ${S.tab===k?'active':''}" onclick="S.tab='${k}';render()">${v}</div>`).join('');
   const statusMap={ativo:'pill-ativo',vencido:'pill-vencido',finalizado:'pill-finalizado'};
   let body='';
@@ -1574,7 +1529,7 @@ function rDetail(){
 
     body=`<div style="margin-bottom:24px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Resumo do Seu Mês</h3>
     <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);gap:12px">
-      <div class="stat"><div class="stat-num" style="color:#5B6EFF">${latestMonth.prospects||0}</div><div class="stat-lbl">Prospecções</div></div>
+      <div class="stat"><div class="stat-num" style="color:#5B6EFF">${latestMonth.prospects||0}</div><div class="stat-lbl">Leads</div></div>
       <div class="stat"><div class="stat-num" style="color:#A855F7">${latestMonth.meetings||0}</div><div class="stat-lbl">Reuniões</div></div>
       <div class="stat"><div class="stat-num" style="color:#10B981">${latestMonth.sales||0}</div><div class="stat-lbl">Vendas</div></div>
       <div class="stat"><div class="stat-num" style="color:#F59E0B">R$ ${(latestMonth.sales||0)*5000}</div><div class="stat-lbl">Faturamento Est.</div></div>
@@ -1885,13 +1840,13 @@ function rWeeklyPending(){
         </div>
         <div style="display:flex;gap:16px;align-items:center">
           <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:${semDone===myClients.length?'#16A34A':'#D97706'}">${semDone}/${myClients.length}</div><div style="font-size:10px;color:var(--muted)">Semanais</div></div>
-          <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#3B82F6">${leads}</div><div style="font-size:10px;color:var(--muted)">Prospects</div></div>
+          <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#3B82F6">${leads}</div><div style="font-size:10px;color:var(--muted)">Leads</div></div>
           <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:${menDone===myClients.length?'#16A34A':'#D97706'}">${menDone}/${myClients.length}</div><div style="font-size:10px;color:var(--muted)">Mensais</div></div>
           <span style="padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600;background:${allOk?'#DCFCE7':'#FEF3C7'};color:${allOk?'#16A34A':'#D97706'}">${allOk?'✅ Em dia':'⚠️ Pendências'}</span>
         </div>
       </div>
       <div class="tw"><table>
-        <thead><tr><th>Cliente</th><th>Rel. Semanal</th><th>Prospects</th><th>Rel. Mensal</th><th>Contínuos</th></tr></thead>
+        <thead><tr><th>Cliente</th><th>Rel. Semanal</th><th>Leads</th><th>Rel. Mensal</th><th>Contínuos</th></tr></thead>
         <tbody>
           ${myClients.map(c=>{
             const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,file:null,link:''};
@@ -1977,7 +1932,7 @@ function rFunc(){
           </div>
           <div style="background:#F9FAFB;border-radius:8px;padding:10px;text-align:center">
             <div style="font-size:22px;font-weight:800;color:#3B82F6">${leads}</div>
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Prospects semana</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Leads semana</div>
           </div>
         </div>
         ${gpClients.length?`
@@ -2107,9 +2062,9 @@ function rMinhaSemanaGestao(user){
     // Stats rápidos
     +'<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">'
     +'<div class="stat-card"><div class="stat-val" style="color:var(--primary)">'+ativos.length+'</div><div class="stat-label">Clientes Ativos</div></div>'
-    +'<div class="stat-card"><div class="stat-val" style="color:#16A34A">'+allPros.length+'</div><div class="stat-label">Prospects este mês</div></div>'
+    +'<div class="stat-card"><div class="stat-val" style="color:#16A34A">'+allPros.length+'</div><div class="stat-label">Leads este mês</div></div>'
     +'<div class="stat-card"><div class="stat-val" style="color:#7C3AED">'+fClosed+'</div><div class="stat-label">Fechamentos ('+convRate+'%)</div></div>'
-    +'<div class="stat-card"><div class="stat-val" style="color:#057642">'+(revenue>0?'R$ '+revenue.toLocaleString('pt-BR'):'R$ 0')+'</div><div class="stat-label">Receita (prospecção)</div></div>'
+    +'<div class="stat-card"><div class="stat-val" style="color:#057642">'+(revenue>0?'R$ '+revenue.toLocaleString('pt-BR'):'R$ 0')+'</div><div class="stat-label">Receita (leads)</div></div>'
     +'</div>'
 
     // Tarefas (topo)
@@ -2124,16 +2079,16 @@ function rMinhaSemanaGestao(user){
     +'<div class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8)">'
     +'<h3 style="color:white;margin:0">👥 Performance da Equipe — Sexta '+wkLabel+'</h3></div>'
     +'<div class="tw"><table>'
-    +'<thead><tr><th>Social Seller</th><th style="text-align:center">Rel. Semanais</th><th style="text-align:center">Novos Prospects</th><th style="text-align:center">Rel. Mensal</th></tr></thead>'
+    +'<thead><tr><th>Social Seller</th><th style="text-align:center">Rel. Semanais</th><th style="text-align:center">Novos Leads</th><th style="text-align:center">Rel. Mensal</th></tr></thead>'
     +'<tbody>'+teamRows+'</tbody></table></div></div>'
 
     // Funil do mês
     +'<div class="card" style="margin-bottom:20px">'
     +'<div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA)">'
-    +'<h3 style="color:white;margin:0">🎯 Funil de Prospecção — '+mk+'</h3></div>'
+    +'<h3 style="color:white;margin:0">🎯 Funil de Leads — '+mk+'</h3></div>'
     +'<div class="cb">'
     +(allPros.length?('<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;text-align:center">'
-    +'<div><div style="font-size:28px;font-weight:800;color:#0077B5">'+allPros.length+'</div><div style="font-size:11px;color:var(--muted)">📩 Prospectados</div></div>'
+    +'<div><div style="font-size:28px;font-weight:800;color:#0077B5">'+allPros.length+'</div><div style="font-size:11px;color:var(--muted)">📩 Leads</div></div>'
     +'<div style="display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--muted)">→</div>'
     +'<div><div style="font-size:28px;font-weight:800;color:#7C3AED">'+fRep+'</div><div style="font-size:11px;color:var(--muted)">💬 Responderam</div></div>'
     +'<div style="display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--muted)">→</div>'
@@ -2145,7 +2100,7 @@ function rMinhaSemanaGestao(user){
     +'<div style="font-size:12px;color:#16A34A;font-weight:600">✅ Fechamentos ('+convRate+'% conversão)</div>'
     +(revenue>0?'<div style="font-size:14px;font-weight:700;color:#057642;margin-top:4px">R$ '+revenue.toLocaleString('pt-BR')+'</div>':'')
     +'</div>')
-    :('<div style="text-align:center;padding:24px 16px;color:var(--muted);font-size:13px">📭 Nenhum prospect cadastrado em '+mk+' ainda.<br><span style="font-size:12px">Este funil preenche <strong>automaticamente</strong> conforme a equipe cadastra os prospects na aba <strong>Prospecção</strong> de cada cliente. Não precisa preencher aqui.</span></div>'))
+    :('<div style="text-align:center;padding:24px 16px;color:var(--muted);font-size:13px">📭 Nenhum lead cadastrado em '+mk+' ainda.<br><span style="font-size:12px">Este funil preenche <strong>automaticamente</strong> conforme a equipe cadastra os leads na aba <strong>🎯 Leads</strong> de cada cliente. Não precisa preencher aqui.</span></div>'))
     +'</div></div>'
 
     // Alertas
@@ -2594,7 +2549,7 @@ function rTeam(){
           </div>
           ${isContent?'':`<div style="background:#F9FAFB;border-radius:8px;padding:10px;text-align:center">
             <div style="font-size:22px;font-weight:800;color:#3B82F6">${prospects}</div>
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Prospects sem.</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Leads sem.</div>
           </div>`}
         </div>
         ${!isContent&&gpClients.length?`
@@ -3134,7 +3089,7 @@ function openResultModal(cid){
       <div class="modal-body">
         <div class="fgrid">
           <div class="fg" style="grid-column:1/-1"><label>Mês de Referência *</label><input id="rm-month" placeholder="Ex: Maio 2026"></div>
-          <div class="fg"><label>Prospecções Enviadas</label><input id="rm-prospects" type="number" min="0" value="0"></div>
+          <div class="fg"><label>Leads gerados</label><input id="rm-prospects" type="number" min="0" value="0"></div>
           <div class="fg"><label>Leads Gerados</label><input id="rm-leads" type="number" min="0" value="0"></div>
           <div class="fg"><label>Reuniões Realizadas</label><input id="rm-meetings" type="number" min="0" value="0"></div>
           <div class="fg"><label>Vendas / Fechamentos</label><input id="rm-sales" type="number" min="0" value="0"></div>
@@ -3398,11 +3353,11 @@ function openProspectModal(cid, pid){
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
   overlay.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:720px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="background:linear-gradient(135deg,#0D3D9B,#1d4ed8);padding:20px 24px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between">
-      <h3 style="margin:0;color:white;font-size:16px">${isEdit?'✏️ Editar Prospect':'🎯 Novo Prospect'} — ${c.name.split(' ')[0]}</h3>
+      <h3 style="margin:0;color:white;font-size:16px">${isEdit?'✏️ Editar Lead':'🎯 Novo Lead'} — ${c.name.split(' ')[0]}</h3>
       <button onclick="document.getElementById('pm-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
     </div>
     <div style="padding:24px">
-      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E5E7EB">📋 Dados do Prospect (Social Seller preenche)</div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E5E7EB">📋 Dados do Lead (Social Seller preenche)</div>
       <div class="fgrid3" style="margin-bottom:16px">
         <div class="fg"><label>Data *</label><input type="date" id="pm-date" value="${v.date}"></div>
         <div class="fg"><label>Conduzido por</label><input id="pm-by" value="${v.conductedBy}" placeholder="Nome da SS"></div>
@@ -3440,7 +3395,7 @@ function openProspectModal(cid, pid){
       <div class="fg" style="margin-bottom:20px"><label>Observações</label><textarea id="pm-obs" rows="2" style="width:100%;resize:vertical">${v.notes||''}</textarea></div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button class="btn btn-o" onclick="document.getElementById('pm-overlay').remove()">Cancelar</button>
-        <button class="btn btn-p" onclick="saveProspect('${cid}','${v.id}')">💾 Salvar Prospect</button>
+        <button class="btn btn-p" onclick="saveProspect('${cid}','${v.id}')">💾 Salvar Lead</button>
       </div>
     </div>
   </div>`;
@@ -3477,14 +3432,14 @@ function saveProspect(cid,pid){
   if(idx>=0)c.prospects[idx]=p;else c.prospects.push(p);
   save();
   document.getElementById('pm-overlay').remove();
-  toast('✅ Prospect salvo!');
+  toast('✅ Lead salvo!');
   render();
 }
 function deleteProspect(cid,pid){
   if(!confirm('Remover este prospect?'))return;
   const c=D.clients.find(c=>c.id===cid);
   c.prospects=(c.prospects||[]).filter(p=>p.id!==pid);
-  save();toast('🗑️ Prospect removido');render();
+  save();toast('🗑️ Lead removido');render();
 }
 
 // ────────────────────────────────────────────────────────────
@@ -4005,7 +3960,7 @@ function rClientViewExternal(){
 
     <div style="margin-bottom:32px"><h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">📊 Resumo do Seu Mês</h3>
     <div class="grid4" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
-      <div class="stat"><div class="stat-num" style="color:#5B6EFF">${latestMonth.prospects||0}</div><div class="stat-lbl">Prospecções</div></div>
+      <div class="stat"><div class="stat-num" style="color:#5B6EFF">${latestMonth.prospects||0}</div><div class="stat-lbl">Leads</div></div>
       <div class="stat"><div class="stat-num" style="color:#A855F7">${latestMonth.meetings||0}</div><div class="stat-lbl">Reuniões</div></div>
       <div class="stat"><div class="stat-num" style="color:#10B981">${latestMonth.sales||0}</div><div class="stat-lbl">Vendas</div></div>
       <div class="stat"><div class="stat-num" style="color:#F59E0B">R$ ${(latestMonth.sales||0)*5000}</div><div class="stat-lbl">Faturamento Est.</div></div>
@@ -4277,12 +4232,12 @@ function rPortalDashboard(c){
       <div class="portal-metric">
         <div class="portal-metric-header"><div class="portal-metric-icon">👥</div>${trend(sel.prospects||0,prev&&prev.prospects)}</div>
         <div class="portal-metric-number">${sel.prospects||0}</div>
-        <div class="portal-metric-label">Prospecções</div>
+        <div class="portal-metric-label">Leads</div>
       </div>
       <div class="portal-metric">
         <div class="portal-metric-header"><div class="portal-metric-icon">🎯</div>${trend(sel.leads||0,prev&&prev.leads)}</div>
         <div class="portal-metric-number">${sel.leads||0}</div>
-        <div class="portal-metric-label">Leads</div>
+        <div class="portal-metric-label">Responderam</div>
       </div>
       <div class="portal-metric">
         <div class="portal-metric-header"><div class="portal-metric-icon">🤝</div>${trend(sel.meetings||0,prev&&prev.meetings)}</div>
@@ -4470,6 +4425,12 @@ function portalUpdateProspect(cid,pid,field,value){
   p[field]=value;
   save();
   toast('✅ Salvo!');
+  // Campos de status mudam o layout do card (badge, caixa de valor ao fechar contrato) → re-renderiza preservando o scroll
+  if(field==='contractClosed'||field==='replied'||field==='hadMeeting'||field==='scheduledMeeting'||field==='sentMessage'){
+    const _sy=window.scrollY;
+    render();
+    window.scrollTo(0,_sy);
+  }
 }
 
 function rPortalReunioes(c){
@@ -4522,14 +4483,14 @@ function rPortalRelatorios(c){
       +(prv?'<div style="font-size:11px;color:#64748B;margin-top:2px">vs '+prv.month+'</div>':'<div style="font-size:11px;color:#94A3B8;margin-top:2px">primeiro mês</div>')
       +'</div>'+(isMost?'<span style="font-size:11px;background:#EFF6FF;color:#0D3D9B;padding:4px 10px;border-radius:99px;font-weight:600">✨ Mais recente</span>':'')+'</div>'
       +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">'
-      +'<div style="text-align:center;padding:12px;background:#F8FAFF;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#0D3D9B">'+r.prospects+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">👥 Prospectos</div>'+trend(r.prospects,prv&&prv.prospects)+'</div>'
-      +'<div style="text-align:center;padding:12px;background:#F5F3FF;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#7C3AED">'+r.leads+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">💬 Leads</div>'+trend(r.leads,prv&&prv.leads)+'</div>'
+      +'<div style="text-align:center;padding:12px;background:#F8FAFF;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#0D3D9B">'+r.prospects+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">👥 Leads</div>'+trend(r.prospects,prv&&prv.prospects)+'</div>'
+      +'<div style="text-align:center;padding:12px;background:#F5F3FF;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#7C3AED">'+r.leads+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">💬 Responderam</div>'+trend(r.leads,prv&&prv.leads)+'</div>'
       +'<div style="text-align:center;padding:12px;background:#FFF7ED;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#EA580C">'+r.meetings+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">🤝 Reuniões</div>'+trend(r.meetings,prv&&prv.meetings)+'</div>'
       +'<div style="text-align:center;padding:12px;background:#F0FDF4;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#16A34A">'+r.sales+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">✅ Fechamentos</div>'+trend(r.sales,prv&&prv.sales)+'</div>'
       +'</div>'+revStr+'</div>';
   }).join('');
   const empty='<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhum resultado ainda.<br><small>Os resultados aparecerão automaticamente conforme os prospects forem atualizados.</small></div>';
-  return '<div class="portal-hero" style="margin-bottom:24px"><div><h1>📈 Resultados</h1><p>Calculado automaticamente da prospecção — '+months.length+' mês(es)</p></div></div>'
+  return '<div class="portal-hero" style="margin-bottom:24px"><div><h1>📈 Resultados</h1><p>Calculado automaticamente dos leads — '+months.length+' mês(es)</p></div></div>'
     +'<div style="display:flex;flex-direction:column;gap:16px">'+(months.length?cards:empty)+'</div>';
 }
 
