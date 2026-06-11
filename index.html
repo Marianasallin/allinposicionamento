@@ -2824,17 +2824,40 @@ function deleteTask(taskId){
   D.assignedTasks=D.assignedTasks.filter(t=>t.id!==taskId);
   save();render();
 }
+function goToTaskWeek(weekKey){
+  const d=new Date(weekKey+'T12:00:00');
+  if(!isNaN(d)){const mk=getMonthKey(d);S.minhaSemanaFilterMonth=mk;S.gestaoFilterMonth=mk;}
+  S.minhaSemanaWk=weekKey;S.gestaoWk=weekKey;
+  render();
+}
 function renderTasksSection(user,wk){
   const myTasks=D.assignedTasks.filter(t=>t.assignedToId===user.id&&t.weekKey===wk);
   const myCreated=D.assignedTasks.filter(t=>t.createdById===user.id&&t.weekKey===wk);
   const pendingCount=myTasks.filter(t=>!t.done).length;
   const createdPendingCount=myCreated.filter(t=>!t.done).length;
+  // Tarefas pendentes em OUTRAS semanas (atribuídas a mim ou criadas por mim) — para nada se perder
+  const otherPending=D.assignedTasks.filter(t=>(t.assignedToId===user.id||t.createdById===user.id)&&!t.done&&t.weekKey!==wk);
+  const otherHtml=otherPending.length?`
+    <div style="margin:0 16px 12px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px">
+      <div style="font-size:11px;font-weight:700;color:#B45309;margin-bottom:6px">📌 Você tem ${otherPending.length} tarefa${otherPending.length!==1?'s':''} pendente${otherPending.length!==1?'s':''} em outra${otherPending.length!==1?'s':''} semana${otherPending.length!==1?'s':''}:</div>
+      ${otherPending.map(t=>{
+        const d=new Date(t.weekKey+'T12:00:00');
+        const lbl=isNaN(d)?t.weekKey:'semana de '+d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+        const who=t.assignedToId===user.id?('De: '+(t.createdBy||'').split(' ')[0]):('Para: '+(t.assignedTo||'').split(' ')[0]);
+        return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid #FEF3C7">
+          <div style="flex:1;min-width:0"><div style="font-size:12px;color:#1F2937">${t.description}</div>
+          <div style="font-size:10px;color:#92400E">${who} · 📅 ${lbl}</div></div>
+          <button class="btn btn-o btn-s" onclick="goToTaskWeek('${t.weekKey}')" style="font-size:10px;white-space:nowrap;border-color:#F59E0B;color:#B45309">ver →</button>
+        </div>`;
+      }).join('')}
+    </div>`:'';
   return`<div class="card" style="margin-bottom:20px">
     <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9)">
       <div><h3 style="margin:0;color:white">📌 Tarefas Atribuídas</h3>
       <span style="font-size:12px;color:rgba(255,255,255,.85)">${pendingCount} pendente${pendingCount!==1?'s':''} para você esta semana</span></div>
       <button class="btn btn-s" onclick="openTaskModal('${wk}')" style="background:white;color:#0891B2;font-weight:700">+ Nova Tarefa</button>
     </div>
+    ${otherHtml?`<div style="padding-top:12px">${otherHtml}</div>`:''}
     <div style="padding:0">
       ${myTasks.length?myTasks.map(t=>`
         <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #F3F4F6;background:${t.done?'#F9FAFB':'white'}">
