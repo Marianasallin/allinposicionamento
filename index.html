@@ -2851,6 +2851,8 @@ function renderTasksSection(user){
   const myCreated=D.assignedTasks.filter(t=>t.createdById===user.id).slice().sort(_taskSort);
   const pendingCount=myTasks.filter(t=>!t.done).length;
   const createdPendingCount=myCreated.filter(t=>!t.done).length;
+  // CEO/Gestão já veem o que atribuíram no painel "Tarefas da Equipe" — evita duplicar aqui
+  const hideCreated=(user.role==='CEO'||user.role==='Gestão');
   return`<div class="card" style="margin-bottom:20px">
     <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9)">
       <div><h3 style="margin:0;color:white">📌 Tarefas Atribuídas</h3>
@@ -2873,7 +2875,7 @@ function renderTasksSection(user){
         </div>`).join('')
       :`<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Nenhuma tarefa para você.</div>`}
     </div>
-    ${myCreated.length?`
+    ${(myCreated.length&&!hideCreated)?`
     <div style="border-top:2px solid #F3F4F6">
       <div style="padding:10px 16px;background:#F9FAFB;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Tarefas que você atribuiu (${createdPendingCount} pendente${createdPendingCount!==1?'s':''})</div>
       ${myCreated.map(t=>`
