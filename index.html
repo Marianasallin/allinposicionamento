@@ -2195,14 +2195,15 @@ function rLeadGoalEquipe(monthKey){
   </div>`;
 }
 
-function rTarefasEquipe(wk){
-  const allThisWk=D.assignedTasks.filter(t=>t.weekKey===wk);
-  if(!allThisWk.length)return'<div class="card"><div class="ch"><h3>👥 Tarefas da Equipe — esta semana</h3></div><div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Nenhuma tarefa atribuída para esta semana.</div></div>';
+function rTarefasEquipe(){
+  const allTasks=D.assignedTasks.slice();
+  if(!allTasks.length)return'<div class="card"><div class="ch"><h3>👥 Tarefas da Equipe</h3></div><div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Nenhuma tarefa atribuída ainda.</div></div>';
   const byPerson={};
-  allThisWk.forEach(t=>{
+  allTasks.forEach(t=>{
     if(!byPerson[t.assignedTo])byPerson[t.assignedTo]={name:t.assignedTo,tasks:[]};
     byPerson[t.assignedTo].tasks.push(t);
   });
+  Object.values(byPerson).forEach(p=>p.tasks.sort(_taskSort));
   const rows=Object.values(byPerson).map(p=>{
     const done=p.tasks.filter(t=>t.done).length;
     const total=p.tasks.length;
@@ -2222,16 +2223,16 @@ function rTarefasEquipe(wk){
           +(t.comment?'<div style="font-size:11px;color:#0891B2;margin-top:2px">💬 '+t.comment+'</div>':'')
           +'<div style="font-size:10px;color:var(--muted);margin-top:2px">Atribuída por: '+t.createdBy.split(' ')[0]+'</div>'
         +'</div>'
-        +'<span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:'+(t.done?'#DCFCE7':'#FEF3C7')+';color:'+(t.done?'#16A34A':'#D97706')+'">'+(t.done?'✅':'⏳')+'</span>'
+        +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:'+(t.done?'#DCFCE7':'#FEF3C7')+';color:'+(t.done?'#16A34A':'#D97706')+'">'+(t.done?'✅':'⏳')+'</span>'+taskDueBadge(t)+'</div>'
         +'<button onclick="deleteTask(\''+t.id+'\')" style="background:none;border:none;cursor:pointer;color:#EF4444;font-size:13px;padding:2px 4px" title="Remover">🗑</button>'
       +'</div>').join('')
     +'</div>';
   }).join('');
-  const totalPend=allThisWk.filter(t=>!t.done).length;
+  const totalPend=allTasks.filter(t=>!t.done).length;
   return'<div class="card">'
     +'<div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9)">'
     +'<h3 style="color:white;margin:0">👥 Tarefas da Equipe</h3>'
-    +'<span style="font-size:12px;color:rgba(255,255,255,.85)">'+totalPend+' pendente'+(totalPend!==1?'s':'')+' esta semana</span>'
+    +'<span style="font-size:12px;color:rgba(255,255,255,.85)">'+totalPend+' pendente'+(totalPend!==1?'s':'')+' no total</span>'
     +'</div>'
     +'<div>'+rows+'</div></div>';
 }
@@ -2794,11 +2795,11 @@ function toggleMonthlyReport(cid,mk,done){const c=D.clients.find(c=>c.id===cid);
 function updateWeeklyLeads(cid,wk,v){const c=D.clients.find(c=>c.id===cid);if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,file:null,link:''};save();}
 
 // ── TAREFAS ATRIBUÍDAS ──────────────────────────────────────
-function openTaskModal(weekKey){
+function openTaskModal(){
   const user=S.currentUser;if(!user)return;
   const members=D.team.filter(m=>m.id!==user.id);
   document.getElementById('task-modal').style.display='flex';
-  document.getElementById('task-wk').value=weekKey||thisWeekKey();
+  document.getElementById('task-due').value='';
   document.getElementById('task-to').innerHTML=members.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
   document.getElementById('task-desc').value='';
   document.getElementById('task-comment').value='';
@@ -2810,9 +2811,9 @@ function saveTask(){
   if(!desc)return alert('Descreva a tarefa.');
   const toId=document.getElementById('task-to').value;
   const toMember=D.team.find(m=>m.id===toId);if(!toMember)return;
-  const wk=document.getElementById('task-wk').value||thisWeekKey();
+  const due=document.getElementById('task-due').value||'';
   const comment=document.getElementById('task-comment').value.trim();
-  D.assignedTasks.push({id:'t'+Date.now(),description:desc,weekKey:wk,assignedTo:toMember.name,assignedToId:toId,createdBy:user.name,createdById:user.id,done:false,createdAt:new Date().toISOString(),comment});
+  D.assignedTasks.push({id:'t'+Date.now(),description:desc,dueDate:due,assignedTo:toMember.name,assignedToId:toId,createdBy:user.name,createdById:user.id,done:false,createdAt:new Date().toISOString(),comment});
   save();closeTaskModal();render();
 }
 function toggleTaskDone(taskId){
@@ -2824,40 +2825,38 @@ function deleteTask(taskId){
   D.assignedTasks=D.assignedTasks.filter(t=>t.id!==taskId);
   save();render();
 }
-function goToTaskWeek(weekKey){
-  const d=new Date(weekKey+'T12:00:00');
-  if(!isNaN(d)){const mk=getMonthKey(d);S.minhaSemanaFilterMonth=mk;S.gestaoFilterMonth=mk;}
-  S.minhaSemanaWk=weekKey;S.gestaoWk=weekKey;
-  render();
+// Badge de vencimento de uma tarefa (independente de semana)
+function taskDueBadge(t){
+  const due=t.dueDate||t.weekKey||'';
+  if(!due)return'';
+  const d=new Date(due+'T12:00:00');
+  if(isNaN(d))return'';
+  const dstr=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+  if(t.done)return`<span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:#F3F4F6;color:#6B7280">📅 ${dstr}</span>`;
+  const today=new Date();today.setHours(0,0,0,0);
+  const diff=Math.round((d-today)/(1000*60*60*24));
+  if(diff<0)return`<span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700;background:#FEE2E2;color:#DC2626">⚠️ venceu ${dstr}</span>`;
+  if(diff===0)return`<span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700;background:#FEF3C7;color:#D97706">🔔 vence hoje</span>`;
+  if(diff<=3)return`<span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700;background:#FEF3C7;color:#D97706">vence ${dstr}</span>`;
+  return`<span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:#EFF6FF;color:#2563EB">📅 vence ${dstr}</span>`;
 }
-function renderTasksSection(user,wk){
-  const myTasks=D.assignedTasks.filter(t=>t.assignedToId===user.id&&t.weekKey===wk);
-  const myCreated=D.assignedTasks.filter(t=>t.createdById===user.id&&t.weekKey===wk);
+function _taskSort(a,b){
+  if(!!a.done!==!!b.done)return a.done?1:-1; // pendentes primeiro
+  const da=a.dueDate||a.weekKey||'9999-99-99', db=b.dueDate||b.weekKey||'9999-99-99';
+  return da<db?-1:da>db?1:0; // por vencimento
+}
+function renderTasksSection(user){
+  // SEMPRE visível, independente de semana: mostra todas as tarefas (pendentes primeiro, por vencimento)
+  const myTasks=D.assignedTasks.filter(t=>t.assignedToId===user.id).slice().sort(_taskSort);
+  const myCreated=D.assignedTasks.filter(t=>t.createdById===user.id).slice().sort(_taskSort);
   const pendingCount=myTasks.filter(t=>!t.done).length;
   const createdPendingCount=myCreated.filter(t=>!t.done).length;
-  // Tarefas pendentes em OUTRAS semanas (atribuídas a mim ou criadas por mim) — para nada se perder
-  const otherPending=D.assignedTasks.filter(t=>(t.assignedToId===user.id||t.createdById===user.id)&&!t.done&&t.weekKey!==wk);
-  const otherHtml=otherPending.length?`
-    <div style="margin:0 16px 12px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px">
-      <div style="font-size:11px;font-weight:700;color:#B45309;margin-bottom:6px">📌 Você tem ${otherPending.length} tarefa${otherPending.length!==1?'s':''} pendente${otherPending.length!==1?'s':''} em outra${otherPending.length!==1?'s':''} semana${otherPending.length!==1?'s':''}:</div>
-      ${otherPending.map(t=>{
-        const d=new Date(t.weekKey+'T12:00:00');
-        const lbl=isNaN(d)?t.weekKey:'semana de '+d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-        const who=t.assignedToId===user.id?('De: '+(t.createdBy||'').split(' ')[0]):('Para: '+(t.assignedTo||'').split(' ')[0]);
-        return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid #FEF3C7">
-          <div style="flex:1;min-width:0"><div style="font-size:12px;color:#1F2937">${t.description}</div>
-          <div style="font-size:10px;color:#92400E">${who} · 📅 ${lbl}</div></div>
-          <button class="btn btn-o btn-s" onclick="goToTaskWeek('${t.weekKey}')" style="font-size:10px;white-space:nowrap;border-color:#F59E0B;color:#B45309">ver →</button>
-        </div>`;
-      }).join('')}
-    </div>`:'';
   return`<div class="card" style="margin-bottom:20px">
     <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9)">
       <div><h3 style="margin:0;color:white">📌 Tarefas Atribuídas</h3>
-      <span style="font-size:12px;color:rgba(255,255,255,.85)">${pendingCount} pendente${pendingCount!==1?'s':''} para você esta semana</span></div>
-      <button class="btn btn-s" onclick="openTaskModal('${wk}')" style="background:white;color:#0891B2;font-weight:700">+ Nova Tarefa</button>
+      <span style="font-size:12px;color:rgba(255,255,255,.85)">${pendingCount} pendente${pendingCount!==1?'s':''} para você</span></div>
+      <button class="btn btn-s" onclick="openTaskModal()" style="background:white;color:#0891B2;font-weight:700">+ Nova Tarefa</button>
     </div>
-    ${otherHtml?`<div style="padding-top:12px">${otherHtml}</div>`:''}
     <div style="padding:0">
       ${myTasks.length?myTasks.map(t=>`
         <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #F3F4F6;background:${t.done?'#F9FAFB':'white'}">
@@ -2867,9 +2866,12 @@ function renderTasksSection(user,wk){
             ${t.comment?`<div style="font-size:11px;color:#0891B2;margin-top:3px">💬 ${t.comment}</div>`:''}
             <div style="font-size:10px;color:var(--muted);margin-top:3px">De: ${t.createdBy}</div>
           </div>
-          <span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:${t.done?'#DCFCE7':'#FEF3C7'};color:${t.done?'#16A34A':'#D97706'}">${t.done?'✅ Feito':'⏳ Pendente'}</span>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:${t.done?'#DCFCE7':'#FEF3C7'};color:${t.done?'#16A34A':'#D97706'}">${t.done?'✅ Feito':'⏳ Pendente'}</span>
+            ${taskDueBadge(t)}
+          </div>
         </div>`).join('')
-      :`<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Nenhuma tarefa para você esta semana.</div>`}
+      :`<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Nenhuma tarefa para você.</div>`}
     </div>
     ${myCreated.length?`
     <div style="border-top:2px solid #F3F4F6">
@@ -2881,7 +2883,10 @@ function renderTasksSection(user,wk){
             ${t.comment?`<div style="font-size:11px;color:#0891B2;margin-top:3px">💬 ${t.comment}</div>`:''}
             <div style="font-size:10px;color:var(--muted);margin-top:3px">Para: <strong>${t.assignedTo.split(' ')[0]}</strong></div>
           </div>
-          <span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:${t.done?'#DCFCE7':'#FEF3C7'};color:${t.done?'#16A34A':'#D97706'}">${t.done?'✅ Feito':'⏳ Pendente'}</span>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:${t.done?'#DCFCE7':'#FEF3C7'};color:${t.done?'#16A34A':'#D97706'}">${t.done?'✅ Feito':'⏳ Pendente'}</span>
+            ${taskDueBadge(t)}
+          </div>
           <button onclick="deleteTask('${t.id}')" style="background:none;border:none;cursor:pointer;color:#EF4444;font-size:14px;padding:2px 4px" title="Remover">🗑</button>
         </div>`).join('')}
     </div>`:''}
@@ -4799,8 +4804,8 @@ window.addEventListener('hashchange',handleNavigation);
         <select id="task-to"></select>
       </div>
       <div class="fg">
-        <label>Semana (sexta-feira)</label>
-        <input type="date" id="task-wk">
+        <label>Data de vencimento (opcional)</label>
+        <input type="date" id="task-due">
       </div>
       <div class="fg">
         <label>Comentário opcional</label>
