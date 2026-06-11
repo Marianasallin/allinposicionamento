@@ -325,6 +325,17 @@ function getCurrentFriday(){const d=new Date(),day=d.getDay(),diff=day===5?0:day
 function getWeekKey(d){return d.toISOString().slice(0,10);}
 function getMonthKey(d){const ms=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];return ms[d.getMonth()]+' '+d.getFullYear();}
 function thisWeekKey(){return getWeekKey(getCurrentFriday());}
+// Mapeia a data de um lead para a CHAVE da semana (sexta-feira) a que ele pertence (sáb→sex).
+// Assim um lead conta na sua semana mesmo se cadastrado em qualquer dia, não só na sexta exata.
+function weekKeyOf(dateStr){
+  if(!dateStr)return'';
+  const d=new Date(dateStr+'T12:00:00');
+  if(isNaN(d))return dateStr;
+  const day=d.getDay();
+  const diff=day===5?0:(day<5?5-day:5+(7-day));
+  d.setDate(d.getDate()+diff);
+  return d.toISOString().slice(0,10);
+}
 function thisMonthKey(){return getMonthKey(new Date());}
 function lastNFridays(n){const f=getCurrentFriday(),res=[];for(let i=n-1;i>=0;i--){const d=new Date(f);d.setDate(d.getDate()-i*7);res.push(d);}return res;}
 function lastNMonths(n){const t=new Date(),res=[];for(let i=n-1;i>=0;i--){res.push(new Date(t.getFullYear(),t.getMonth()-i,1));}return res;}
@@ -1819,14 +1830,14 @@ function rWeeklyPending(){
 
   const allSemanaisDone=totalClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
   const allMensaisDone=totalClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
-  const totalLeads=totalClients.reduce((sum,c)=>sum+((c.prospects||[]).filter(p=>p.date===wk).length),0);
+  const totalLeads=totalClients.reduce((sum,c)=>sum+((c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length),0);
 
   const memberCards=D.team.filter(m=>m.id!=='mariana-souza'&&m.id!=='naiara-faria').map(member=>{
     const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(member.name)&&(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')&&c.products.includes('Gestão de Perfil'));
     if(!myClients.length)return'';
     const semDone=myClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
     const menDone=myClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
-    const leads=myClients.reduce((s,c)=>s+((c.prospects||[]).filter(p=>p.date===wk).length),0);
+    const leads=myClients.reduce((s,c)=>s+((c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length),0);
     const allOk=semDone===myClients.length&&menDone===myClients.length;
 
     return`<div class="card" style="margin-bottom:16px">
@@ -1857,7 +1868,7 @@ function rWeeklyPending(){
             const mrColor=mr.done?(mr.file||mr.link)?'#16A34A':'#D97706':'#9CA3AF';
             const wrStatus=wr.done?(wr.file||wr.link)?'✅':'⚠️':'⏳';
             const mrStatus=mr.done?(mr.file||mr.link)?'✅':'⚠️':'⏳';
-            const prospectsWk=(c.prospects||[]).filter(p=>p.date===wk).length;
+            const prospectsWk=(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length;
             return`<tr onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})" style="cursor:pointer">
               <td><div style="font-weight:500;font-size:12px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
               <td><span style="font-size:13px;color:${wrColor}">${wrStatus} ${wr.done?'Enviado':'Pendente'}</span>${wr.done&&!wr.file&&!wr.link?'<span style="font-size:10px;color:#D97706"> sem arquivo</span>':''}</td>
@@ -1906,7 +1917,7 @@ function rFunc(){
     // GP stats for this week
     const semDone=gpClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
     const menDone=gpClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
-    const leads=gpClients.reduce((s,c)=>s+((c.prospects||[]).filter(p=>p.date===wk).length),0);
+    const leads=gpClients.reduce((s,c)=>s+((c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length),0);
     // IC milestones
     const icDels=myClients.flatMap(c=>c.deliverables.filter(d=>d.product==='Implementação Comercial'&&d.responsible===m.name));
     const icDone=icDels.filter(d=>d.status==='concluido').length;
@@ -2008,8 +2019,8 @@ function rMinhaSemanaGestao(user){
     const mc=ativos.filter(c=>(c.assignees||[]).includes(m.name));
     const wkDone=mc.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
     const mDone=mc.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
-    const leads=mc.reduce(function(s,c){return s+((c.prospects||[]).filter(p=>p.date===wk).length);},0);
-    const newProspects=mc.flatMap(c=>(c.prospects||[]).filter(p=>p.date===wk)).length;
+    const leads=mc.reduce(function(s,c){return s+((c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length);},0);
+    const newProspects=mc.flatMap(c=>(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk)).length;
     const wkOk=wkDone===mc.length&&mc.length>0;
     return '<tr>'
       +'<td><div style="display:flex;align-items:center;gap:8px"><div class="av av-s" style="background:'+m.color+'">'+m.initials+'</div><strong style="font-size:12px">'+m.name.split(' ')[0]+'</strong></div></td>'
@@ -2269,7 +2280,7 @@ function rMinhaSemana(){
   const mk=currentTrackingMonthKey();
   const semanaisDone=myClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
   const mensaisDone=myClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
-  const totalLeads=myClients.reduce((sum,c)=>sum+((c.prospects||[]).filter(p=>p.date===wk).length),0);
+  const totalLeads=myClients.reduce((sum,c)=>sum+((c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length),0);
   // Due date badge for monthly (vence dia 10) — baseado no mês rastreado (mk), não no mês atual
   const today=new Date();
   const _ptMon={'Janeiro':0,'Fevereiro':1,'Março':2,'Abril':3,'Maio':4,'Junho':5,'Julho':6,'Agosto':7,'Setembro':8,'Outubro':9,'Novembro':10,'Dezembro':11};
@@ -2441,7 +2452,7 @@ function rMinhaSemana(){
     </div>
     <div style="padding:0">
       ${myClients.map(c=>{
-        const weekProspects=(c.prospects||[]).filter(p=>p.date===wk);
+        const weekProspects=(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk);
         const totalProspects=(c.prospects||[]).length;
         const closedProspects=(c.prospects||[]).filter(p=>p.contractClosed).length;
         return`<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #F3F4F6">
@@ -2521,7 +2532,7 @@ function rTeam(){
     const capColor=capPct<70?'var(--green)':capPct<90?'var(--yellow)':'var(--red)';
     const semDone=gpClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
     const menDone=gpClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
-    const prospects=gpClients.reduce((s,c)=>s+((c.prospects||[]).filter(p=>p.date===wk).length),0);
+    const prospects=gpClients.reduce((s,c)=>s+((c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length),0);
     const icDels=myClients.flatMap(c=>c.deliverables.filter(d=>d.product==='Implementação Comercial'&&d.responsible===m.name));
     const icDone=icDels.filter(d=>d.status==='concluido').length;
     const icPend=icDels.filter(d=>d.status==='pendente').length;
