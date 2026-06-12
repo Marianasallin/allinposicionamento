@@ -2403,18 +2403,30 @@ function rMinhaSemana(){
       <span style="font-size:12px;color:rgba(255,255,255,.8)">${semanaisDone}/${myClients.length} enviados</span>
     </div>
     <div class="tw"><table>
-      <thead><tr><th style="width:110px">Cliente</th><th style="width:90px">Status</th><th>💬 Mensagem enviada (WhatsApp)</th><th style="width:200px">Observação</th></tr></thead>
+      <thead><tr><th style="width:110px">Cliente</th><th style="width:70px">Status</th><th>💬 Mensagem enviada (WhatsApp)</th><th style="width:150px">Observação</th><th style="width:46px"></th></tr></thead>
       <tbody>
         ${myClients.map(c=>{
           const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,message:'',note:''};
+          const _esc=s=>(s||'').replace(/</g,'&lt;');
+          const msgFull=(wr.message||'').trim();
+          const noteFull=(wr.note||'').trim();
+          const msgPrev=msgFull?_esc(msgFull.replace(/\s+/g,' ').slice(0,80))+(msgFull.length>80?'…':''):'';
+          const notePrev=noteFull?_esc(noteFull.replace(/\s+/g,' ').slice(0,40))+(noteFull.length>40?'…':''):'';
           return`<tr>
             <td><div style="font-weight:600;font-size:13px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
             <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
               <input type="checkbox" onchange="toggleWeeklyReport('${c.id}','${wk}',this.checked)" ${wr.done?'checked':''}>
               <span style="font-size:11px;color:${wr.done?'#16A34A':'#9CA3AF'}">${wr.done?'✅':'⏳'}</span>
             </label></td>
-            <td><textarea class="mini" style="width:100%;min-height:46px;resize:vertical;font-family:inherit" placeholder="Cole aqui a mensagem que você mandou para o cliente..." onblur="updateWeekReportField('${c.id}','${wk}','message',this.value)">${(wr.message||'').replace(/</g,'&lt;')}</textarea></td>
-            <td><textarea class="mini" style="width:100%;min-height:46px;resize:vertical;font-family:inherit" placeholder="Observação..." onblur="updateWeekReportField('${c.id}','${wk}','note',this.value)">${(wr.note||'').replace(/</g,'&lt;')}</textarea></td>
+            <td onclick="openWeekMsgModal('${c.id}','${wk}')" style="cursor:pointer">
+              ${msgPrev?`<div style="font-size:12px;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${msgPrev}</div>`
+                :`<span style="font-size:12px;color:var(--primary)">+ Escrever mensagem</span>`}
+            </td>
+            <td onclick="openWeekMsgModal('${c.id}','${wk}')" style="cursor:pointer">
+              ${notePrev?`<div style="font-size:11px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${notePrev}</div>`
+                :`<span style="font-size:11px;color:#CBD5E1">—</span>`}
+            </td>
+            <td><button class="btn btn-o btn-s" onclick="openWeekMsgModal('${c.id}','${wk}')" title="Escrever / editar" style="font-size:13px">✏️</button></td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -2760,6 +2772,45 @@ function updDel(cid,did,f,v){D.clients.find(c=>c.id===cid).deliverables.find(d=>
 function cycleContinuous(cid,caId){const c=D.clients.find(c=>c.id===cid);const ca=c.continuousActivities.find(a=>a.id===caId);const s=['ativo','pausado','inativo'];ca.status=s[(s.indexOf(ca.status)+1)%s.length];save();render();}
 function toggleWeeklyReport(cid,wk,done){const c=D.clients.find(c=>c.id===cid);if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,file:null,link:'',leads:0};c.weeklyReports[wk].done=done;save();render();}
 function updateWeekReportField(cid,wk,field,v){const c=D.clients.find(c=>c.id===cid);if(!c)return;if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,message:'',note:'',leads:0};c.weeklyReports[wk][field]=v;save();}
+function openWeekMsgModal(cid,wk){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  const wr=(c.weeklyReports&&c.weeklyReports[wk])||{message:'',note:''};
+  const d=new Date(wk+'T12:00:00');
+  const wkLabel=isNaN(d)?wk:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const ov=document.createElement('div');
+  ov.id='wmsg-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:600px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;display:flex;flex-direction:column">
+    <div style="background:linear-gradient(135deg,var(--primary),#1d4ed8);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between">
+      <div><h3 style="margin:0;color:white;font-size:15px">💬 Mensagem enviada — ${c.name.split(' ').slice(0,2).join(' ')}</h3>
+      <span style="font-size:12px;color:rgba(255,255,255,.85)">Semana de ${wkLabel}</span></div>
+      <button onclick="document.getElementById('wmsg-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
+    </div>
+    <div style="padding:20px;overflow:auto">
+      <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Mensagem que você enviou (WhatsApp)</label>
+      <textarea id="wmsg-text" style="width:100%;min-height:230px;padding:12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;line-height:1.5;resize:vertical;box-sizing:border-box" placeholder="Cole aqui a mensagem que você mandou para o cliente...">${(wr.message||'').replace(/</g,'&lt;')}</textarea>
+      <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin:14px 0 6px">Observação</label>
+      <textarea id="wmsg-note" style="width:100%;min-height:70px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box" placeholder="Observação (opcional)...">${(wr.note||'').replace(/</g,'&lt;')}</textarea>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-o" onclick="document.getElementById('wmsg-overlay').remove()">Cancelar</button>
+      <button class="btn btn-p" onclick="saveWeekMsg('${cid}','${wk}')">💾 Salvar</button>
+    </div>
+  </div>`;
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+  setTimeout(()=>{const t=document.getElementById('wmsg-text');if(t)t.focus();},50);
+}
+function saveWeekMsg(cid,wk){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,message:'',note:'',leads:0};
+  const t=document.getElementById('wmsg-text'),n=document.getElementById('wmsg-note');
+  c.weeklyReports[wk].message=t?t.value:'';
+  c.weeklyReports[wk].note=n?n.value:'';
+  save();
+  const ov=document.getElementById('wmsg-overlay');if(ov)ov.remove();
+  toast('💾 Mensagem salva');render();
+}
 function updateUserNotes(name,v){const m=D.team.find(m=>m.name===name);if(!m)return;m.personalNotes=v;save();toast('💾 Anotações salvas');}
 function exportarLeadsPDF(userName,monthKey){
   const _ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
