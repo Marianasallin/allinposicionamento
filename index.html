@@ -333,6 +333,8 @@ function parseBdayDM(str){
   if((m=str.match(/^(\d{1,2})\/(\d{1,2})/)))return{day:parseInt(m[1],10),month:parseInt(m[2],10)-1};
   return null;
 }
+// Escape para HTML (texto e atributos)
+function escH(s){return(s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function thisWeekKey(){return getWeekKey(getCurrentFriday());}
 // Mapeia a data de um lead para a CHAVE da semana (sexta-feira) a que ele pertence (sáb→sex).
 // Assim um lead conta na sua semana mesmo se cadastrado em qualquer dia, não só na sexta exata.
@@ -616,6 +618,8 @@ let teamCardOpen={};
 
 // MIGRATE TOKENS - Ensure all clients have tokens
 D.clients.forEach(c=>{if(!c.token)c.token=generateToken();});
+// MIGRATE CAMPANHAS — garante o array de campanhas
+D.clients.forEach(c=>{if(!c.campaigns)c.campaigns=[];});
 
 // MIGRATE GP DELIVERABLES — Replace old default GP deliverables with real ones (Mai/2026)
 {
@@ -1299,7 +1303,7 @@ function rDetailProspeccao(c){
 function rDetail(){
   const c=getC();if(!c)return'';
   const p=prog(c);
-  const tabs={entregas:'📦 Entregas',prospeccao:'🎯 Leads',conteudo:'📅 Conteúdo Mensal',encontros:'🤝 Encontros',artes:'📱 Artes',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
+  const tabs={entregas:'📦 Entregas',prospeccao:'🎯 Leads',campanhas:'📣 Campanhas',conteudo:'📅 Conteúdo Mensal',encontros:'🤝 Encontros',artes:'📱 Artes',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
   if(c.semLeads){delete tabs.prospeccao;delete tabs.resultados;if(!tabs[S.tab])S.tab='entregas';}
   const tabHtml=Object.entries(tabs).map(([k,v])=>`<div class="tab ${S.tab===k?'active':''}" onclick="S.tab='${k}';render()">${v}</div>`).join('');
   const statusMap={ativo:'pill-ativo',vencido:'pill-vencido',finalizado:'pill-finalizado'};
@@ -1307,6 +1311,9 @@ function rDetail(){
 
   if(S.tab==='prospeccao'){
     body=rDetailProspeccao(c);
+  }
+  else if(S.tab==='campanhas'){
+    body=rDetailCampanhas(c);
   }
   else if(S.tab==='entregas'){
     const hasGP=c.products.includes('Gestão de Perfil');
@@ -3559,6 +3566,150 @@ function deleteProspect(cid,pid){
   save();toast('🗑️ Lead removido');render();
 }
 
+// ===== CAMPANHAS (por cliente, com histórico de atualizações) =====
+function rDetailCampanhas(c){
+  const fd=d=>{if(!d)return'—';const x=new Date(d+'T12:00:00');return isNaN(x)?d:x.toLocaleDateString('pt-BR');};
+  const camps=c.campaigns||[];
+  const header=`<div class="card" style="margin-bottom:16px"><div class="ch"><div><h3>📣 Campanhas</h3><span style="font-size:11px;color:var(--muted)">${camps.length} campanha${camps.length!==1?'s':''} de prospecção (LinkedIn / Waalaxy)</span></div><button class="btn btn-p btn-s" onclick="openCampaignModal('${c.id}',null)">+ Nova Campanha</button></div></div>`;
+  if(!camps.length)return header+`<div class="card"><div class="cb" style="text-align:center;color:var(--muted);padding:40px">Nenhuma campanha cadastrada.<br><small>Clique em "+ Nova Campanha" para começar.</small></div></div>`;
+  const cards=camps.map(cp=>{
+    const ups=(cp.updates||[]).slice().sort((a,b)=>(''+(b.date||'')).localeCompare(''+(a.date||'')));
+    const L=ups[0]||{};
+    const rows=ups.length?ups.map(u=>`<tr>
+      <td style="white-space:nowrap">${fd(u.date)}</td>
+      <td style="text-align:center">${u.prospects||'—'}</td>
+      <td style="text-align:center">${u.convite||'—'}</td>
+      <td style="text-align:center">${u.mensagens||'—'}</td>
+      <td style="text-align:center">${u.seguir||'—'}</td>
+      <td style="text-align:center">${u.visitar||'—'}</td>
+      <td style="text-align:center;font-weight:700;color:var(--primary)">${u.ssi||'—'}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:160px">${escH(u.obs||'')}</td>
+      <td style="white-space:nowrap"><button class="btn btn-o btn-s" style="font-size:10px" onclick="openCampUpdateModal('${c.id}','${cp.id}','${u.id}')">✏️</button> <button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="deleteCampUpdate('${c.id}','${cp.id}','${u.id}')">🗑</button></td>
+    </tr>`).join(''):`<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:16px">Nenhuma atualização ainda. Clique em "+ Atualização".</td></tr>`;
+    const chip=(lbl,val)=>`<div style="font-size:11px;background:#F1F5F9;padding:5px 10px;border-radius:8px;color:#475569">${lbl}: <strong>${val||'—'}</strong></div>`;
+    return`<div class="card" style="margin-bottom:16px">
+      <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9);align-items:flex-start;flex-wrap:wrap;gap:8px">
+        <div style="min-width:0"><h3 style="margin:0;color:white;font-size:14px">📣 ${escH(cp.name)}</h3>
+        <span style="font-size:11px;color:rgba(255,255,255,.9)">Lançada: ${fd(cp.launchDate)}${cp.target?' · '+escH(cp.target):''}${cp.location?' · '+escH(cp.location):''}${cp.sector?' · '+escH(cp.sector):''}</span></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn btn-s" style="background:white;color:#0891B2;font-weight:700;font-size:11px" onclick="openCampUpdateModal('${c.id}','${cp.id}',null)">+ Atualização</button>
+          <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="openCampaignModal('${c.id}','${cp.id}')">✏️ Editar</button>
+          <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="deleteCampaign('${c.id}','${cp.id}')">🗑</button>
+        </div>
+      </div>
+      <div class="cb">
+        ${cp.notes?`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">📝 ${escH(cp.notes)}</div>`:''}
+        ${ups.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${chip('Prospects atuais',L.prospects)}${chip('SSI',L.ssi)}${chip('Última medição',fd(L.date))}</div>`:''}
+        <div class="tw"><table>
+          <thead><tr><th>Data</th><th style="text-align:center">Prospects</th><th style="text-align:center">Convite</th><th style="text-align:center">Mensagens</th><th style="text-align:center">Seguir</th><th style="text-align:center">Visitar</th><th style="text-align:center">SSI</th><th>Obs.</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+      </div>
+    </div>`;
+  }).join('');
+  return header+cards;
+}
+function openCampaignModal(cid,campId){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  const cp=(c.campaigns||[]).find(x=>x.id===campId)||{name:'',launchDate:'',target:'',location:'',sector:'',notes:''};
+  const isEdit=!!campId;
+  const ov=document.createElement('div');ov.id='camp-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="background:linear-gradient(135deg,#0891B2,#0EA5E9);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center">
+      <h3 style="margin:0;color:white;font-size:15px">📣 ${isEdit?'Editar Campanha':'Nova Campanha'}</h3>
+      <button onclick="document.getElementById('camp-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
+      <div class="fg"><label>Nome da Campanha *</label><input id="cmp-name" value="${escH(cp.name)}" placeholder="Ex: Carreira – Coordenador / Especialista..."></div>
+      <div class="fgrid">
+        <div class="fg"><label>Data de Lançamento</label><input type="date" id="cmp-launch" value="${cp.launchDate||''}"></div>
+        <div class="fg"><label>Setor</label><input id="cmp-sector" value="${escH(cp.sector)}" placeholder="Ex: RH, Financeiro, Bancário..."></div>
+      </div>
+      <div class="fg"><label>Público-alvo / Cargo</label><input id="cmp-target" value="${escH(cp.target)}" placeholder="Ex: Coordenadores e especialistas sênior"></div>
+      <div class="fg"><label>Localização</label><input id="cmp-loc" value="${escH(cp.location)}" placeholder="Ex: Brasil, SP/BH..."></div>
+      <div class="fg"><label>Observação</label><textarea id="cmp-notes" rows="2" style="resize:vertical;width:100%">${escH(cp.notes)}</textarea></div>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-o" onclick="document.getElementById('camp-overlay').remove()">Cancelar</button>
+      <button class="btn btn-p" onclick="saveCampaign('${cid}','${campId||''}')">💾 Salvar</button>
+    </div>
+  </div>`;
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+function saveCampaign(cid,campId){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  if(!c.campaigns)c.campaigns=[];
+  const name=document.getElementById('cmp-name').value.trim();
+  if(!name){toast('⚠️ Nome da campanha é obrigatório');return;}
+  const data={name,launchDate:document.getElementById('cmp-launch').value,target:document.getElementById('cmp-target').value.trim(),location:document.getElementById('cmp-loc').value.trim(),sector:document.getElementById('cmp-sector').value.trim(),notes:document.getElementById('cmp-notes').value.trim()};
+  if(campId){const cp=c.campaigns.find(x=>x.id===campId);if(cp)Object.assign(cp,data);}
+  else c.campaigns.push(Object.assign({id:'cmp'+Date.now(),updates:[]},data));
+  save();const ov=document.getElementById('camp-overlay');if(ov)ov.remove();toast('✅ Campanha salva');render();
+}
+function deleteCampaign(cid,campId){
+  if(!confirm('Remover esta campanha e todo o histórico dela?'))return;
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  c.campaigns=(c.campaigns||[]).filter(x=>x.id!==campId);save();toast('🗑️ Campanha removida');render();
+}
+function openCampUpdateModal(cid,campId,updId){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
+  const u=(cp.updates||[]).find(x=>x.id===updId)||{date:new Date().toISOString().slice(0,10),prospects:'',convite:'',mensagens:'',seguir:'',visitar:'',ssi:'',obs:''};
+  const isEdit=!!updId;
+  const ov=document.createElement('div');ov.id='campup-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="background:linear-gradient(135deg,#0891B2,#0EA5E9);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center">
+      <div><h3 style="margin:0;color:white;font-size:15px">${isEdit?'✏️ Editar Atualização':'➕ Nova Atualização'}</h3>
+      <span style="font-size:12px;color:rgba(255,255,255,.85)">${escH(cp.name)}</span></div>
+      <button onclick="document.getElementById('campup-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
+      <div class="fgrid">
+        <div class="fg"><label>Data *</label><input type="date" id="cu-date" value="${u.date||''}"></div>
+        <div class="fg"><label>Nº de prospects</label><input type="number" id="cu-prospects" value="${escH(u.prospects)}" placeholder="0"></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid #E5E7EB;padding-bottom:4px">Definições da campanha</div>
+      <div class="fgrid">
+        <div class="fg"><label>Convite</label><input type="number" id="cu-convite" value="${escH(u.convite)}" placeholder="0"></div>
+        <div class="fg"><label>Mensagens</label><input type="number" id="cu-mensagens" value="${escH(u.mensagens)}" placeholder="0"></div>
+      </div>
+      <div class="fgrid">
+        <div class="fg"><label>Seguir</label><input type="number" id="cu-seguir" value="${escH(u.seguir)}" placeholder="0"></div>
+        <div class="fg"><label>Visitar</label><input type="number" id="cu-visitar" value="${escH(u.visitar)}" placeholder="0"></div>
+      </div>
+      <div class="fg"><label>SSI (índice LinkedIn)</label><input type="number" id="cu-ssi" value="${escH(u.ssi)}" placeholder="0-100" style="max-width:160px"></div>
+      <div class="fg"><label>Observação</label><textarea id="cu-obs" rows="2" style="resize:vertical;width:100%" placeholder="Ex: acréscimo de prospects, campanha reformulada...">${escH(u.obs)}</textarea></div>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-o" onclick="document.getElementById('campup-overlay').remove()">Cancelar</button>
+      <button class="btn btn-p" onclick="saveCampUpdate('${cid}','${campId}','${updId||''}')">💾 Salvar</button>
+    </div>
+  </div>`;
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+function saveCampUpdate(cid,campId,updId){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
+  if(!cp.updates)cp.updates=[];
+  const g=id=>{const el=document.getElementById(id);return el?el.value:'';};
+  const date=g('cu-date');
+  if(!date){toast('⚠️ Informe a data');return;}
+  const data={date,prospects:g('cu-prospects'),convite:g('cu-convite'),mensagens:g('cu-mensagens'),seguir:g('cu-seguir'),visitar:g('cu-visitar'),ssi:g('cu-ssi'),obs:g('cu-obs').trim()};
+  if(updId){const u=cp.updates.find(x=>x.id===updId);if(u)Object.assign(u,data);}
+  else cp.updates.push(Object.assign({id:'cu'+Date.now()},data));
+  save();const ov=document.getElementById('campup-overlay');if(ov)ov.remove();toast('✅ Atualização salva');render();
+}
+function deleteCampUpdate(cid,campId,updId){
+  if(!confirm('Remover esta atualização?'))return;
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
+  cp.updates=(cp.updates||[]).filter(x=>x.id!==updId);save();toast('🗑️ Atualização removida');render();
+}
+
 // ────────────────────────────────────────────────────────────
 // LEADS — CRUD
 // ────────────────────────────────────────────────────────────
@@ -4794,6 +4945,7 @@ window.addEventListener('hashchange',handleNavigation);
         if(!c.leads)c.leads=[];
         if(!c.arts)c.arts=[];
         if(!c.continuousActivities)c.continuousActivities=[];
+        if(!c.campaigns)c.campaigns=[];
       });
       if(!data.team)data.team=[];
       (data.team||[]).forEach(function(m){if(!m.notesLog)m.notesLog=[];});
