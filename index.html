@@ -1300,6 +1300,7 @@ function rDetail(){
   const c=getC();if(!c)return'';
   const p=prog(c);
   const tabs={entregas:'📦 Entregas',prospeccao:'🎯 Leads',conteudo:'📅 Conteúdo Mensal',encontros:'🤝 Encontros',artes:'📱 Artes',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
+  if(c.semLeads){delete tabs.prospeccao;delete tabs.resultados;if(!tabs[S.tab])S.tab='entregas';}
   const tabHtml=Object.entries(tabs).map(([k,v])=>`<div class="tab ${S.tab===k?'active':''}" onclick="S.tab='${k}';render()">${v}</div>`).join('');
   const statusMap={ativo:'pill-ativo',vencido:'pill-vencido',finalizado:'pill-finalizado'};
   let body='';
@@ -1676,6 +1677,10 @@ function rDetail(){
         <div class="fg" style="grid-column:1/-1"><label>Endereço</label><input id="ct-addr" value="${c.address||''}" placeholder="Rua, número, cidade, estado"></div>
       </div>
       <span class="sec-h">🎯 Meta de Leads</span>
+      <div class="fg" style="margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="ct-sem-leads" ${c.semLeads?'checked':''} style="width:16px;height:16px;cursor:pointer">
+        <label for="ct-sem-leads" style="margin:0;cursor:pointer;text-transform:none;font-weight:500">Cliente <strong>sem leads</strong> (só conteúdo / conexão) — esconde a parte de leads no sistema e no portal</label>
+      </div>
       <div class="fgrid" style="margin-bottom:8px">
         <div class="fg"><label>Meta de Leads (mensal)</label><input type="number" id="ct-lead-goal" min="0" value="${c.monthlyLeadGoal||0}" placeholder="0" style="max-width:140px"></div>
         <div class="fg" style="display:flex;align-items:flex-end"><span style="font-size:12px;color:var(--muted);padding-bottom:10px">Número de leads que a Social Seller deve prospectar por mês para este cliente.</span></div>
@@ -2464,7 +2469,7 @@ function rMinhaSemana(){
       <button class="btn btn-s" style="background:white;color:#7C3AED;border:none;font-weight:700;white-space:nowrap" onclick="exportarLeadsPDF('${user.name.replace(/'/g,"\\'")}','${S.minhaSemanaFilterMonth}')">📄 Exportar Leads (PDF)</button>
     </div>
     <div style="padding:0">
-      ${myClients.map(c=>{
+      ${myClients.filter(c=>!c.semLeads).map(c=>{
         const weekProspects=(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk);
         const totalProspects=(c.prospects||[]).length;
         const closedProspects=(c.prospects||[]).filter(p=>p.contractClosed).length;
@@ -2959,6 +2964,14 @@ function saveContrato(cid){
   c.cnpj=$('ct-cnpj').value;
   c.address=$('ct-addr').value;
   c.monthlyLeadGoal=parseInt($('ct-lead-goal').value)||0;
+  if($('ct-sem-leads')){
+    c.semLeads=$('ct-sem-leads').checked;
+    if(c.semLeads){
+      c.monthlyLeadGoal=0;
+      c.deliverables=(c.deliverables||[]).filter(d=>!/leads gerados/i.test(d.name||''));
+      c.continuousActivities=(c.continuousActivities||[]).filter(a=>!/leads gerados/i.test(a.name||''));
+    }
+  }
   if($('ct-contract-link'))c.contractLink=$('ct-contract-link').value.trim();
 
   const fileInput=$('contract-file');
@@ -4280,8 +4293,8 @@ function rPortalDashboard(c){
       </div>
       ${monthPicker}
     </div>
-    ${!hasRealData?`<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:14px 18px;margin-bottom:24px;font-size:12px;color:#92400E">📊 Nenhum resultado registrado ainda. Os dados mensais aparecerão aqui quando lançados.</div>`:''}
-    <div class="portal-metrics">
+    ${(!hasRealData&&!c.semLeads)?`<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:14px 18px;margin-bottom:24px;font-size:12px;color:#92400E">📊 Nenhum resultado registrado ainda. Os dados mensais aparecerão aqui quando lançados.</div>`:''}
+    ${c.semLeads?'':`<div class="portal-metrics">
       <div class="portal-metric">
         <div class="portal-metric-header"><div class="portal-metric-icon">👥</div>${trend(sel.prospects||0,prev&&prev.prospects)}</div>
         <div class="portal-metric-number">${sel.prospects||0}</div>
@@ -4302,7 +4315,7 @@ function rPortalDashboard(c){
         <div class="portal-metric-number">${sel.sales||0}</div>
         <div class="portal-metric-label">Vendas</div>
       </div>
-    </div>
+    </div>`}
     <div class="portal-grid">
       <div class="portal-card">
         <div class="portal-card-header">Entregas recentes</div>
@@ -4550,14 +4563,15 @@ function rPortalRelatorios(c){
 function rClientPortalAuth(){
   const c=D.clients.find(c=>c.id===S.authenticatedClientId);
   if(!c){logoutClientPortal();return'';}
-  const pv=S.portalView||'dashboard';
+  let pv=S.portalView||'dashboard';
   const navItems=[
     {id:'dashboard',icon:'📊',label:'Dashboard'},
     {id:'entregas',icon:'📦',label:'Entregas'},
     {id:'prospeccao',icon:'🎯',label:'Leads'},
     {id:'reunioes',icon:'🤝',label:'Reuniões'},
     {id:'relatorios',icon:'📈',label:'Relatórios'},
-  ];
+  ].filter(n=>!(c.semLeads&&(n.id==='prospeccao'||n.id==='relatorios')));
+  if(c.semLeads&&(pv==='prospeccao'||pv==='relatorios')){pv='dashboard';S.portalView='dashboard';}
   const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',reunioes:'Reuniões',relatorios:'Relatórios'};
   const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,prospeccao:rPortalProspeccao,reunioes:rPortalReunioes,relatorios:rPortalRelatorios};
   const mainContent=(contentMap[pv]||rPortalDashboard)(c);
