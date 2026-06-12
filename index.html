@@ -3591,7 +3591,8 @@ function rDetailCampanhas(c){
         <div style="min-width:0"><h3 style="margin:0;color:white;font-size:14px">📣 ${escH(cp.name)}</h3>
         <span style="font-size:11px;color:rgba(255,255,255,.9)">Lançada: ${fd(cp.launchDate)}${cp.target?' · '+escH(cp.target):''}${cp.location?' · '+escH(cp.location):''}${cp.sector?' · '+escH(cp.sector):''}</span></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-          <button class="btn btn-s" style="background:white;color:#0891B2;font-weight:700;font-size:11px" onclick="openCampaignModal('${c.id}','${cp.id}')">✏️ Editar</button>
+          <button class="btn btn-s" style="background:white;color:#0891B2;font-weight:700;font-size:11px" onclick="openCampMeasureModal('${c.id}','${cp.id}')">+ Atualização</button>
+          <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="openCampaignModal('${c.id}','${cp.id}')">✏️ Editar</button>
           <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="deleteCampaign('${c.id}','${cp.id}')">🗑</button>
         </div>
       </div>
@@ -3600,6 +3601,7 @@ function rDetailCampanhas(c){
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${chip('Prospects',m.prospects)}${chip('Convite',m.convite)}${chip('Mensagens',m.mensagens)}${chip('Seguir',m.seguir)}${chip('Visitar',m.visitar)}${chip('SSI',m.ssi)}
         </div>
+        ${cp.measureDate?`<div style="font-size:10px;color:var(--muted);margin-top:8px">🕒 Atualizado em ${fd(cp.measureDate)}</div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -3608,7 +3610,6 @@ function rDetailCampanhas(c){
 function openCampaignModal(cid,campId){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
   const cp=(c.campaigns||[]).find(x=>x.id===campId)||{name:'',launchDate:'',target:'',location:'',sector:'',notes:''};
-  const m=_campMeas(cp);
   const isEdit=!!campId;
   const ov=document.createElement('div');ov.id='camp-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
@@ -3626,18 +3627,7 @@ function openCampaignModal(cid,campId){
       <div class="fg"><label>Público-alvo / Cargo</label><input id="cmp-target" value="${escH(cp.target)}" placeholder="Ex: Coordenadores e especialistas sênior"></div>
       <div class="fg"><label>Localização</label><input id="cmp-loc" value="${escH(cp.location)}" placeholder="Ex: Brasil, SP/BH..."></div>
       <div class="fg"><label>Observação</label><textarea id="cmp-notes" rows="2" style="resize:vertical;width:100%">${escH(cp.notes)}</textarea></div>
-      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid #E5E7EB;padding-bottom:4px;margin-top:4px">Medições</div>
-      <div class="fg"><label>Número de prospects</label><input type="number" id="cmp-prospects" value="${escH(m.prospects)}" placeholder="0" style="max-width:180px"></div>
-      <div style="font-size:11px;font-weight:600;color:var(--muted)">Definições da campanha</div>
-      <div class="fgrid">
-        <div class="fg"><label>Convite</label><input type="number" id="cmp-convite" value="${escH(m.convite)}" placeholder="0"></div>
-        <div class="fg"><label>Mensagens</label><input type="number" id="cmp-mensagens" value="${escH(m.mensagens)}" placeholder="0"></div>
-      </div>
-      <div class="fgrid">
-        <div class="fg"><label>Seguir</label><input type="number" id="cmp-seguir" value="${escH(m.seguir)}" placeholder="0"></div>
-        <div class="fg"><label>Visitar</label><input type="number" id="cmp-visitar" value="${escH(m.visitar)}" placeholder="0"></div>
-      </div>
-      <div class="fg"><label>SSI (índice LinkedIn)</label><input type="number" id="cmp-ssi" value="${escH(m.ssi)}" placeholder="0-100" style="max-width:160px"></div>
+      <div style="font-size:11px;color:var(--muted);background:#F1F5F9;padding:8px 12px;border-radius:8px">💡 As medições (prospects, convite, mensagens, seguir, visitar, SSI) são preenchidas no botão <strong>"+ Atualização"</strong> da campanha.</div>
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-o" onclick="document.getElementById('camp-overlay').remove()">Cancelar</button>
@@ -3653,9 +3643,8 @@ function saveCampaign(cid,campId){
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
   const name=g('cmp-name');
   if(!name){toast('⚠️ Nome da campanha é obrigatório');return;}
-  const data={name,launchDate:g('cmp-launch'),target:g('cmp-target'),location:g('cmp-loc'),sector:g('cmp-sector'),notes:g('cmp-notes'),
-    prospects:g('cmp-prospects'),convite:g('cmp-convite'),mensagens:g('cmp-mensagens'),seguir:g('cmp-seguir'),visitar:g('cmp-visitar'),ssi:g('cmp-ssi')};
-  if(campId){const cp=c.campaigns.find(x=>x.id===campId);if(cp){Object.assign(cp,data);delete cp.updates;}}
+  const data={name,launchDate:g('cmp-launch'),target:g('cmp-target'),location:g('cmp-loc'),sector:g('cmp-sector'),notes:g('cmp-notes')};
+  if(campId){const cp=c.campaigns.find(x=>x.id===campId);if(cp)Object.assign(cp,data);}
   else c.campaigns.push(Object.assign({id:'cmp'+Date.now()},data));
   save();const ov=document.getElementById('camp-overlay');if(ov)ov.remove();toast('✅ Campanha salva');render();
 }
@@ -3663,6 +3652,54 @@ function deleteCampaign(cid,campId){
   if(!confirm('Remover esta campanha?'))return;
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
   c.campaigns=(c.campaigns||[]).filter(x=>x.id!==campId);save();toast('🗑️ Campanha removida');render();
+}
+// Modal de medição (uma medição atual por campanha) — botão "+ Atualização"
+function openCampMeasureModal(cid,campId){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
+  const m=_campMeas(cp);
+  const md=cp.measureDate||new Date().toISOString().slice(0,10);
+  const ov=document.createElement('div');ov.id='campmeas-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="background:linear-gradient(135deg,#0891B2,#0EA5E9);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center">
+      <div><h3 style="margin:0;color:white;font-size:15px">➕ Atualização da campanha</h3>
+      <span style="font-size:12px;color:rgba(255,255,255,.85)">${escH(cp.name)}</span></div>
+      <button onclick="document.getElementById('campmeas-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
+      <div class="fgrid">
+        <div class="fg"><label>Data da medição</label><input type="date" id="cms-date" value="${md}"></div>
+        <div class="fg"><label>Número de prospects</label><input type="number" id="cms-prospects" value="${escH(m.prospects)}" placeholder="0"></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid #E5E7EB;padding-bottom:4px">Definições da campanha</div>
+      <div class="fgrid">
+        <div class="fg"><label>Convite</label><input type="number" id="cms-convite" value="${escH(m.convite)}" placeholder="0"></div>
+        <div class="fg"><label>Mensagens</label><input type="number" id="cms-mensagens" value="${escH(m.mensagens)}" placeholder="0"></div>
+      </div>
+      <div class="fgrid">
+        <div class="fg"><label>Seguir</label><input type="number" id="cms-seguir" value="${escH(m.seguir)}" placeholder="0"></div>
+        <div class="fg"><label>Visitar</label><input type="number" id="cms-visitar" value="${escH(m.visitar)}" placeholder="0"></div>
+      </div>
+      <div class="fg"><label>SSI (índice LinkedIn)</label><input type="number" id="cms-ssi" value="${escH(m.ssi)}" placeholder="0-100" style="max-width:160px"></div>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-o" onclick="document.getElementById('campmeas-overlay').remove()">Cancelar</button>
+      <button class="btn btn-p" onclick="saveCampMeasure('${cid}','${campId}')">💾 Salvar</button>
+    </div>
+  </div>`;
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+function saveCampMeasure(cid,campId){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
+  const g=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
+  cp.measureDate=g('cms-date');
+  cp.prospects=g('cms-prospects');cp.convite=g('cms-convite');cp.mensagens=g('cms-mensagens');
+  cp.seguir=g('cms-seguir');cp.visitar=g('cms-visitar');cp.ssi=g('cms-ssi');
+  delete cp.updates;
+  save();const ov=document.getElementById('campmeas-overlay');if(ov)ov.remove();toast('✅ Medição atualizada');render();
 }
 
 // ────────────────────────────────────────────────────────────
