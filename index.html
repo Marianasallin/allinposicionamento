@@ -3358,14 +3358,21 @@ function addMember(){
   D.team.push({id:name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')+'_'+Date.now(),name,role:'',dept:'',email:'',phone:'',birthday:'',color:color(i+3),initials:initials(name),notes:'',capacity:10});
   save();render();toast('✅ Adicionada!');
 }
+let _encDraft=null; // rascunho do encontro NOVO (mantém anexos durante a edição)
+function _encIsNew(encIdx){return encIdx===undefined||encIdx===null||encIdx==='new'||encIdx==='null';}
 function openEncounterModal(cid,encIdx){
-  const c=D.clients.find(c=>c.id===cid);
-  const isEdit=encIdx!==undefined;
-  const enc=isEdit?c.encounters.list[encIdx]:{date:new Date().toISOString().split('T')[0],description:'',attendees:[],attachments:[],notes:''};
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  if(!c.encounters)c.encounters={list:[]};
+  if(!c.encounters.list)c.encounters.list=[];
+  const isEdit=!_encIsNew(encIdx)&&c.encounters.list[encIdx];
+  if(!isEdit&&!_encDraft)_encDraft={date:new Date().toISOString().split('T')[0],description:'',attendees:[],attachments:[],notes:'',transcriptionLink:'',recordingLink:''};
+  const enc=isEdit?c.encounters.list[encIdx]:_encDraft;
+  const encRef=isEdit?String(encIdx):'new';
+  closeEncounterModal();
   const tnames=TEAM_NAMES();
-  const html=`<div class="overlay" id="em-overlay" onclick="if(event.target===this)closeEncounterModal()">
+  const html=`<div class="overlay" id="em-overlay" onclick="if(event.target===this)cancelEncounterModal()">
     <div class="modal" style="max-width:520px">
-      <div class="modal-hd"><h3>${isEdit?'✏️ Editar':'🤝 Registrar'} Encontro</h3><button class="btn btn-o btn-s" onclick="closeEncounterModal()">✕</button></div>
+      <div class="modal-hd"><h3>${isEdit?'✏️ Editar':'🤝 Registrar'} Encontro</h3><button class="btn btn-o btn-s" onclick="cancelEncounterModal()">✕</button></div>
       <div class="modal-body">
         <div class="fgrid">
           <div class="fg"><label>Data do Encontro *</label><input id="em-date" type="date" value="${enc.date||''}"></div>
@@ -3386,15 +3393,15 @@ function openEncounterModal(cid,encIdx){
           ${enc.attachments&&enc.attachments.length?`<div style="display:flex;flex-direction:column;gap:6px">
             ${enc.attachments.map((a,ai)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:#F3F4F6;border-radius:4px;font-size:12px">
               <span>${a.type&&a.type.startsWith('image')?'📸':'📄'} ${a.name}</span>
-              <span style="cursor:pointer;color:var(--red);padding:2px 6px" onclick="removeEncAttachment('${cid}',${isEdit?encIdx:'null'},${ai})">✕</span>
+              <span style="cursor:pointer;color:var(--red);padding:2px 6px" onclick="removeEncAttachment('${cid}','${encRef}',${ai})">✕</span>
             </div>`).join('')}
           </div>`:'<div style="font-size:11px;color:var(--muted)">Nenhuma foto anexada</div>'}
         </div>
         <div class="fg" style="grid-column:1/-1"><label>Notas Adicionais</label><textarea id="em-notes" style="height:50px" placeholder="Observações importantes...">${enc.notes||''}</textarea></div>
       </div>
       <div class="modal-ft">
-        <button class="btn btn-o" onclick="closeEncounterModal()">Cancelar</button>
-        <button class="btn btn-p" onclick="saveEncounter('${cid}',${isEdit?encIdx:'null'})">💾 Salvar Encontro</button>
+        <button class="btn btn-o" onclick="cancelEncounterModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveEncounter('${cid}','${encRef}')">💾 Salvar Encontro</button>
       </div>
     </div>
   </div>`;
@@ -3403,15 +3410,15 @@ function openEncounterModal(cid,encIdx){
   if(fileInput){
     fileInput.addEventListener('change',function(){
       const files=this.files;
-      const c=D.clients.find(c=>c.id===cid);
-      const encList=c.encounters.list;
-      const activeEnc=isEdit?encList[encIdx]:{};
-      if(!activeEnc.attachments)activeEnc.attachments=[];
+      const target=isEdit?c.encounters.list[encIdx]:_encDraft;
+      if(!target.attachments)target.attachments=[];
+      let pending=files.length;
       Array.from(files).forEach(f=>{
         const reader=new FileReader();
         reader.onload=e=>{
-          activeEnc.attachments.push({name:f.name,type:f.type,data:e.target.result});
-          render();openEncounterModal(cid,isEdit?encIdx:undefined);
+          target.attachments.push({name:f.name,type:f.type,data:e.target.result});
+          pending--;
+          if(pending<=0){closeEncounterModal();openEncounterModal(cid,isEdit?String(encIdx):undefined);}
         };
         reader.readAsDataURL(f);
       });
@@ -3419,15 +3426,18 @@ function openEncounterModal(cid,encIdx){
   }
 }
 function closeEncounterModal(){const el=$('em-overlay');if(el)el.remove();}
+function cancelEncounterModal(){_encDraft=null;closeEncounterModal();}
 function removeEncAttachment(cid,encIdx,attIdx){
-  const c=D.clients.find(c=>c.id===cid);
-  if(encIdx!=='null'){
-    c.encounters.list[encIdx].attachments.splice(attIdx,1);
-  }
-  render();openEncounterModal(cid,encIdx==='null'?undefined:encIdx);
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  const target=_encIsNew(encIdx)?_encDraft:c.encounters.list[encIdx];
+  if(target&&target.attachments)target.attachments.splice(attIdx,1);
+  closeEncounterModal();openEncounterModal(cid,_encIsNew(encIdx)?undefined:encIdx);
 }
 function saveEncounter(cid,encIdx){
-  const c=D.clients.find(c=>c.id===cid);
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  if(!c.encounters)c.encounters={list:[]};
+  if(!c.encounters.list)c.encounters.list=[];
+  const isNew=_encIsNew(encIdx);
   const date=$('em-date').value;
   if(!date){toast('⚠️ Informe a data do encontro!');return;}
   const tnames=TEAM_NAMES();
@@ -3437,13 +3447,12 @@ function saveEncounter(cid,encIdx){
   const notes=$('em-notes').value.trim();
   const transcriptionLink=($('em-transcription')?.value||'').trim();
   const recordingLink=($('em-recording')?.value||'').trim();
-  const encounter={date,description,attendees,notes,transcriptionLink,recordingLink,attachments:encIdx!=='null'&&encIdx!==undefined?c.encounters.list[encIdx].attachments:[]};
-  if(encIdx!=='null'&&encIdx!==undefined){
-    c.encounters.list[encIdx]=encounter;
-  }else{
-    if(!c.encounters.list)c.encounters.list=[];
-    c.encounters.list.push(encounter);
-  }
+  // anexos: do rascunho (novo) ou do encontro existente (edição) — opcionais
+  const src=isNew?(_encDraft||{}):(c.encounters.list[encIdx]||{});
+  const attachments=Array.isArray(src.attachments)?src.attachments:[];
+  const encounter={date,description,attendees,notes,transcriptionLink,recordingLink,attachments};
+  if(isNew){c.encounters.list.push(encounter);_encDraft=null;}
+  else{c.encounters.list[encIdx]=encounter;}
   save();closeEncounterModal();toast('✅ Encontro salvo!');render();
 }
 function deleteEncounter(cid,encIdx){
