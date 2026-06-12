@@ -3629,6 +3629,19 @@ function openCampaignModal(cid,campId){
       <div class="fg"><label>Público-alvo / Cargo</label><input id="cmp-target" value="${escH(cp.target)}" placeholder="Ex: Coordenadores e especialistas sênior"></div>
       <div class="fg"><label>Localização</label><input id="cmp-loc" value="${escH(cp.location)}" placeholder="Ex: Brasil, SP/BH..."></div>
       <div class="fg"><label>Observação</label><textarea id="cmp-notes" rows="2" style="resize:vertical;width:100%">${escH(cp.notes)}</textarea></div>
+      ${isEdit?'':`
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid #E5E7EB;padding-bottom:4px;margin-top:4px">Medição inicial (opcional) — vira a 1ª linha do histórico</div>
+      <div class="fg"><label>Número de prospects</label><input type="number" id="cmp-i-prospects" placeholder="0" style="max-width:180px"></div>
+      <div style="font-size:11px;font-weight:600;color:var(--muted)">Definições da campanha</div>
+      <div class="fgrid">
+        <div class="fg"><label>Convite</label><input type="number" id="cmp-i-convite" placeholder="0"></div>
+        <div class="fg"><label>Mensagens</label><input type="number" id="cmp-i-mensagens" placeholder="0"></div>
+      </div>
+      <div class="fgrid">
+        <div class="fg"><label>Seguir</label><input type="number" id="cmp-i-seguir" placeholder="0"></div>
+        <div class="fg"><label>Visitar</label><input type="number" id="cmp-i-visitar" placeholder="0"></div>
+      </div>
+      <div class="fg"><label>SSI (índice LinkedIn)</label><input type="number" id="cmp-i-ssi" placeholder="0-100" style="max-width:160px"></div>`}
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-o" onclick="document.getElementById('camp-overlay').remove()">Cancelar</button>
@@ -3645,7 +3658,15 @@ function saveCampaign(cid,campId){
   if(!name){toast('⚠️ Nome da campanha é obrigatório');return;}
   const data={name,launchDate:document.getElementById('cmp-launch').value,target:document.getElementById('cmp-target').value.trim(),location:document.getElementById('cmp-loc').value.trim(),sector:document.getElementById('cmp-sector').value.trim(),notes:document.getElementById('cmp-notes').value.trim()};
   if(campId){const cp=c.campaigns.find(x=>x.id===campId);if(cp)Object.assign(cp,data);}
-  else c.campaigns.push(Object.assign({id:'cmp'+Date.now(),updates:[]},data));
+  else{
+    const newCamp=Object.assign({id:'cmp'+Date.now(),updates:[]},data);
+    const gi=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
+    const ip=gi('cmp-i-prospects'),ic=gi('cmp-i-convite'),im=gi('cmp-i-mensagens'),is=gi('cmp-i-seguir'),iv=gi('cmp-i-visitar'),issi=gi('cmp-i-ssi');
+    if(ip||ic||im||is||iv||issi){
+      newCamp.updates.push({id:'cu'+Date.now(),date:data.launchDate||new Date().toISOString().slice(0,10),prospects:ip,convite:ic,mensagens:im,seguir:is,visitar:iv,ssi:issi,obs:'Medição inicial'});
+    }
+    c.campaigns.push(newCamp);
+  }
   save();const ov=document.getElementById('camp-overlay');if(ov)ov.remove();toast('✅ Campanha salva');render();
 }
 function deleteCampaign(cid,campId){
