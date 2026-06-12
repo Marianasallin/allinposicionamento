@@ -4695,6 +4695,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbWriting=false;
     let _fbReady=false;
     let _localDirty=false;
+    let _pendingFbSync=false;
 
     // Override save() para escrever no Firebase + localStorage
     const _lsave=save;
@@ -4750,19 +4751,34 @@ window.addEventListener('hashchange',handleNavigation);
         }
         _fbReady=true;
 
+        // Aplica uma atualização vinda do Firebase (reconstrói a tela)
+        const applyFbUpdate=(fbData)=>{
+          const sanitized=sanitizeD(fbData);
+          if(JSON.stringify(sanitized)!==JSON.stringify(D)){
+            D=sanitized;
+            localStorage.setItem('allin',JSON.stringify(D));
+            toast('🔄 Atualizado em tempo real');
+            render();
+          }
+        };
+        const _isTyping=()=>{const ae=document.activeElement;return!!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));};
         // Listener em tempo real — atualiza todos os dispositivos conectados
         setTimeout(()=>{
           _db.ref('allin').on('value',snap=>{
             if(_fbWriting)return;
             const fbData=snap.val();
             if(!fbData)return;
-            const sanitized=sanitizeD(fbData);
-            if(JSON.stringify(sanitized)!==JSON.stringify(D)){
-              D=sanitized;
-              localStorage.setItem('allin',JSON.stringify(D));
-              toast('🔄 Atualizado em tempo real');
-              render();
-            }
+            // Se a usuária está digitando, NÃO reconstruir a tela agora (apagaria o texto dela) — adia
+            if(_isTyping()){_pendingFbSync=true;return;}
+            applyFbUpdate(fbData);
+          });
+          // Ao sair de um campo, se houve atualização adiada, busca a versão mais recente e aplica
+          document.addEventListener('focusout',()=>{
+            if(!_pendingFbSync)return;
+            setTimeout(()=>{
+              if(_isTyping()||_fbWriting)return; // ainda digitando ou salvando — tenta de novo no próximo blur
+              _db.ref('allin').get().then(s=>{if(s.exists()){_pendingFbSync=false;applyFbUpdate(s.val());}}).catch(()=>{});
+            },800);
           });
         },2000);
 
