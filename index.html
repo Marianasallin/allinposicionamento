@@ -1851,14 +1851,14 @@ function rWeeklyPending(){
   // Date picker value = Friday of selected week (yyyy-mm-dd)
   const pickerVal=wk;
 
-  const totalClients=D.clients.filter(c=>(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')&&c.products.includes('Gestão de Perfil'));
+  const totalClients=D.clients.filter(c=>(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')&&c.products.includes('Gestão de Perfil')&&!c.semLeads);
 
   const allSemanaisDone=totalClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
   const allMensaisDone=totalClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
   const totalLeads=totalClients.reduce((sum,c)=>sum+((c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length),0);
 
   const memberCards=D.team.filter(m=>m.id!=='mariana-souza'&&m.id!=='naiara-faria').map(member=>{
-    const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(member.name)&&(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')&&c.products.includes('Gestão de Perfil'));
+    const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(member.name)&&(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')&&c.products.includes('Gestão de Perfil')&&!c.semLeads);
     if(!myClients.length)return'';
     const semDone=myClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
     const menDone=myClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
@@ -1935,7 +1935,7 @@ function rFunc(){
   const mk=currentTrackingMonthKey();
   const cards=D.team.map(m=>{
     const myClients=D.clients.filter(c=>c.assignees.includes(m.name)&&c.contractStatus==='ativo');
-    const gpClients=myClients.filter(c=>c.products.includes('Gestão de Perfil'));
+    const gpClients=myClients.filter(c=>c.products.includes('Gestão de Perfil')&&!c.semLeads);
     const icClients=myClients.filter(c=>c.products.includes('Implementação Comercial')&&!c.products.includes('Gestão de Perfil'));
     const capPct=Math.min(Math.round(myClients.length/(m.capacity||10)*100),100);
     const capColor=capPct<70?'var(--green)':capPct<90?'var(--yellow)':'var(--red)';
@@ -2276,7 +2276,7 @@ function rMinhaSemana(){
   const _isNayara=/na[iy]ara/i.test(user.name||'');
   const _isActive=c=>c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado';
   // Clientes de GESTÃO: alimentam relatórios semanais/mensais e meta de leads
-  const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(user.name)&&_isActive(c)&&c.products.includes('Gestão de Perfil'));
+  const myClients=D.clients.filter(c=>c.assignees&&c.assignees.includes(user.name)&&_isActive(c)&&c.products.includes('Gestão de Perfil')&&!c.semLeads);
   // Clientes de IMPLEMENTAÇÃO COMERCIAL: Nayara só visualiza (sem relatórios/metas)
   const myICClients=_isNayara?D.clients.filter(c=>c.assignees&&c.assignees.includes(user.name)&&_isActive(c)&&c.products.includes('Implementação Comercial')&&!c.products.includes('Gestão de Perfil')):[];
 
@@ -2564,7 +2564,7 @@ function rTeam(){
   const cards=D.team.map(m=>{
     const isContent=contentRoles.includes(m.role);
     const myClients=D.clients.filter(c=>c.contractStatus==='ativo'&&(isContent?(c.contentOwners||[]).includes(m.name):c.assignees.includes(m.name)));
-    const gpClients=myClients.filter(c=>c.products.includes('Gestão de Perfil'));
+    const gpClients=myClients.filter(c=>c.products.includes('Gestão de Perfil')&&!c.semLeads);
     const icClients=myClients.filter(c=>c.products.includes('Implementação Comercial')&&!c.products.includes('Gestão de Perfil'));
     const capPct=Math.min(Math.round(myClients.length/(m.capacity||10)*100),100);
     const capColor=capPct<70?'var(--green)':capPct<90?'var(--yellow)':'var(--red)';
