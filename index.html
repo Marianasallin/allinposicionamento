@@ -310,7 +310,7 @@ function progGP(c){
   return{pct:tot>0?Math.round(done/tot*100):0,wkDone,wkTotal,mDone,mTotal};
 }
 function getDaysUntil(dueDate){if(!dueDate)return null;const today=new Date();today.setHours(0,0,0,0);const due=new Date(dueDate);due.setHours(0,0,0,0);return Math.floor((due-today)/(1000*60*60*24))}
-function getDelStatusByDate(del){if(!del.dueDate)return del.status;const days=getDaysUntil(del.dueDate);if(days<0)return 'atrasado';return del.status}
+function getDelStatusByDate(del){if(del.status==='concluido')return 'concluido';if(!del.dueDate)return del.status;const days=getDaysUntil(del.dueDate);if(days<0)return 'atrasado';return del.status}
 function getDelClassByDate(del){const status=getDelStatusByDate(del);const days=getDaysUntil(del.dueDate);if(days!==null&&days>=0&&days<=7)return'ba';return SC(status)}
 function getContractDaysRemaining(contractDue){const d=getDaysUntil(contractDue);if(d===null)return'—';if(d<0)return`${Math.abs(d)}d atrasado`;return`${d}d restante`}
 const $ = id=>document.getElementById(id);
