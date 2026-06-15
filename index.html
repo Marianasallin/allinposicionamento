@@ -1359,7 +1359,7 @@ function rDetail(){
         <div style="display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--border);background:#FAFAFA">
           ${monthKeys.map(mk=>`<span class="fc ${S.weeklyFilterMonth===mk?'active':''}" onclick="S.weeklyFilterMonth='${mk}';render()" style="font-size:11px">${mk}</span>`).join('')}
         </div>
-        <div class="tw"><table><thead><tr><th>Semana (sexta)</th><th>Enviado?</th><th>Arquivo / Link</th></tr></thead><tbody>
+        <div class="tw"><table><thead><tr><th>Semana (sexta)</th><th>Enviado?</th><th>🔗 Link do relatório</th></tr></thead><tbody>
           ${fridays.length?fridays.map(fri=>{
             const key=getWeekKey(fri);
             const wr=(c.weeklyReports&&c.weeklyReports[key])||{done:false,file:null,link:''};
@@ -1367,19 +1367,17 @@ function rDetail(){
             const isFuture=fri>new Date(wk+'T23:59:59');
             const label=fri.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
             const statusColor=isFuture?'#CBD5E1':wr.done?(wr.file||wr.link)?'#16A34A':'#D97706':'#9CA3AF';
-            const statusText=isFuture?'📅 Futuro':wr.done?(wr.file||wr.link)?'✅ Enviado':'⚠️ Sem arquivo':'⏳ Pendente';
+            const statusText=isFuture?'📅 Futuro':wr.done?(wr.file||wr.link)?'✅ Enviado':'⚠️ Sem link':'⏳ Pendente';
             return`<tr style="${isCurrent?'background:#EFF6FF;':isFuture?'background:#F8FAFC;opacity:.7;':''}">
               <td><span style="font-size:12px;font-weight:${isCurrent?700:400}">${label}${isCurrent?' ← esta semana':''}</span></td>
               <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
                 <input type="checkbox" onchange="toggleWeeklyReport('${c.id}','${key}',this.checked)" ${wr.done?'checked':''}>
                 <span style="font-size:11px;color:${statusColor}">${statusText}</span>
               </label></td>
-              <td style="display:flex;gap:6px;align-items:center">
-                ${wr.file?`<span style="font-size:11px;color:var(--primary);cursor:pointer" onclick="downloadRepFile('${c.id}','weekly','${key}')">📎 ${wr.file.name.substring(0,18)}...</span>`:''}
+              <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                ${wr.file?`<span style="font-size:11px;color:var(--primary);cursor:pointer" onclick="downloadRepFile('${c.id}','weekly','${key}')" title="arquivo antigo">📎</span>`:''}
                 ${wr.link?`<a href="${wr.link}" target="_blank" style="font-size:11px;color:var(--primary)">🔗 Ver</a>`:''}
-                ${!wr.file?`<input class="mini" type="url" placeholder="Link..." style="width:110px" value="${wr.link||''}" onblur="updateWeekReportLink('${c.id}','${key}',this.value)">`:''}
-                <button class="btn btn-o btn-s" onclick="document.getElementById('wrf-${c.id}-${key}').click()" title="Upload arquivo">📎</button>
-                <input type="file" id="wrf-${c.id}-${key}" style="display:none" accept=".pdf,.jpg,.png,.doc,.docx" onchange="uploadReportFile('${c.id}','weekly','${key}',this)">
+                <input class="mini" type="url" placeholder="Cole o link (Drive)" style="width:160px" value="${wr.link||''}" onblur="updateWeekReportLink('${c.id}','${key}',this.value)">
               </td>
             </tr>`;
           }).join(''):`<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px">Nenhuma semana em ${S.weeklyFilterMonth}</td></tr>`}
@@ -1391,26 +1389,24 @@ function rDetail(){
       const currMonth=thisMonthKey();
       body+=`<div class="card" style="margin-bottom:16px">
         <div class="ch"><h3>📅 Relatório Mensal <span style="font-size:11px;font-weight:400;color:var(--muted)">— até dia 10</span></h3></div>
-        <div class="tw"><table><thead><tr><th>Mês</th><th>Enviado?</th><th>Arquivo / Link</th></tr></thead><tbody>
+        <div class="tw"><table><thead><tr><th>Mês</th><th>Enviado?</th><th>🔗 Link do relatório</th></tr></thead><tbody>
           ${months.map(m=>{
             const key=getMonthKey(m);
             const mr=(c.monthlyReports&&c.monthlyReports[key])||{done:false,file:null,link:''};
             const isCurrent=key===currMonth;
             const isFuture=m.getFullYear()>new Date().getFullYear()||(m.getFullYear()===new Date().getFullYear()&&m.getMonth()>new Date().getMonth());
             const statusColor=isFuture?'#CBD5E1':mr.done?(mr.file||mr.link)?'#16A34A':'#D97706':'#9CA3AF';
-            const statusText=isFuture?'📅 Futuro':mr.done?(mr.file||mr.link)?'✅ Enviado':'⚠️ Sem arquivo':'⏳ Pendente';
+            const statusText=isFuture?'📅 Futuro':mr.done?(mr.file||mr.link)?'✅ Enviado':'⚠️ Sem link':'⏳ Pendente';
             return`<tr style="${isCurrent?'background:#EFF6FF;':isFuture?'background:#F8FAFC;opacity:.7;':''}">
               <td><span style="font-size:12px;font-weight:${isCurrent?700:400}">${key}${isCurrent?' ← este mês':''}</span></td>
               <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
                 <input type="checkbox" onchange="toggleMonthlyReport('${c.id}','${key}',this.checked)" ${mr.done?'checked':''}>
                 <span style="font-size:11px;color:${statusColor}">${statusText}</span>
               </label></td>
-              <td style="display:flex;gap:6px;align-items:center">
-                ${mr.file?`<span style="font-size:11px;color:var(--primary);cursor:pointer" onclick="downloadRepFile('${c.id}','monthly','${key}')">📎 ${mr.file.name.substring(0,18)}...</span>`:''}
+              <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                ${mr.file?`<span style="font-size:11px;color:var(--primary);cursor:pointer" onclick="downloadRepFile('${c.id}','monthly','${key}')" title="arquivo antigo">📎</span>`:''}
                 ${mr.link?`<a href="${mr.link}" target="_blank" style="font-size:11px;color:var(--primary)">🔗 Ver</a>`:''}
-                ${!mr.file?`<input class="mini" type="url" placeholder="Link..." style="width:110px" value="${mr.link||''}" onblur="updateMonthReportLink('${c.id}','${key}',this.value)">`:''}
-                <button class="btn btn-o btn-s" onclick="document.getElementById('mrf-${c.id}-${key.replace(/\s/g,'_')}').click()" title="Upload">📎</button>
-                <input type="file" id="mrf-${c.id}-${key.replace(/\s/g,'_')}" style="display:none" accept=".pdf,.jpg,.png,.doc,.docx" onchange="uploadReportFile('${c.id}','monthly','${key}',this)">
+                <input class="mini" type="url" placeholder="Cole o link (Drive)" style="width:160px" value="${mr.link||''}" onblur="updateMonthReportLink('${c.id}','${key}',this.value)">
               </td>
             </tr>`;
           }).join('')}
@@ -1590,7 +1586,7 @@ function rDetail(){
   }
   else if(S.tab==='contrato'){
     const pmLabels={pix:'PIX',boleto:'Boleto',cartao:'Cartão de Crédito',transferencia:'Transferência','':'—'};
-    const hasFile=c.contractFile?'✅ Arquivo anexado':'Sem arquivo';
+    const hasFile=c.contractFile?'✅ Arquivo anexado':'Sem link';
     const _fin=S.currentUser&&(S.currentUser.role==='CEO'||S.currentUser.role==='Gestão');
     body=`<div class="card"><div class="ch"><h3>📋 Dados do Contrato</h3><button class="btn btn-p btn-s" onclick="saveContrato('${c.id}')">💾 Salvar</button></div>
     <div class="cb">
@@ -2456,7 +2452,7 @@ function rMinhaSemana(){
       ${monthDueBadge}
     </summary>
     <div class="tw"><table>
-      <thead><tr><th>Cliente</th><th>Status</th><th>Arquivo / Link</th></tr></thead>
+      <thead><tr><th>Cliente</th><th>Status</th><th>🔗 Link do relatório</th></tr></thead>
       <tbody>
         ${myClients.map(c=>{
           const mr=(c.monthlyReports&&c.monthlyReports[mk])||{done:false,file:null,link:''};
@@ -2464,15 +2460,13 @@ function rMinhaSemana(){
             <td><div style="font-weight:600;font-size:13px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
             <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
               <input type="checkbox" onchange="toggleMonthlyReport('${c.id}','${mk}',this.checked)" ${mr.done?'checked':''}>
-              <span style="font-size:11px;color:${mr.done?'#16A34A':'#9CA3AF'}">${mr.done?(mr.file||mr.link)?'✅ Enviado':'⚠️ Sem arquivo':'⏳ Pendente'}</span>
+              <span style="font-size:11px;color:${mr.done?'#16A34A':'#9CA3AF'}">${mr.done?(mr.file||mr.link)?'✅ Enviado':'⚠️ Sem link':'⏳ Pendente'}</span>
             </label></td>
             <td>
-              ${mr.file?`<span style="font-size:11px;color:var(--primary);cursor:pointer" onclick="downloadRepFile('${c.id}','monthly','${mk}')">📎 ${mr.file.name.substring(0,20)}...</span>`:
-                mr.link?`<a href="${mr.link}" target="_blank" style="font-size:11px;color:var(--primary)">🔗 Link</a>`:''}
-              <div style="display:flex;gap:4px;margin-top:4px">
-                <button class="btn btn-o btn-s" onclick="document.getElementById('ms-mf-${c.id}').click()">📎</button>
-                <input type="file" id="ms-mf-${c.id}" style="display:none" accept=".pdf,.jpg,.png,.doc,.docx" onchange="uploadReportFile('${c.id}','monthly','${mk}',this)">
-                <input class="mini" type="url" placeholder="Link..." style="width:110px" value="${mr.link||''}" onblur="updateMonthReportLink('${c.id}','${mk}',this.value)">
+              ${mr.file?`<span style="font-size:11px;color:var(--primary);cursor:pointer" onclick="downloadRepFile('${c.id}','monthly','${mk}')" title="arquivo antigo">📎</span> `:''}
+              ${mr.link?`<a href="${mr.link}" target="_blank" style="font-size:11px;color:var(--primary)">🔗 Ver</a>`:''}
+              <div style="margin-top:4px">
+                <input class="mini" type="url" placeholder="Cole o link (Drive)" style="width:170px" value="${mr.link||''}" onblur="updateMonthReportLink('${c.id}','${mk}',this.value)">
               </div>
             </td>
           </tr>`;
