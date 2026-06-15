@@ -599,7 +599,7 @@ const DEFAULT={
 // ────────────────────────────────────────────────────────────
 let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0,adminAuth:false,currentUser:null,semanaWeekKey:null,editingLeadIdx:null,weeklyFilterMonth:null,minhaSemanaFilterMonth:null,minhaSemanaWk:null,gestaoFilterMonth:null,gestaoWk:null};
 let D=(()=>{try{const s=localStorage.getItem('allin');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT))}catch{return JSON.parse(JSON.stringify(DEFAULT))}})();
-let save=()=>localStorage.setItem('allin',JSON.stringify(D));
+let save=()=>{try{localStorage.setItem('allin',JSON.stringify(D));}catch(e){console.warn('localStorage cheio/indisponível — seguindo só com a nuvem',e);}};
 if(!D.assignedTasks)D.assignedTasks=[];
 // Migra notas/datas antigas (campo único) para histórico de notas (lista)
 (D.team||[]).forEach(m=>{
@@ -2962,12 +2962,21 @@ function updateWeekReportLink(cid,wk,v){const c=D.clients.find(c=>c.id===cid);if
 function updateMonthReportLink(cid,mk,v){const c=D.clients.find(c=>c.id===cid);if(!c.monthlyReports[mk])c.monthlyReports[mk]={done:false,file:null,link:''};c.monthlyReports[mk].link=v;save();}
 function uploadReportFile(cid,type,key,input){
   const f=input.files[0];if(!f)return;
-  const c=D.clients.find(c=>c.id===cid);
+  const MAX=1024*1024; // 1 MB — acima disso estoura o armazenamento; usar o campo Link
+  if(f.size>MAX){
+    toast('⚠️ Arquivo muito pesado ('+(f.size/1048576).toFixed(1)+' MB). Limite 1 MB. Para relatórios grandes, cole o LINK (Google Drive) no campo ao lado. 🔗');
+    input.value='';
+    return;
+  }
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
   const reader=new FileReader();
+  reader.onerror=()=>{toast('❌ Erro ao ler o arquivo. Tente colar o link.');};
   reader.onload=e=>{
-    if(type==='weekly'){if(!c.weeklyReports[key])c.weeklyReports[key]={done:true,file:null,link:'',leads:0};c.weeklyReports[key].file={name:f.name,type:f.type,data:e.target.result};c.weeklyReports[key].done=true;}
-    else{if(!c.monthlyReports[key])c.monthlyReports[key]={done:true,file:null,link:''};c.monthlyReports[key].file={name:f.name,type:f.type,data:e.target.result};c.monthlyReports[key].done=true;}
-    save();render();toast('📎 Arquivo enviado!');
+    try{
+      if(type==='weekly'){if(!c.weeklyReports[key])c.weeklyReports[key]={done:true,file:null,link:'',leads:0};c.weeklyReports[key].file={name:f.name,type:f.type,data:e.target.result};c.weeklyReports[key].done=true;}
+      else{if(!c.monthlyReports[key])c.monthlyReports[key]={done:true,file:null,link:''};c.monthlyReports[key].file={name:f.name,type:f.type,data:e.target.result};c.monthlyReports[key].done=true;}
+      save();render();toast('📎 Arquivo enviado!');
+    }catch(err){toast('❌ Não foi possível salvar o arquivo (armazenamento cheio). Use o campo de Link. 🔗');}
   };
   reader.readAsDataURL(f);
 }
