@@ -3429,12 +3429,18 @@ function openEncounterModal(cid,encIdx){
   const fileInput=$('em-file');
   if(fileInput){
     fileInput.addEventListener('change',function(){
-      const files=this.files;
+      const files=Array.from(this.files);
       const target=isEdit?c.encounters.list[encIdx]:_encDraft;
       if(!target.attachments)target.attachments=[];
-      let pending=files.length;
-      Array.from(files).forEach(f=>{
+      const MAX=2*1024*1024; // 2 MB por foto (base64 vai pro banco — evita travar o sistema)
+      const grandes=files.filter(f=>f.size>MAX);
+      const ok=files.filter(f=>f.size<=MAX);
+      if(grandes.length){toast('⚠️ '+grandes.length+' foto(s) acima de 2 MB foram ignoradas. Tire um print menor ou comprima a imagem.');}
+      if(!ok.length){this.value='';return;}
+      let pending=ok.length;
+      ok.forEach(f=>{
         const reader=new FileReader();
+        reader.onerror=()=>{pending--;toast('❌ Erro ao ler a foto.');if(pending<=0){closeEncounterModal();openEncounterModal(cid,isEdit?String(encIdx):undefined);}};
         reader.onload=e=>{
           target.attachments.push({name:f.name,type:f.type,data:e.target.result});
           pending--;
@@ -3454,26 +3460,31 @@ function removeEncAttachment(cid,encIdx,attIdx){
   closeEncounterModal();openEncounterModal(cid,_encIsNew(encIdx)?undefined:encIdx);
 }
 function saveEncounter(cid,encIdx){
-  const c=D.clients.find(c=>c.id===cid);if(!c)return;
-  if(!c.encounters)c.encounters={list:[]};
-  if(!c.encounters.list)c.encounters.list=[];
-  const isNew=_encIsNew(encIdx);
-  const date=$('em-date').value;
-  if(!date){toast('⚠️ Informe a data do encontro!');return;}
-  const tnames=TEAM_NAMES();
-  const attendees=[];
-  tnames.forEach((n,i)=>{if($(`em-att-${i}`)?.checked)attendees.push(n);});
-  const description=$('em-desc').value.trim();
-  const notes=$('em-notes').value.trim();
-  const transcriptionLink=($('em-transcription')?.value||'').trim();
-  const recordingLink=($('em-recording')?.value||'').trim();
-  // anexos: do rascunho (novo) ou do encontro existente (edição) — opcionais
-  const src=isNew?(_encDraft||{}):(c.encounters.list[encIdx]||{});
-  const attachments=Array.isArray(src.attachments)?src.attachments:[];
-  const encounter={date,description,attendees,notes,transcriptionLink,recordingLink,attachments};
-  if(isNew){c.encounters.list.push(encounter);_encDraft=null;}
-  else{c.encounters.list[encIdx]=encounter;}
-  save();closeEncounterModal();toast('✅ Encontro salvo!');render();
+  try{
+    const c=D.clients.find(c=>c.id===cid);if(!c){toast('❌ Cliente não encontrado.');return;}
+    if(!c.encounters)c.encounters={list:[]};
+    if(!c.encounters.list)c.encounters.list=[];
+    const isNew=_encIsNew(encIdx);
+    const date=$('em-date')?$('em-date').value:'';
+    if(!date){toast('⚠️ Informe a data do encontro!');return;}
+    const tnames=TEAM_NAMES();
+    const attendees=[];
+    tnames.forEach((n,i)=>{if($(`em-att-${i}`)?.checked)attendees.push(n);});
+    const description=($('em-desc')?$('em-desc').value:'').trim();
+    const notes=($('em-notes')?$('em-notes').value:'').trim();
+    const transcriptionLink=($('em-transcription')?.value||'').trim();
+    const recordingLink=($('em-recording')?.value||'').trim();
+    // anexos: do rascunho (novo) ou do encontro existente (edição) — opcionais
+    const src=isNew?(_encDraft||{}):(c.encounters.list[encIdx]||{});
+    const attachments=Array.isArray(src.attachments)?src.attachments:[];
+    const encounter={date,description,attendees,notes,transcriptionLink,recordingLink,attachments};
+    if(isNew){c.encounters.list.push(encounter);_encDraft=null;}
+    else{c.encounters.list[encIdx]=encounter;}
+    save();closeEncounterModal();toast('✅ Encontro salvo!');render();
+  }catch(err){
+    console.error('Erro ao salvar encontro:',err);
+    toast('❌ Não consegui salvar: '+((err&&err.message)||'erro')+'. Tente remover a foto e salvar, ou recarregue (Ctrl+F5).');
+  }
 }
 function deleteEncounter(cid,encIdx){
   if(!confirm('Remover este encontro?'))return;
