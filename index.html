@@ -248,6 +248,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 </head>
 <body>
 <aside id="sidebar">
@@ -600,6 +601,7 @@ const DEFAULT={
 let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:'todos',assigneeFilter:'todos',portProd:'Gestão de Perfil',teamAuth:false,viewMode:'normal',selectedTeamMember:null,clientViewTab:'info',searchTerm:'',sortOrder:'nome',isClientPortal:false,authenticatedClientId:null,authenticatedEmail:null,portalView:'dashboard',portalMonthIdx:0,adminAuth:false,currentUser:null,semanaWeekKey:null,editingLeadIdx:null,weeklyFilterMonth:null,minhaSemanaFilterMonth:null,minhaSemanaWk:null,gestaoFilterMonth:null,gestaoWk:null};
 let D=(()=>{try{const s=localStorage.getItem('allin');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT))}catch{return JSON.parse(JSON.stringify(DEFAULT))}})();
 let save=()=>{try{localStorage.setItem('allin',JSON.stringify(D));}catch(e){console.warn('localStorage cheio/indisponível — seguindo só com a nuvem',e);}};
+let _fbStorage=null; // Firebase Storage (arquivos grandes ficam aqui, não no banco)
 if(!D.assignedTasks)D.assignedTasks=[];
 // Migra notas/datas antigas (campo único) para histórico de notas (lista)
 (D.team||[]).forEach(m=>{
@@ -2960,30 +2962,45 @@ function renderTasksSection(user){
 }
 function updateWeekReportLink(cid,wk,v){const c=D.clients.find(c=>c.id===cid);if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,file:null,link:'',leads:0};c.weeklyReports[wk].link=v;save();}
 function updateMonthReportLink(cid,mk,v){const c=D.clients.find(c=>c.id===cid);if(!c.monthlyReports[mk])c.monthlyReports[mk]={done:false,file:null,link:''};c.monthlyReports[mk].link=v;save();}
+function _setReportFile(c,type,key,obj){
+  if(type==='weekly'){if(!c.weeklyReports[key])c.weeklyReports[key]={done:true,file:null,link:'',leads:0};c.weeklyReports[key].file=obj;c.weeklyReports[key].done=true;}
+  else{if(!c.monthlyReports[key])c.monthlyReports[key]={done:true,file:null,link:''};c.monthlyReports[key].file=obj;c.monthlyReports[key].done=true;}
+}
 function uploadReportFile(cid,type,key,input){
   const f=input.files[0];if(!f)return;
-  const MAX=1024*1024; // 1 MB — acima disso estoura o armazenamento; usar o campo Link
-  if(f.size>MAX){
-    toast('⚠️ Arquivo muito pesado ('+(f.size/1048576).toFixed(1)+' MB). Limite 1 MB. Para relatórios grandes, cole o LINK (Google Drive) no campo ao lado. 🔗');
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  // Caminho preferido: Firebase Storage (arquivo fica no sistema, sem estourar o banco)
+  if(_fbStorage){
+    const MAX=20*1024*1024; // 20 MB
+    if(f.size>MAX){toast('⚠️ Arquivo acima de 20 MB. Comprima ou use o campo de Link.');input.value='';return;}
+    toast('⏳ Enviando arquivo...');
+    const safe=s=>(''+s).replace(/[^a-zA-Z0-9._-]/g,'_');
+    const path='reports/'+cid+'/'+type+'_'+safe(key)+'_'+Date.now()+'_'+safe(f.name);
+    const ref=_fbStorage.ref().child(path);
+    ref.put(f).then(()=>ref.getDownloadURL()).then(url=>{
+      _setReportFile(c,type,key,{name:f.name,type:f.type,url:url,path:path});
+      save();render();toast('✅ Arquivo enviado!');
+    }).catch(err=>{console.warn('Storage upload falhou:',err);toast('❌ Não consegui enviar o arquivo ('+(err&&err.code||'erro')+'). Tente de novo ou use o Link.');});
     input.value='';
     return;
   }
-  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  // Fallback (sem Storage): base64 pequeno no banco, com limite
+  const MAXb=1024*1024;
+  if(f.size>MAXb){toast('⚠️ Arquivo muito pesado. Use o campo de Link (Google Drive). 🔗');input.value='';return;}
   const reader=new FileReader();
   reader.onerror=()=>{toast('❌ Erro ao ler o arquivo. Tente colar o link.');};
   reader.onload=e=>{
-    try{
-      if(type==='weekly'){if(!c.weeklyReports[key])c.weeklyReports[key]={done:true,file:null,link:'',leads:0};c.weeklyReports[key].file={name:f.name,type:f.type,data:e.target.result};c.weeklyReports[key].done=true;}
-      else{if(!c.monthlyReports[key])c.monthlyReports[key]={done:true,file:null,link:''};c.monthlyReports[key].file={name:f.name,type:f.type,data:e.target.result};c.monthlyReports[key].done=true;}
-      save();render();toast('📎 Arquivo enviado!');
-    }catch(err){toast('❌ Não foi possível salvar o arquivo (armazenamento cheio). Use o campo de Link. 🔗');}
+    try{_setReportFile(c,type,key,{name:f.name,type:f.type,data:e.target.result});save();render();toast('📎 Arquivo enviado!');}
+    catch(err){toast('❌ Não foi possível salvar (armazenamento cheio). Use o Link. 🔗');}
   };
   reader.readAsDataURL(f);
 }
 function downloadRepFile(cid,type,key){
   const c=D.clients.find(c=>c.id===cid);
   const obj=type==='weekly'?c.weeklyReports[key]:c.monthlyReports[key];
-  if(obj&&obj.file){const a=document.createElement('a');a.href=obj.file.data;a.download=obj.file.name;a.click();}
+  if(!obj||!obj.file)return;
+  if(obj.file.url){window.open(obj.file.url,'_blank');return;}      // arquivo no Storage
+  if(obj.file.data){const a=document.createElement('a');a.href=obj.file.data;a.download=obj.file.name;a.click();} // base64 antigo
 }
 function cycleWeek(cid,m,wk){const c=D.clients.find(c=>c.id===cid);c.monthlyContent[m][wk]=CS(c.monthlyContent[m][wk]);save();render()}
 function toggleEnc(cid,n){const c=D.clients.find(c=>c.id===cid);c.encounters.completed=c.encounters.completed>=n?n-1:n;if(c.encounters.completed<0)c.encounters.completed=0;save();render()}
@@ -4917,6 +4934,7 @@ window.addEventListener('hashchange',handleNavigation);
     firebase.initializeApp(_fbConfig);
     const _auth=firebase.auth();
     const _db=firebase.database();
+    try{_fbStorage=firebase.storage();}catch(e){console.warn('Firebase Storage indisponível:',e);}
     let _fbTimer=null;
     let _fbWriting=false;
     let _fbReady=false;
