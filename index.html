@@ -3607,17 +3607,18 @@ function deleteProspect(cid,pid){
   save();toast('🗑️ Lead removido');render();
 }
 
-// ===== CAMPANHAS (por cliente, com histórico de atualizações) =====
-// Medições da campanha (campo direto; com fallback para histórico antigo, se existir)
-function _campMeas(cp){
-  const has=k=>cp[k]!=null&&cp[k]!=='';
-  let m={prospects:has('prospects')?cp.prospects:'',convite:has('convite')?cp.convite:'',mensagens:has('mensagens')?cp.mensagens:'',seguir:has('seguir')?cp.seguir:'',visitar:has('visitar')?cp.visitar:'',ssi:has('ssi')?cp.ssi:''};
-  if(cp.updates&&cp.updates.length&&!m.prospects&&!m.ssi&&!m.convite&&!m.mensagens){
-    const L=cp.updates.slice().sort((a,b)=>(''+(b.date||'')).localeCompare(''+(a.date||'')))[0]||{};
-    m={prospects:L.prospects||'',convite:L.convite||'',mensagens:L.mensagens||'',seguir:L.seguir||'',visitar:L.visitar||'',ssi:L.ssi||''};
-  }
-  return m;
+// ===== CAMPANHAS (por cliente, com HISTÓRICO de medições) =====
+// Histórico de medições normalizado (mais recente primeiro); migra formatos antigos
+function _campHist(cp){
+  let arr;
+  if(Array.isArray(cp.measurements))arr=cp.measurements.slice();
+  else if(Array.isArray(cp.updates)&&cp.updates.length)arr=cp.updates.map(u=>({id:u.id||('m'+Math.random().toString(36).slice(2)),date:u.date||'',prospects:u.prospects||'',convite:u.convite||'',mensagens:u.mensagens||'',seguir:u.seguir||'',visitar:u.visitar||'',ssi:u.ssi||''}));
+  else if(cp.prospects||cp.ssi||cp.convite||cp.mensagens||cp.seguir||cp.visitar)arr=[{id:'m0',date:cp.measureDate||'',prospects:cp.prospects||'',convite:cp.convite||'',mensagens:cp.mensagens||'',seguir:cp.seguir||'',visitar:cp.visitar||'',ssi:cp.ssi||''}];
+  else arr=[];
+  arr.sort((a,b)=>(''+(b.date||'')).localeCompare(''+(a.date||'')));
+  return arr;
 }
+function _campMeas(cp){return _campHist(cp)[0]||{prospects:'',convite:'',mensagens:'',seguir:'',visitar:'',ssi:''};}
 function rDetailCampanhas(c){
   const fd=d=>{if(!d)return'—';const x=new Date(d+'T12:00:00');return isNaN(x)?d:x.toLocaleDateString('pt-BR');};
   const camps=c.campaigns||[];
@@ -3625,23 +3626,36 @@ function rDetailCampanhas(c){
   if(!camps.length)return header+`<div class="card"><div class="cb" style="text-align:center;color:var(--muted);padding:40px">Nenhuma campanha cadastrada.<br><small>Clique em "+ Nova Campanha" para começar.</small></div></div>`;
   const chip=(lbl,val)=>`<div style="font-size:11px;background:#F1F5F9;padding:5px 10px;border-radius:8px;color:#475569">${lbl}: <strong>${(val===''||val==null)?'—':val}</strong></div>`;
   const cards=camps.map(cp=>{
-    const m=_campMeas(cp);
+    const hist=_campHist(cp);
+    const m=hist[0]||{};
+    const histRows=hist.length?hist.map(u=>`<tr>
+      <td style="white-space:nowrap">${fd(u.date)}</td>
+      <td style="text-align:center">${u.prospects||'—'}</td>
+      <td style="text-align:center">${u.convite||'—'}</td>
+      <td style="text-align:center">${u.mensagens||'—'}</td>
+      <td style="text-align:center">${u.seguir||'—'}</td>
+      <td style="text-align:center">${u.visitar||'—'}</td>
+      <td style="text-align:center;font-weight:700;color:var(--primary)">${u.ssi||'—'}</td>
+      <td style="white-space:nowrap"><button class="btn btn-o btn-s" style="font-size:10px" onclick="openCampMeasureModal('${c.id}','${cp.id}','${u.id}')">✏️</button> <button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="deleteCampMeasure('${c.id}','${cp.id}','${u.id}')">🗑</button></td>
+    </tr>`).join(''):`<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:14px">Nenhuma medição ainda. Clique em "+ Atualização".</td></tr>`;
     return`<div class="card" style="margin-bottom:16px">
       <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9);align-items:flex-start;flex-wrap:wrap;gap:8px">
         <div style="min-width:0"><h3 style="margin:0;color:white;font-size:14px">📣 ${escH(cp.name)}</h3>
         <span style="font-size:11px;color:rgba(255,255,255,.9)">Lançada: ${fd(cp.launchDate)}${cp.target?' · '+escH(cp.target):''}${cp.location?' · '+escH(cp.location):''}${cp.sector?' · '+escH(cp.sector):''}</span></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-          <button class="btn btn-s" style="background:white;color:#0891B2;font-weight:700;font-size:11px" onclick="openCampMeasureModal('${c.id}','${cp.id}')">+ Atualização</button>
+          <button class="btn btn-s" style="background:white;color:#0891B2;font-weight:700;font-size:11px" onclick="openCampMeasureModal('${c.id}','${cp.id}',null)">+ Atualização</button>
           <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="openCampaignModal('${c.id}','${cp.id}')">✏️ Editar</button>
           <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="deleteCampaign('${c.id}','${cp.id}')">🗑</button>
         </div>
       </div>
       <div class="cb">
         ${cp.notes?`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">📝 ${escH(cp.notes)}</div>`:''}
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          ${chip('Prospects',m.prospects)}${chip('Convite',m.convite)}${chip('Mensagens',m.mensagens)}${chip('Seguir',m.seguir)}${chip('Visitar',m.visitar)}${chip('SSI',m.ssi)}
-        </div>
-        ${cp.measureDate?`<div style="font-size:10px;color:var(--muted);margin-top:8px">🕒 Atualizado em ${fd(cp.measureDate)}</div>`:''}
+        ${hist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:10px;color:var(--muted);align-self:center">Atual:</span>${chip('Prospects',m.prospects)}${chip('Convite',m.convite)}${chip('Mensagens',m.mensagens)}${chip('Seguir',m.seguir)}${chip('Visitar',m.visitar)}${chip('SSI',m.ssi)}</div>`:''}
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 4px">📈 Histórico de medições</div>
+        <div class="tw"><table>
+          <thead><tr><th>Data</th><th style="text-align:center">Prospects</th><th style="text-align:center">Convite</th><th style="text-align:center">Mensagens</th><th style="text-align:center">Seguir</th><th style="text-align:center">Visitar</th><th style="text-align:center">SSI</th><th></th></tr></thead>
+          <tbody>${histRows}</tbody>
+        </table></div>
       </div>
     </div>`;
   }).join('');
@@ -3693,23 +3707,23 @@ function deleteCampaign(cid,campId){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
   c.campaigns=(c.campaigns||[]).filter(x=>x.id!==campId);save();toast('🗑️ Campanha removida');render();
 }
-// Modal de medição (uma medição atual por campanha) — botão "+ Atualização"
-function openCampMeasureModal(cid,campId){
+// Modal de medição — "+ Atualização" (measId null = nova; com id = editar do histórico)
+function openCampMeasureModal(cid,campId,measId){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
   const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
-  const m=_campMeas(cp);
-  const md=cp.measureDate||new Date().toISOString().slice(0,10);
+  const editing=measId?(_campHist(cp).find(x=>x.id===measId)||null):null;
+  const m=editing||{date:new Date().toISOString().slice(0,10),prospects:'',convite:'',mensagens:'',seguir:'',visitar:'',ssi:''};
   const ov=document.createElement('div');ov.id='campmeas-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="background:linear-gradient(135deg,#0891B2,#0EA5E9);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center">
-      <div><h3 style="margin:0;color:white;font-size:15px">➕ Atualização da campanha</h3>
+      <div><h3 style="margin:0;color:white;font-size:15px">${editing?'✏️ Editar medição':'➕ Nova medição'}</h3>
       <span style="font-size:12px;color:rgba(255,255,255,.85)">${escH(cp.name)}</span></div>
       <button onclick="document.getElementById('campmeas-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
     </div>
     <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
       <div class="fgrid">
-        <div class="fg"><label>Data da medição</label><input type="date" id="cms-date" value="${md}"></div>
+        <div class="fg"><label>Data da medição</label><input type="date" id="cms-date" value="${m.date||''}"></div>
         <div class="fg"><label>Número de prospects</label><input type="number" id="cms-prospects" value="${escH(m.prospects)}" placeholder="0"></div>
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid #E5E7EB;padding-bottom:4px">Definições da campanha</div>
@@ -3725,21 +3739,34 @@ function openCampMeasureModal(cid,campId){
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-o" onclick="document.getElementById('campmeas-overlay').remove()">Cancelar</button>
-      <button class="btn btn-p" onclick="saveCampMeasure('${cid}','${campId}')">💾 Salvar</button>
+      <button class="btn btn-p" onclick="saveCampMeasure('${cid}','${campId}','${measId||''}')">💾 Salvar</button>
     </div>
   </div>`;
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
   document.body.appendChild(ov);
 }
-function saveCampMeasure(cid,campId){
+function _campMigrate(cp){
+  // garante cp.measurements[] (migra formato antigo) e limpa campos legados
+  if(!Array.isArray(cp.measurements))cp.measurements=_campHist(cp);
+  ['updates','prospects','convite','mensagens','seguir','visitar','ssi','measureDate'].forEach(k=>{delete cp[k];});
+}
+function saveCampMeasure(cid,campId,measId){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
   const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
+  _campMigrate(cp);
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
-  cp.measureDate=g('cms-date');
-  cp.prospects=g('cms-prospects');cp.convite=g('cms-convite');cp.mensagens=g('cms-mensagens');
-  cp.seguir=g('cms-seguir');cp.visitar=g('cms-visitar');cp.ssi=g('cms-ssi');
-  delete cp.updates;
-  save();const ov=document.getElementById('campmeas-overlay');if(ov)ov.remove();toast('✅ Medição atualizada');render();
+  const data={date:g('cms-date'),prospects:g('cms-prospects'),convite:g('cms-convite'),mensagens:g('cms-mensagens'),seguir:g('cms-seguir'),visitar:g('cms-visitar'),ssi:g('cms-ssi')};
+  if(measId){const mm=cp.measurements.find(x=>x.id===measId);if(mm)Object.assign(mm,data);else cp.measurements.push(Object.assign({id:'m'+Date.now()},data));}
+  else cp.measurements.push(Object.assign({id:'m'+Date.now()},data));
+  save();const ov=document.getElementById('campmeas-overlay');if(ov)ov.remove();toast('✅ Medição salva');render();
+}
+function deleteCampMeasure(cid,campId,measId){
+  if(!confirm('Remover esta medição do histórico?'))return;
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
+  _campMigrate(cp);
+  cp.measurements=cp.measurements.filter(x=>x.id!==measId);
+  save();toast('🗑️ Medição removida');render();
 }
 
 // ────────────────────────────────────────────────────────────
