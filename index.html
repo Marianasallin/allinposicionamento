@@ -3625,8 +3625,8 @@ function deleteProspect(cid,pid){
 function _campHist(cp){
   let arr;
   if(Array.isArray(cp.measurements))arr=cp.measurements.slice();
-  else if(Array.isArray(cp.updates)&&cp.updates.length)arr=cp.updates.map(u=>({id:u.id||('m'+Math.random().toString(36).slice(2)),date:u.date||'',prospects:u.prospects||'',convite:u.convite||'',mensagens:u.mensagens||'',seguir:u.seguir||'',visitar:u.visitar||'',ssi:u.ssi||''}));
-  else if(cp.prospects||cp.ssi||cp.convite||cp.mensagens||cp.seguir||cp.visitar)arr=[{id:'m0',date:cp.measureDate||'',prospects:cp.prospects||'',convite:cp.convite||'',mensagens:cp.mensagens||'',seguir:cp.seguir||'',visitar:cp.visitar||'',ssi:cp.ssi||''}];
+  else if(Array.isArray(cp.updates)&&cp.updates.length)arr=cp.updates.map(u=>({id:u.id||('m'+Math.random().toString(36).slice(2)),date:u.date||'',prospects:u.prospects||'',convite:u.convite||'',mensagens:u.mensagens||'',seguir:u.seguir||'',visitar:u.visitar||'',ssi:u.ssi||'',obs:u.obs||''}));
+  else if(cp.prospects||cp.ssi||cp.convite||cp.mensagens||cp.seguir||cp.visitar)arr=[{id:'m0',date:cp.measureDate||'',prospects:cp.prospects||'',convite:cp.convite||'',mensagens:cp.mensagens||'',seguir:cp.seguir||'',visitar:cp.visitar||'',ssi:cp.ssi||'',obs:''}];
   else arr=[];
   arr.sort((a,b)=>(''+(b.date||'')).localeCompare(''+(a.date||'')));
   return arr;
@@ -3649,8 +3649,9 @@ function rDetailCampanhas(c){
       <td style="text-align:center">${u.seguir||'—'}</td>
       <td style="text-align:center">${u.visitar||'—'}</td>
       <td style="text-align:center;font-weight:700;color:var(--primary)">${u.ssi||'—'}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:200px">${escH(u.obs||'')}</td>
       <td style="white-space:nowrap"><button class="btn btn-o btn-s" style="font-size:10px" onclick="openCampMeasureModal('${c.id}','${cp.id}','${u.id}')">✏️</button> <button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="deleteCampMeasure('${c.id}','${cp.id}','${u.id}')">🗑</button></td>
-    </tr>`).join(''):`<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:14px">Nenhuma medição ainda. Clique em "+ Atualização".</td></tr>`;
+    </tr>`).join(''):`<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:14px">Nenhuma medição ainda. Clique em "+ Atualização".</td></tr>`;
     return`<div class="card" style="margin-bottom:16px">
       <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9);align-items:flex-start;flex-wrap:wrap;gap:8px">
         <div style="min-width:0"><h3 style="margin:0;color:white;font-size:14px">📣 ${escH(cp.name)}</h3>
@@ -3662,11 +3663,12 @@ function rDetailCampanhas(c){
         </div>
       </div>
       <div class="cb">
+        ${(cp.prospectsInseridos!==''&&cp.prospectsInseridos!=null)?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${chip('👥 Prospectos inseridos',cp.prospectsInseridos)}</div>`:''}
         ${cp.notes?`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">📝 ${escH(cp.notes)}</div>`:''}
-        ${hist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:10px;color:var(--muted);align-self:center">Atual:</span>${chip('Prospects',m.prospects)}${chip('Convite',m.convite)}${chip('Mensagens',m.mensagens)}${chip('Seguir',m.seguir)}${chip('Visitar',m.visitar)}${chip('SSI',m.ssi)}</div>`:''}
+        ${hist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:10px;color:var(--muted);align-self:center">Atual:</span>${chip('Convite',m.convite)}${chip('Mensagens',m.mensagens)}${chip('Seguir',m.seguir)}${chip('Visitar',m.visitar)}${chip('SSI',m.ssi)}</div>`:''}
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 4px">📈 Histórico de medições</div>
         <div class="tw"><table>
-          <thead><tr><th>Data</th><th style="text-align:center">Prospects</th><th style="text-align:center">Convite</th><th style="text-align:center">Mensagens</th><th style="text-align:center">Seguir</th><th style="text-align:center">Visitar</th><th style="text-align:center">SSI</th><th></th></tr></thead>
+          <thead><tr><th>Data</th><th style="text-align:center">Prospects</th><th style="text-align:center">Convite</th><th style="text-align:center">Mensagens</th><th style="text-align:center">Seguir</th><th style="text-align:center">Visitar</th><th style="text-align:center">SSI</th><th>Obs.</th><th></th></tr></thead>
           <tbody>${histRows}</tbody>
         </table></div>
       </div>
@@ -3693,8 +3695,9 @@ function openCampaignModal(cid,campId){
       </div>
       <div class="fg"><label>Público-alvo / Cargo</label><input id="cmp-target" value="${escH(cp.target)}" placeholder="Ex: Coordenadores e especialistas sênior"></div>
       <div class="fg"><label>Localização</label><input id="cmp-loc" value="${escH(cp.location)}" placeholder="Ex: Brasil, SP/BH..."></div>
+      <div class="fg"><label>Quantidade de prospectos inseridos</label><input type="number" id="cmp-prospects-count" value="${escH(cp.prospectsInseridos)}" placeholder="0" style="max-width:200px"></div>
       <div class="fg"><label>Observação</label><textarea id="cmp-notes" rows="2" style="resize:vertical;width:100%">${escH(cp.notes)}</textarea></div>
-      <div style="font-size:11px;color:var(--muted);background:#F1F5F9;padding:8px 12px;border-radius:8px">💡 As medições (prospects, convite, mensagens, seguir, visitar, SSI) são preenchidas no botão <strong>"+ Atualização"</strong> da campanha.</div>
+      <div style="font-size:11px;color:var(--muted);background:#F1F5F9;padding:8px 12px;border-radius:8px">💡 As medições de evolução (convite, mensagens, seguir, visitar, SSI) são preenchidas no botão <strong>"+ Atualização"</strong> da campanha.</div>
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-o" onclick="document.getElementById('camp-overlay').remove()">Cancelar</button>
@@ -3710,7 +3713,7 @@ function saveCampaign(cid,campId){
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
   const name=g('cmp-name');
   if(!name){toast('⚠️ Nome da campanha é obrigatório');return;}
-  const data={name,launchDate:g('cmp-launch'),target:g('cmp-target'),location:g('cmp-loc'),sector:g('cmp-sector'),notes:g('cmp-notes')};
+  const data={name,launchDate:g('cmp-launch'),target:g('cmp-target'),location:g('cmp-loc'),sector:g('cmp-sector'),notes:g('cmp-notes'),prospectsInseridos:g('cmp-prospects-count')};
   if(campId){const cp=c.campaigns.find(x=>x.id===campId);if(cp)Object.assign(cp,data);}
   else c.campaigns.push(Object.assign({id:'cmp'+Date.now()},data));
   save();const ov=document.getElementById('camp-overlay');if(ov)ov.remove();toast('✅ Campanha salva');render();
@@ -3725,7 +3728,7 @@ function openCampMeasureModal(cid,campId,measId){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
   const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
   const editing=measId?(_campHist(cp).find(x=>x.id===measId)||null):null;
-  const m=editing||{date:new Date().toISOString().slice(0,10),prospects:'',convite:'',mensagens:'',seguir:'',visitar:'',ssi:''};
+  const m=editing||{date:new Date().toISOString().slice(0,10),prospects:'',convite:'',mensagens:'',seguir:'',visitar:'',ssi:'',obs:''};
   const ov=document.createElement('div');ov.id='campmeas-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
@@ -3749,6 +3752,7 @@ function openCampMeasureModal(cid,campId,measId){
         <div class="fg"><label>Visitar</label><input type="number" id="cms-visitar" value="${escH(m.visitar)}" placeholder="0"></div>
       </div>
       <div class="fg"><label>SSI (índice LinkedIn)</label><input type="number" id="cms-ssi" value="${escH(m.ssi)}" placeholder="0-100" style="max-width:160px"></div>
+      <div class="fg"><label>Observação</label><textarea id="cms-obs" rows="2" style="resize:vertical;width:100%" placeholder="Ex: acréscimo de prospects, campanha reformulada, observações da semana...">${escH(m.obs)}</textarea></div>
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-o" onclick="document.getElementById('campmeas-overlay').remove()">Cancelar</button>
@@ -3768,7 +3772,7 @@ function saveCampMeasure(cid,campId,measId){
   const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
   _campMigrate(cp);
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
-  const data={date:g('cms-date'),prospects:g('cms-prospects'),convite:g('cms-convite'),mensagens:g('cms-mensagens'),seguir:g('cms-seguir'),visitar:g('cms-visitar'),ssi:g('cms-ssi')};
+  const data={date:g('cms-date'),prospects:g('cms-prospects'),convite:g('cms-convite'),mensagens:g('cms-mensagens'),seguir:g('cms-seguir'),visitar:g('cms-visitar'),ssi:g('cms-ssi'),obs:g('cms-obs')};
   if(measId){const mm=cp.measurements.find(x=>x.id===measId);if(mm)Object.assign(mm,data);else cp.measurements.push(Object.assign({id:'m'+Date.now()},data));}
   else cp.measurements.push(Object.assign({id:'m'+Date.now()},data));
   save();const ov=document.getElementById('campmeas-overlay');if(ov)ov.remove();toast('✅ Medição salva');render();
