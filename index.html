@@ -1740,6 +1740,7 @@ function rDetail(){
     <div class="back" style="margin:0" onclick="nav('clients',{clientId:null})">← Voltar</div>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="btn btn-p btn-s" style="font-size:11px" onclick="compartilharAcesso('${c.id}')">📲 Enviar acesso ao portal</button>
+      <button class="btn btn-o btn-s" style="font-size:11px" onclick="resetPortalPassword('${c.id}')" title="${c.portalPassword?'Cliente já criou senha — clique para resetar':'Cliente ainda não criou senha'}">🔑 ${c.portalPassword?'Resetar senha':'Senha não criada'}</button>
       <button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red);font-size:11px" onclick="deleteClient('${c.id}')">🗑️ Excluir Cliente</button>
     </div>
   </div>
@@ -4397,12 +4398,24 @@ function validateClientPassword(client,password){
 function loginClientPortal(email,password){
   const client=validateClientEmail(email);
   if(!client){
-    toast('❌ Email não encontrado');
+    toast('❌ E-mail não encontrado. Confira com a sua consultora ALL IN.');
     return false;
   }
-  if(!validateClientPassword(client,password)){
-    toast('❌ Senha incorreta');
-    return false;
+  if(!client.portalPassword){
+    // PRIMEIRO ACESSO: a senha que o cliente digitar agora vira a senha dele
+    if((password||'').length<4){
+      toast('🔑 Primeiro acesso! Crie uma senha (mínimo 4 caracteres).');
+      return false;
+    }
+    client.portalPassword=password;
+    save();
+    toast('✅ Senha criada! Bem-vindo(a) à sua Central. 💙');
+  } else if(password!==client.portalPassword){
+    // reserva: aceita CPF antigo (caso alguém tenha sido orientado assim) pra não travar
+    if(!validateClientPassword(client,password)){
+      toast('❌ Senha incorreta.');
+      return false;
+    }
   }
   S.isClientPortal=true;
   S.authenticatedClientId=client.id;
@@ -4416,6 +4429,13 @@ function loginClientPortal(email,password){
   return true;
 }
 
+function resetPortalPassword(cid){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  if(!c.portalPassword){toast('ℹ️ Este cliente ainda não criou uma senha. No próximo acesso ele cria.');return;}
+  if(!confirm('Resetar a senha do portal de '+c.name+'?\n\nO cliente vai criar uma nova senha no próximo acesso (e-mail continua o mesmo).'))return;
+  delete c.portalPassword;
+  save();toast('🔑 Senha resetada. O cliente cria uma nova no próximo acesso.');render();
+}
 function logoutClientPortal(){
   S.isClientPortal=false;
   S.authenticatedClientId=null;
@@ -4452,6 +4472,7 @@ function rLoginPortal(){
             <button type="button" class="portal-password-toggle" onclick="togglePasswordVisibility()">👁️</button>
           </div>
         </div>
+        <div style="font-size:11px;color:#64748B;background:#EFF6FF;border:1px solid #DBEAFE;border-radius:8px;padding:8px 10px;margin-bottom:12px">🔑 <strong>Primeiro acesso?</strong> A senha que você digitar agora será cadastrada — guarde-a para os próximos acessos.</div>
         <button type="submit" class="portal-btn-login">🔓 Entrar no Portal</button>
       </form>
       <div class="portal-login-forgot">
@@ -4485,21 +4506,7 @@ function loginPortalFromInput(){
 }
 
 function openForgotPasswordModal(){
-  const email=prompt('Digite seu email para recuperar a senha:');
-  if(!email)return;
-
-  const client=validateClientEmail(email);
-  if(!client){
-    toast('❌ Email não encontrado');
-    return;
-  }
-
-  if(!client.cnpj){
-    toast('⚠️ Nenhum CPF registrado para este cliente. Converse com a Mari.');
-    return;
-  }
-
-  alert(`Olá ${client.name}!\n\nSua senha de acesso é o seu CPF (somente os números):\n\n${client.cnpj}\n\nUse este código para acessar o portal.`);
+  alert('Esqueceu sua senha?\n\nFale com a sua consultora da ALL IN pelo WhatsApp que ela redefine seu acesso em segundos — aí você escolhe uma senha nova no próximo acesso. 💙');
 }
 
 function navPortal(view){S.portalView=view;S.portalMonthIdx=0;render();}
