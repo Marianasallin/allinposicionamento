@@ -599,6 +599,20 @@ let S={view:'dash',clientId:null,tab:'entregas',prodFilter:'todos',statusFilter:
 let D=(()=>{try{const s=localStorage.getItem('allin');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT))}catch{return JSON.parse(JSON.stringify(DEFAULT))}})();
 let save=()=>{try{localStorage.setItem('allin',JSON.stringify(D));}catch(e){console.warn('localStorage cheio/indisponível — seguindo só com a nuvem',e);}};
 let _fbStorage=null; // Firebase Storage (arquivos grandes ficam aqui, não no banco)
+let _portalToken=null; // token do link do portal aguardando os dados carregarem (auto-login)
+function _enterClientPortal(client){
+  S.isClientPortal=true;S.authenticatedClientId=client.id;S.authenticatedEmail=client.email;
+  try{sessionStorage.setItem('clientPortalAuth',JSON.stringify({clientId:client.id,email:client.email}));}catch(e){}
+  const sb=document.getElementById('sidebar');if(sb)sb.style.display='none';
+  const tb=document.querySelector('.topbar');if(tb)tb.style.display='none';
+  const mn=document.getElementById('main');if(mn){mn.style.marginLeft='0';mn.style.minHeight='100vh';}
+  render();
+}
+function _resolvePortalToken(){
+  if(!_portalToken||S.authenticatedClientId)return;
+  const client=D.clients.find(c=>c.token===_portalToken);
+  if(client){_portalToken=null;_enterClientPortal(client);}
+}
 if(!D.assignedTasks)D.assignedTasks=[];
 // Migra notas/datas antigas (campo único) para histórico de notas (lista)
 (D.team||[]).forEach(m=>{
@@ -827,7 +841,8 @@ function render(){
   // Handle client portal authentication
   if(S.isClientPortal){
     if(S.authenticatedClientId){return $('view').innerHTML=rClientPortalAuth();}
-    else{return $('view').innerHTML=rLoginPortal();}
+    if(_portalToken){return $('view').innerHTML='<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:#0D3D9B;font-family:system-ui,sans-serif"><div style="font-size:40px">🔷</div><div style="font-size:15px;font-weight:600">Carregando sua Central...</div><div style="font-size:12px;color:#64748B">Um instante 💙</div></div>';}
+    return $('view').innerHTML=rLoginPortal();
   }
   // Handle admin login
   if(!S.adminAuth){
@@ -4910,19 +4925,17 @@ function handleNavigation(){
   // Handle portal with token (auto-login)
   if(hash.startsWith('#portal/')){
     const token=hash.replace('#portal/','');
+    _portalToken=token;
     const client=D.clients.find(c=>c.token===token);
-    if(client){
-      S.isClientPortal=true;
-      S.authenticatedClientId=client.id;
-      S.authenticatedEmail=client.email;
-      sessionStorage.setItem('clientPortalAuth',JSON.stringify({clientId:client.id,email:client.email}));
-      document.getElementById('sidebar').style.display='none';
-      document.querySelector('.topbar').style.display='none';
-      document.getElementById('main').style.marginLeft='0';
-      document.getElementById('main').style.minHeight='100vh';
-      render();
-      return;
-    }
+    if(client){_portalToken=null;_enterClientPortal(client);return;}
+    // Dados ainda não carregaram da nuvem → mostra "carregando" e resolve quando chegarem (_resolvePortalToken)
+    S.isClientPortal=true;S.authenticatedClientId=null;
+    document.getElementById('sidebar').style.display='none';
+    document.querySelector('.topbar').style.display='none';
+    document.getElementById('main').style.marginLeft='0';
+    document.getElementById('main').style.minHeight='100vh';
+    render();
+    return;
   }
   // Handle portal login page
   if(hash==='#portal'){
@@ -5016,6 +5029,8 @@ window.addEventListener('hashchange',handleNavigation);
         if(snap.exists()&&!_localDirty){
           D=sanitizeD(snap.val());
           localStorage.setItem('allin',JSON.stringify(D));
+          // Link do portal aguardando dados? resolve agora (auto-login). Se o token for inválido, mostra a tela de senha.
+          if(_portalToken&&!S.authenticatedClientId){_resolvePortalToken();if(_portalToken)_portalToken=null;}
           render();
           toast('☁️ Sincronizado');
         } else {
@@ -5031,6 +5046,7 @@ window.addEventListener('hashchange',handleNavigation);
           if(JSON.stringify(sanitized)!==JSON.stringify(D)){
             D=sanitized;
             localStorage.setItem('allin',JSON.stringify(D));
+            if(_portalToken&&!S.authenticatedClientId)_resolvePortalToken();
             toast('🔄 Atualizado em tempo real');
             render();
           }
