@@ -1649,7 +1649,8 @@ function rDetail(){
           </select>
         </div>
         <div class="fg"><label>Vencimento</label><input id="ct-cd" type="date" value="${c.contractDue?new Date(c.contractDue).toISOString().split('T')[0]:''}"></div>
-        <div class="fg"><label>Data de Início</label><input id="ct-sd" type="date" value="${c.startDate||''}"></div>
+        <div class="fg"><label>Data de início do contrato</label><input id="ct-sd" type="date" value="${c.startDate||''}"></div>
+        <div class="fg"><label>Data de início da prospecção</label><input id="ct-prosp" type="date" value="${c.prospectionStart||''}"></div>
         ${_fin?`<div class="fg"><label>Valor do Contrato 🔒</label><input id="ct-val" placeholder="R$ 0,00" value="${c.contractValue||''}"></div>
         <div class="fg"><label>Forma de Pagamento 🔒</label>
           <select id="ct-pm">
@@ -3045,6 +3046,7 @@ function saveContrato(cid){
   c.contractStatus=$('ct-cs').value;
   const cdv=$('ct-cd').value;c.contractDue=cdv?new Date(cdv).getTime():null;
   c.startDate=$('ct-sd').value;
+  if($('ct-prosp'))c.prospectionStart=$('ct-prosp').value;
   if($('ct-val'))c.contractValue=$('ct-val').value;
   if($('ct-pm'))c.paymentMethod=$('ct-pm').value;
   if($('ct-ps'))c.paymentStatus=$('ct-ps').value;
@@ -3303,7 +3305,8 @@ function addClient(){
         </div>
         <span class="sec-h">Contrato</span>
         <div class="fgrid3" style="margin-bottom:4px">
-          <div class="fg"><label>Data de Início</label><input id="nc-sd" type="date"></div>
+          <div class="fg"><label>Início do contrato</label><input id="nc-sd" type="date"></div>
+          <div class="fg"><label>Início da prospecção</label><input id="nc-prosp" type="date"></div>
           <div class="fg"><label>Vencimento</label><input id="nc-cd" type="date"></div>
           <div class="fg"><label>Valor do Contrato</label><input id="nc-val" placeholder="R$ 0,00"></div>
           <div class="fg"><label>Forma de Pagamento</label>
@@ -3370,7 +3373,7 @@ function confirmNC(){
   const c=mkClient(name,i,prods,$('nc-cs').value,cdv?new Date(cdv).getTime():null,$('nc-as').value?[$('nc-as').value]:[]);
   c.email=$('nc-e').value;c.phone=$('nc-p').value;c.linkedin=$('nc-l').value;
   c.nicho=$('nc-ni').value;c.cnpj=$('nc-cnpj').value;c.address=$('nc-addr').value;
-  c.startDate=$('nc-sd').value;c.contractValue=$('nc-val').value;
+  c.startDate=$('nc-sd').value;c.prospectionStart=($('nc-prosp')?$('nc-prosp').value:'');c.contractValue=$('nc-val').value;
   c.paymentMethod=$('nc-pm').value;c.paymentStatus=$('nc-ps').value;
   c.notes=$('nc-notes').value;
   D.clients.push(c);save();closeNC();
