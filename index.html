@@ -1650,7 +1650,7 @@ function rDetail(){
         </div>
         <div class="fg"><label>Vencimento</label><input id="ct-cd" type="date" value="${c.contractDue?new Date(c.contractDue).toISOString().split('T')[0]:''}"></div>
         <div class="fg"><label>Data de início do contrato</label><input id="ct-sd" type="date" value="${c.startDate||''}"></div>
-        <div class="fg"><label>Data de início da prospecção</label><input id="ct-prosp" type="date" value="${c.prospectionStart||''}"></div>
+        <div class="fg"><label>Data de início da prospecção</label><input id="ct-prosp" type="date" value="${c.prospectionStart||''}" onchange="_setVencFromProsp('ct-prosp','ct-cd',12)"></div>
         ${_fin?`<div class="fg"><label>Valor do Contrato 🔒</label><input id="ct-val" placeholder="R$ 0,00" value="${c.contractValue||''}"></div>
         <div class="fg"><label>Forma de Pagamento 🔒</label>
           <select id="ct-pm">
@@ -3027,6 +3027,17 @@ function savePessoal(cid){
   if($('fp-igsenha'))c.instagramSenha=$('fp-igsenha').value;
   c.initials=initials(c.name);save();toast('✅ Dados salvos!');render();
 }
+// Vencimento = data de início da prospecção + N meses (Gestão de Perfil = 12). Mantém editável.
+function _setVencFromProsp(prospId, vencId, months){
+  const pv=document.getElementById(prospId), cv=document.getElementById(vencId);
+  if(!pv||!cv||!pv.value)return;
+  const d=new Date(pv.value+'T12:00:00');
+  if(isNaN(d))return;
+  const m=months||12;
+  const fim=new Date(d.getFullYear(), d.getMonth()+m, d.getDate());
+  cv.value=fim.toISOString().slice(0,10);
+  toast('📅 Vencimento calculado: '+fim.toLocaleDateString('pt-BR')+' (prospecção + '+m+' meses). Pode ajustar se precisar.');
+}
 function saveContrato(cid){
   const c=D.clients.find(c=>c.id===cid);
   c.products=['Gestão de Perfil','Implementação Comercial','Mentoria','Consultoria'].filter(p=>document.getElementById('ctp-'+p.replace(/[\s\/]/g,'-'))?.checked);
@@ -3306,7 +3317,7 @@ function addClient(){
         <span class="sec-h">Contrato</span>
         <div class="fgrid3" style="margin-bottom:4px">
           <div class="fg"><label>Início do contrato</label><input id="nc-sd" type="date"></div>
-          <div class="fg"><label>Início da prospecção</label><input id="nc-prosp" type="date"></div>
+          <div class="fg"><label>Início da prospecção</label><input id="nc-prosp" type="date" onchange="_setVencFromProsp('nc-prosp','nc-cd',12)"></div>
           <div class="fg"><label>Vencimento</label><input id="nc-cd" type="date"></div>
           <div class="fg"><label>Valor do Contrato</label><input id="nc-val" placeholder="R$ 0,00"></div>
           <div class="fg"><label>Forma de Pagamento</label>
