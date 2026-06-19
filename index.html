@@ -5007,8 +5007,18 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
+    // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
+    let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
+    function _resnap(){
+      _fbSnap={
+        ids:D.clients.map(c=>c.id),
+        clients:D.clients.map(c=>JSON.stringify(c)),
+        team:JSON.stringify(D.team||[]),
+        assignedTasks:JSON.stringify(D.assignedTasks||[])
+      };
+    }
 
-    // Override save() para escrever no Firebase + localStorage
+    // Override save() — grava de forma GRANULAR (só o cliente que mudou), evitando que um usuário sobrescreva o outro
     const _lsave=save;
     save=()=>{
       _lsave();
@@ -5017,9 +5027,26 @@ window.addEventListener('hashchange',handleNavigation);
       if(_fbTimer)clearTimeout(_fbTimer);
       _fbWriting=true;
       _fbTimer=setTimeout(()=>{
-        _db.ref('allin').set(JSON.parse(JSON.stringify(D)))
-          .then(()=>{_localDirty=false;setTimeout(()=>{_fbWriting=false;},1000);})
-          .catch(()=>{_fbWriting=false;});
+        const done=()=>{_resnap();_localDirty=false;setTimeout(()=>{_fbWriting=false;},1000);};
+        const fail=()=>{_fbWriting=false;};
+        try{
+          const ids=D.clients.map(c=>c.id);
+          const sameStruct=_fbSnap.ids.length===ids.length && _fbSnap.ids.every((id,i)=>id===ids[i]);
+          if(!sameStruct){
+            // lista de clientes mudou (criou/excluiu/reordenou) — grava tudo (caso raro)
+            _db.ref('allin').set(JSON.parse(JSON.stringify(D))).then(done).catch(fail);
+            return;
+          }
+          const updates={};
+          D.clients.forEach((c,i)=>{const j=JSON.stringify(c);if(_fbSnap.clients[i]!==j)updates['clients/'+i]=JSON.parse(j);});
+          const tj=JSON.stringify(D.team||[]);if(_fbSnap.team!==tj)updates['team']=JSON.parse(tj);
+          const aj=JSON.stringify(D.assignedTasks||[]);if(_fbSnap.assignedTasks!==aj)updates['assignedTasks']=JSON.parse(aj);
+          if(!Object.keys(updates).length){done();return;}
+          _db.ref('allin').update(updates).then(done).catch(fail);
+        }catch(e){
+          console.warn('save granular falhou, gravando tudo:',e);
+          _db.ref('allin').set(JSON.parse(JSON.stringify(D))).then(done).catch(fail);
+        }
       },800);
     };
 
@@ -5054,6 +5081,7 @@ window.addEventListener('hashchange',handleNavigation);
         if(snap.exists()&&!_localDirty){
           D=sanitizeD(snap.val());
           localStorage.setItem('allin',JSON.stringify(D));
+          _resnap();
           // Link do portal aguardando dados? resolve agora (auto-login). Se o token for inválido, mostra a tela de senha.
           if(_portalToken&&!S.authenticatedClientId){_resolvePortalToken();if(_portalToken)_portalToken=null;}
           render();
@@ -5061,6 +5089,7 @@ window.addEventListener('hashchange',handleNavigation);
         } else {
           // Servidor vazio OU há edição local pendente → o que está local prevalece e sobe pra nuvem
           _db.ref('allin').set(JSON.parse(JSON.stringify(D)));
+          _resnap();
           _localDirty=false;
         }
         _fbReady=true;
@@ -5071,6 +5100,7 @@ window.addEventListener('hashchange',handleNavigation);
           if(JSON.stringify(sanitized)!==JSON.stringify(D)){
             D=sanitized;
             localStorage.setItem('allin',JSON.stringify(D));
+            _resnap();
             if(_portalToken&&!S.authenticatedClientId)_resolvePortalToken();
             toast('🔄 Atualizado em tempo real');
             render();
