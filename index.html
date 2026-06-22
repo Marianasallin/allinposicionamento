@@ -1304,7 +1304,9 @@ function rDetailProspeccao(c){
       :'<div class="tw"><table><thead><tr><th>Data</th><th>Nome</th><th>Cargo</th><th>LinkedIn</th><th>Condutor</th><th>Msg</th><th>Resp.</th><th>Reunião</th><th>Fechou</th><th>Valor</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
     return '<div class="card">'
       +'<div class="ch"><h3>🎯 Leads</h3>'
-      +'<button class="btn btn-p btn-s" onclick="openProspectModal(\''+cid+'\',null)">+ Adicionar Lead</button></div>'
+      +'<div style="display:flex;gap:8px">'
+      +(pros.length?'<button class="btn btn-o btn-s" onclick="exportProspectsCSV(\''+cid+'\')">📥 Exportar (Excel)</button>':'')
+      +'<button class="btn btn-p btn-s" onclick="openProspectModal(\''+cid+'\',null)">+ Adicionar Lead</button></div></div>'
       +'<div class="cb">'
       +'<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">'
       +'<div class="stat-card"><div class="stat-val" style="color:var(--primary)">'+pros.length+'</div><div class="stat-label">Total</div></div>'
@@ -3630,6 +3632,29 @@ function saveProspect(cid,pid){
   document.getElementById('pm-overlay').remove();
   toast('✅ Lead salvo!');
   render();
+}
+function exportProspectsCSV(cid){
+  const c=D.clients.find(c=>c.id===cid);
+  if(!c||!(c.prospects||[]).length){toast('Nenhum lead para exportar');return;}
+  const fmt=d=>d?new Date(d+'T12:00:00').toLocaleDateString('pt-BR'):'';
+  const sim=v=>v?'Sim':'Não';
+  const cols=['Data','Nome','Cargo','Localização','Telefone','Email','LinkedIn','Conduzido por',
+    'Entrei em contato','Respondeu','Agendou Reunião','Fez Reunião','Fechou Contrato','Valor do Contrato',
+    'Motivo não fechou','Follow-up 1','Follow-up 2','Follow-up 3','Detalhes da conversa','Observações do cliente'];
+  const esc=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
+  const rows=(c.prospects||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(p=>[
+    fmt(p.date),p.name,p.role,p.location,p.phone,p.email,p.linkedinUrl,p.conductedBy,
+    sim(p.sentMessage),sim(p.replied),sim(p.scheduledMeeting),sim(p.hadMeeting),sim(p.contractClosed),p.contractValue,
+    p.reasonNotClosed,fmt(p.followUp1),fmt(p.followUp2),fmt(p.followUp3),p.convoDetails,p.notes
+  ].map(esc).join(';'));
+  const csv='﻿'+cols.map(esc).join(';')+'\n'+rows.join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Leads-'+(c.name||'cliente').replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'-')+'-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  toast('📥 Lista exportada!');
 }
 function deleteProspect(cid,pid){
   if(!confirm('Remover este prospect?'))return;
