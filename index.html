@@ -4576,10 +4576,29 @@ function rPortalDashboard(c){
   const _nowD=new Date();
   const _curIdx=_nowD.getFullYear()===2026?_nowD.getMonth():(_nowD.getFullYear()>2026?11:0);
   const _existing={};(c.results||[]).forEach(function(r){if(r&&r.month)_existing[r.month]=r;});
+  // Calcula os indicadores AUTOMATICAMENTE a partir dos leads cadastrados (atualiza em tempo real).
+  // Mantém resultados antigos lançados à mão nos meses que não têm leads (preserva histórico).
+  const _moIdx=function(d){if(!d)return -1;var dt=new Date(d+'T12:00:00');return dt.getFullYear()===2026?dt.getMonth():-1;};
+  const _parseVal=function(v){if(v==null)return 0;var s=(''+v).replace(/[^\d.,]/g,'');if(s.indexOf(',')>-1)s=s.replace(/\./g,'').replace(',','.');return parseFloat(s)||0;};
+  const _allP=c.prospects||[];
   const res=[];
-  for(let _m=0;_m<=_curIdx;_m++){const _key=_ptMdash[_m]+' 2026';res.push(_existing[_key]||{month:_key,prospects:0,leads:0,meetings:0,sales:0,revenue:0});}
+  for(let _m=0;_m<=_curIdx;_m++){
+    const _key=_ptMdash[_m]+' 2026';
+    const _created=_allP.filter(function(p){return _moIdx(p.date)===_m;});
+    const _vendas=_allP.filter(function(p){return p.contractClosed&&_moIdx(p.closedDate||p.date)===_m;});
+    if(_created.length>0||_vendas.length>0){
+      res.push({month:_key,
+        prospects:_created.length,
+        leads:_created.filter(function(p){return p.replied;}).length,
+        meetings:_created.filter(function(p){return p.hadMeeting;}).length,
+        sales:_vendas.length,
+        revenue:_vendas.reduce(function(s,p){return s+_parseVal(p.contractValue);},0)});
+    }else{
+      res.push(_existing[_key]||{month:_key,prospects:0,leads:0,meetings:0,sales:0,revenue:0});
+    }
+  }
   res.reverse();// mais recente primeiro
-  const hasRealData=(c.results||[]).length>0;
+  const hasRealData=(c.results||[]).length>0||_allP.length>0;
   const idx=Math.min(S.portalMonthIdx,Math.max(res.length-1,0));
   const sel=res.length?res[idx]:{prospects:0,leads:0,meetings:0,sales:0,month:''};
   const prev=res.length?res[idx+1]:null;
