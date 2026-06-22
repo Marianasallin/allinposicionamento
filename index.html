@@ -4759,80 +4759,124 @@ function rPortalEntregas(c){
     ${c.deliverables.length===0?'<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhuma entrega registrada ainda.</div>':''}`;
 }
 
+function _plStageOf(p){return p.contractClosed?'fechados':p.hadMeeting?'reuniao':p.replied?'responderam':'aguardando';}
+function _plBadge(p){
+  var m={fechados:['✅ Fechado','#16A34A'],reuniao:['🤝 Reunião','#0D3D9B'],responderam:['💬 Respondeu','#7C3AED'],aguardando:['⏳ Aguardando','#64748B']};
+  var b=m[_plStageOf(p)];
+  return '<span style="font-size:11px;font-weight:600;color:'+b[1]+';background:'+b[1]+'18;padding:3px 10px;border-radius:99px;white-space:nowrap">'+b[0]+'</span>';
+}
+function _plCounts(c){var P=c.prospects||[];return{todos:P.length,aguardando:P.filter(function(p){return !p.replied&&!p.contractClosed;}).length,responderam:P.filter(function(p){return p.replied;}).length,reuniao:P.filter(function(p){return p.hadMeeting;}).length,fechados:P.filter(function(p){return p.contractClosed;}).length};}
+function _plChk(cid,pid,field,val,label){
+  return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;border-radius:8px;background:'+(val?'#F0FDF4':'#F9FAFB')+';border:1px solid '+(val?'#86EFAC':'#E5E7EB')+'">'
+    +'<input type="checkbox" '+(val?'checked':'')+' onchange="portalUpdateProspect(\''+cid+'\',\''+pid+'\',\''+field+'\',this.checked);this.closest(\'label\').style.background=this.checked?\'#F0FDF4\':\'#F9FAFB\';this.closest(\'label\').style.borderColor=this.checked?\'#86EFAC\':\'#E5E7EB\'" style="width:16px;height:16px;cursor:pointer">'
+    +'<span style="font-size:12px;font-weight:600;color:'+(val?'#16A34A':'#6B7280')+'">'+label+'</span></label>';
+}
+function _plContract(cid,p){
+  return (p.contractClosed
+    ?'<div style="margin-bottom:10px;background:linear-gradient(135deg,#FEF9C3,#FDE68A);border:2px solid #F59E0B;border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(245,158,11,.2)">'
+      +'<div style="font-size:14px;font-weight:800;color:#92400E;margin-bottom:4px">🎉 Parabéns pelo contrato fechado! 💰</div>'
+      +'<div style="font-size:12px;color:#B45309;margin-bottom:10px;line-height:1.4">⚠️ <strong>Muito importante:</strong> informe abaixo o <strong>valor do contrato fechado</strong>. Esse dado é essencial para o acompanhamento dos seus resultados com a gente — por favor, preencha com atenção.</div>'
+      +'<label style="font-size:11px;font-weight:700;color:#92400E;display:block;margin-bottom:4px">Valor do Contrato (R$)</label>'
+      +'<input type="number" value="'+(p.contractValue||'')+'" placeholder="Ex: 5000,00" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'contractValue\',this.value)" style="width:100%;border:2px solid #F59E0B;border-radius:8px;padding:11px 12px;font-size:17px;font-weight:700;color:#92400E;background:white;box-sizing:border-box">'
+      +'<label style="font-size:11px;font-weight:700;color:#92400E;display:block;margin:12px 0 4px">📅 Data em que fechou o contrato</label>'
+      +'<input type="date" value="'+(p.closedDate||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'closedDate\',this.value)" style="width:100%;border:2px solid #F59E0B;border-radius:8px;padding:9px 12px;font-size:14px;color:#92400E;background:white;box-sizing:border-box"></div>'
+    :'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">❌ Motivo de não fechar (se aplicável)</label>'
+      +'<input value="'+(p.reasonNotClosed||'')+'" placeholder="Ex: sem budget, sem interesse..." onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'reasonNotClosed\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>');
+}
+function _plDetail(cid,p){
+  return '<div style="padding:14px 18px;border-top:1px solid #F1F5F9;background:#FAFBFF">'
+    +(p.linkedinUrl?'<a href="'+p.linkedinUrl+'" target="_blank" style="font-size:11px;color:#0D3D9B;text-decoration:none">🔗 Ver LinkedIn</a>':'')
+    +'<div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;margin:'+(p.linkedinUrl?'10px 0 10px':'0 0 10px')+'">Atualizar status — confirme o que já aconteceu</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px">'
+      +_plChk(cid,p.id,'sentMessage',p.sentMessage,'📩 Entrei em contato')
+      +_plChk(cid,p.id,'replied',p.replied,'💬 Lead respondeu')
+      +_plChk(cid,p.id,'scheduledMeeting',p.scheduledMeeting,'📅 Agendou Reunião')
+      +_plChk(cid,p.id,'hadMeeting',p.hadMeeting,'🤝 Fez Reunião')
+      +_plChk(cid,p.id,'contractClosed',p.contractClosed,'✅ Fechou Contrato')
+    +'</div>'
+    +'<div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;margin-bottom:10px">Follow-up</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">'
+      +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">Follow-up 1</label>'
+        +'<input type="date" value="'+(p.followUp1||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'followUp1\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>'
+      +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">Follow-up 2</label>'
+        +'<input type="date" value="'+(p.followUp2||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'followUp2\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>'
+      +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">Follow-up 3</label>'
+        +'<input type="date" value="'+(p.followUp3||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'followUp3\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>'
+    +'</div>'
+    +'<div id="plc-'+p.id+'">'+_plContract(cid,p)+'</div>'
+    +(p.convoDetails&&p.convoDetails.trim()?'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">💬 Detalhes da conversa <span style="color:#94A3B8">(nosso time)</span></label><div style="background:#F8FAFF;border:1px solid #DBEAFE;border-radius:8px;padding:8px 10px;font-size:12px;color:#334155;white-space:pre-wrap;line-height:1.4">'+escH(p.convoDetails)+'</div></div>':'')
+    +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">📝 Suas observações</label>'
+      +'<textarea rows="2" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'notes\',this.value)" placeholder="Escreva aqui suas observações sobre esse contato..." style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px;resize:none">'+(p.notes||'')+'</textarea></div>'
+  +'</div>';
+}
 function rPortalProspeccao(c){
-  const pros=(c.prospects||[]).sort(function(a,b){return b.date.localeCompare(a.date);});
-  const total=pros.length;
-  const meetings=pros.filter(function(p){return p.hadMeeting;}).length;
-  const closed=pros.filter(function(p){return p.contractClosed;}).length;
-  const pending=pros.filter(function(p){return !p.replied;}).length;
   const cid=c.id;
-
-  function chk(pid,field,val,label){
-    return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;border-radius:8px;background:'+(val?'#F0FDF4':'#F9FAFB')+';border:1px solid '+(val?'#86EFAC':'#E5E7EB')+'">'
-      +'<input type="checkbox" '+(val?'checked':'')+' onchange="portalUpdateProspect(\''+cid+'\',\''+pid+'\',\''+field+'\',this.checked);this.closest(\'label\').style.background=this.checked?\'#F0FDF4\':\'#F9FAFB\';this.closest(\'label\').style.borderColor=this.checked?\'#86EFAC\':\'#E5E7EB\'" style="width:16px;height:16px;cursor:pointer">'
-      +'<span style="font-size:12px;font-weight:600;color:'+(val?'#16A34A':'#6B7280')+'">'+label+'</span></label>';
-  }
-
-  const cards=pros.map(function(p){
-    const dateStr=p.date?new Date(p.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}):'';
-    const statusColor=p.contractClosed?'#16A34A':p.hadMeeting?'#0D3D9B':p.replied?'#7C3AED':'#9CA3AF';
-    const statusLabel=p.contractClosed?'✅ Contrato Fechado':p.hadMeeting?'🤝 Reunião Realizada':p.replied?'💬 Respondeu':'⏳ Aguardando Resposta';
-    return '<div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;margin-bottom:16px">'
-      // Header
-      +'<div style="padding:14px 18px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between">'
-        +'<div>'
-          +'<div style="font-size:15px;font-weight:700;color:#1E293B">'+p.name+'</div>'
-          +'<div style="font-size:12px;color:#6B7280;margin-top:2px">'+(p.role||'')+(p.role&&dateStr?' · ':'')+dateStr+'</div>'
-          +(p.linkedinUrl?'<a href="'+p.linkedinUrl+'" target="_blank" style="font-size:11px;color:#0D3D9B;text-decoration:none">🔗 Ver LinkedIn</a>':'')
+  const pros=(c.prospects||[]).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  const total=pros.length;
+  const _mn=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const monthsSet={};pros.forEach(function(p){if(p.date)monthsSet[p.date.slice(0,7)]=true;});
+  const monthOpts=['<option value="">Todos os meses</option>'].concat(Object.keys(monthsSet).sort().reverse().map(function(ym){var pa=ym.split('-');return '<option value="'+ym+'">'+(_mn[(+pa[1])-1]||'')+' '+pa[0]+'</option>';})).join('');
+  const cnt=_plCounts(c);
+  function _chip(stage,label,n,active){return '<span class="pl-chip'+(active?' pl-chip-active':'')+'" data-stage="'+stage+'" onclick="portalSetLeadStage(\''+stage+'\',this)" style="cursor:pointer;font-size:12px;padding:5px 11px;border-radius:99px;background:'+(active?'#0D3D9B':'#F1F5F9')+';color:'+(active?'#fff':'#475569')+'">'+label+' <span id="plcnt-'+stage+'">'+n+'</span></span>';}
+  const chips=_chip('todos','Todos',cnt.todos,true)+_chip('aguardando','Aguardando',cnt.aguardando,false)+_chip('responderam','Responderam',cnt.responderam,false)+_chip('reuniao','Reunião',cnt.reuniao,false)+_chip('fechados','Fechados',cnt.fechados,false);
+  const rows=pros.map(function(p){
+    var dateStr=p.date?new Date(p.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}):'';
+    var ini=(p.name||'?').split(' ').filter(function(x){return x;}).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();
+    return '<div class="pl-row-wrap" id="plw-'+p.id+'" data-name="'+escH((p.name||'').toLowerCase())+'" data-month="'+(p.date?p.date.slice(0,7):'')+'" data-replied="'+(p.replied?1:0)+'" data-meeting="'+(p.hadMeeting?1:0)+'" data-closed="'+(p.contractClosed?1:0)+'" style="border-bottom:1px solid #F1F5F9">'
+      +'<div onclick="portalToggleLead(\''+p.id+'\')" style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer">'
+        +'<div style="width:34px;height:34px;border-radius:50%;background:#EEF2FF;color:#0D3D9B;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">'+ini+'</div>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:13px;font-weight:600;color:#1E293B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escH(p.name||'—')+'</div>'
+          +'<div style="font-size:11px;color:#64748B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(p.role?escH(p.role)+' · ':'')+dateStr+'</div>'
         +'</div>'
-        +'<span style="font-size:11px;font-weight:600;color:'+statusColor+';background:'+statusColor+'18;padding:4px 10px;border-radius:99px;white-space:nowrap">'+statusLabel+'</span>'
+        +'<span id="plb-'+p.id+'">'+_plBadge(p)+'</span>'
+        +'<span id="plchev-'+p.id+'" style="color:#94A3B8;font-size:13px">▾</span>'
       +'</div>'
-      // Checkboxes
-      +'<div style="padding:14px 18px">'
-        +'<div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;margin-bottom:10px">Atualizar Status — confirme o que já aconteceu com este lead</div>'
-        +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px">'
-          +chk(p.id,'sentMessage',p.sentMessage,'📩 Entrei em contato')
-          +chk(p.id,'replied',p.replied,'💬 Lead respondeu')
-          +chk(p.id,'scheduledMeeting',p.scheduledMeeting,'📅 Agendou Reunião')
-          +chk(p.id,'hadMeeting',p.hadMeeting,'🤝 Fez Reunião')
-          +chk(p.id,'contractClosed',p.contractClosed,'✅ Fechou Contrato')
-        +'</div>'
-        // Follow-ups
-        +'<div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;margin-bottom:10px">Follow-up</div>'
-        +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">'
-          +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">Follow-up 1</label>'
-            +'<input type="date" value="'+(p.followUp1||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'followUp1\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>'
-          +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">Follow-up 2</label>'
-            +'<input type="date" value="'+(p.followUp2||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'followUp2\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>'
-          +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">Follow-up 3</label>'
-            +'<input type="date" value="'+(p.followUp3||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'followUp3\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>'
-        +'</div>'
-        // Contract value (if closed) + reason (if not closed) + notes
-        +(p.contractClosed
-          ?'<div style="margin-bottom:10px;background:linear-gradient(135deg,#FEF9C3,#FDE68A);border:2px solid #F59E0B;border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(245,158,11,.2)">'
-            +'<div style="font-size:14px;font-weight:800;color:#92400E;margin-bottom:4px">🎉 Parabéns pelo contrato fechado! 💰</div>'
-            +'<div style="font-size:12px;color:#B45309;margin-bottom:10px;line-height:1.4">⚠️ <strong>Muito importante:</strong> informe abaixo o <strong>valor do contrato fechado</strong>. Esse dado é essencial para o acompanhamento dos seus resultados com a gente — por favor, preencha com atenção.</div>'
-            +'<label style="font-size:11px;font-weight:700;color:#92400E;display:block;margin-bottom:4px">Valor do Contrato (R$)</label>'
-            +'<input type="number" value="'+(p.contractValue||'')+'" placeholder="Ex: 5000,00" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'contractValue\',this.value)" style="width:100%;border:2px solid #F59E0B;border-radius:8px;padding:11px 12px;font-size:17px;font-weight:700;color:#92400E;background:white;box-sizing:border-box">'
-            +'<label style="font-size:11px;font-weight:700;color:#92400E;display:block;margin:12px 0 4px">📅 Data em que fechou o contrato</label>'
-            +'<input type="date" value="'+(p.closedDate||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'closedDate\',this.value)" style="width:100%;border:2px solid #F59E0B;border-radius:8px;padding:9px 12px;font-size:14px;color:#92400E;background:white;box-sizing:border-box"></div>'
-          :'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">❌ Motivo de não fechar (se aplicável)</label>'
-            +'<input value="'+(p.reasonNotClosed||'')+'" placeholder="Ex: sem budget, sem interesse..." onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'reasonNotClosed\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>')
-        +(p.convoDetails&&p.convoDetails.trim()?'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">💬 Detalhes da conversa <span style="color:#94A3B8">(nosso time)</span></label><div style="background:#F8FAFF;border:1px solid #DBEAFE;border-radius:8px;padding:8px 10px;font-size:12px;color:#334155;white-space:pre-wrap;line-height:1.4">'+escH(p.convoDetails)+'</div></div>':'')
-        +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">📝 Suas observações</label>'
-          +'<textarea rows="2" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'notes\',this.value)" placeholder="Escreva aqui suas observações sobre esse contato..." style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px;resize:none">'+( p.notes||'')+'</textarea></div>'
-      +'</div></div>';
-  }).join('');
-
-  const empty='<div style="background:white;border-radius:12px;padding:48px;text-align:center;color:#9CA3AF;box-shadow:0 2px 8px rgba(0,0,0,.06)">Nenhum lead cadastrado ainda.<br><span style="font-size:12px">Os leads que nosso time gerar para você aparecerão aqui.</span></div>';
-
-  return '<div>'
-    +'<div class="portal-hero" style="margin-bottom:24px"><div>'
-      +'<h1>🎯 Seus Leads</h1>'
-      +'<p>'+total+' lead(s) gerado(s) pelo nosso time · confirme abaixo o andamento de cada um</p>'
-    +'</div></div>'
-    +(pros.length?cards:empty)
+      +'<div id="pld-'+p.id+'" style="display:none">'+_plDetail(cid,p)+'</div>'
     +'</div>';
+  }).join('');
+  const empty='<div style="background:white;border-radius:12px;padding:48px;text-align:center;color:#9CA3AF;box-shadow:0 2px 8px rgba(0,0,0,.06)">Nenhum lead cadastrado ainda.<br><span style="font-size:12px">Os leads que nosso time gerar para você aparecerão aqui.</span></div>';
+  return '<div>'
+    +'<div class="portal-hero" style="margin-bottom:16px"><div><h1>🎯 Seus Leads</h1><p>'+total+' lead(s) gerado(s) pelo nosso time · toque em um lead para atualizar</p></div></div>'
+    +(pros.length?(
+      '<div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;margin-bottom:20px">'
+        +'<div style="padding:14px 16px;border-bottom:1px solid #F1F5F9">'
+          +'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
+            +'<input id="pl-search" oninput="portalApplyLeadFilters()" placeholder="🔍 Buscar lead pelo nome..." style="flex:1;min-width:160px;border:1px solid #E5E7EB;border-radius:8px;padding:8px 12px;font-size:13px">'
+            +'<select id="pl-month" onchange="portalApplyLeadFilters()" style="border:1px solid #E5E7EB;border-radius:8px;padding:8px 12px;font-size:13px;background:white">'+monthOpts+'</select>'
+          +'</div>'
+          +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+chips+'</div>'
+        +'</div>'
+        +rows
+        +'<div id="pl-empty-filter" style="display:none;padding:32px;text-align:center;color:#9CA3AF;font-size:13px">Nenhum lead encontrado com esses filtros.</div>'
+      +'</div>'
+    ):empty)
+    +'</div>';
+}
+function portalSetLeadStage(stage,el){
+  var chips=document.querySelectorAll('.pl-chip');
+  for(var i=0;i<chips.length;i++){chips[i].classList.remove('pl-chip-active');chips[i].style.background='#F1F5F9';chips[i].style.color='#475569';}
+  if(el){el.classList.add('pl-chip-active');el.style.background='#0D3D9B';el.style.color='#fff';}
+  portalApplyLeadFilters();
+}
+function portalApplyLeadFilters(){
+  var act=document.querySelector('.pl-chip-active');
+  var stage=act?act.getAttribute('data-stage'):'todos';
+  var mEl=document.getElementById('pl-month');var month=mEl?mEl.value:'';
+  var sEl=document.getElementById('pl-search');var q=sEl?sEl.value.trim().toLowerCase():'';
+  var rows=document.querySelectorAll('.pl-row-wrap');var vis=0;
+  for(var i=0;i<rows.length;i++){
+    var w=rows[i];
+    var okS = stage==='todos'?true:stage==='aguardando'?(w.dataset.replied==='0'&&w.dataset.closed==='0'):stage==='responderam'?(w.dataset.replied==='1'):stage==='reuniao'?(w.dataset.meeting==='1'):stage==='fechados'?(w.dataset.closed==='1'):true;
+    var okM = !month||w.dataset.month===month;
+    var okQ = !q||(w.dataset.name||'').indexOf(q)>-1;
+    var show=okS&&okM&&okQ;w.style.display=show?'':'none';if(show)vis++;
+  }
+  var e=document.getElementById('pl-empty-filter');if(e)e.style.display=vis?'none':'';
+}
+function portalToggleLead(pid){
+  var d=document.getElementById('pld-'+pid);var ch=document.getElementById('plchev-'+pid);if(!d)return;
+  var open=d.style.display!=='none';d.style.display=open?'none':'';if(ch)ch.textContent=open?'▾':'▴';
 }
 function portalUpdateProspect(cid,pid,field,value){
   const c=D.clients.find(c=>c.id===cid);
@@ -4842,11 +4886,14 @@ function portalUpdateProspect(cid,pid,field,value){
   p[field]=value;
   save();
   toast('✅ Salvo!');
-  // Campos de status mudam o layout do card (badge, caixa de valor ao fechar contrato) → re-renderiza preservando o scroll
+  // Atualização localizada (preserva filtro, busca e expansão) ao mudar status
   if(field==='contractClosed'||field==='replied'||field==='hadMeeting'||field==='scheduledMeeting'||field==='sentMessage'){
-    const _sy=window.scrollY;
-    render();
-    window.scrollTo(0,_sy);
+    var w=document.getElementById('plw-'+pid);
+    if(w){w.dataset.replied=p.replied?1:0;w.dataset.meeting=p.hadMeeting?1:0;w.dataset.closed=p.contractClosed?1:0;}
+    var b=document.getElementById('plb-'+pid);if(b)b.innerHTML=_plBadge(p);
+    var cs=document.getElementById('plc-'+pid);if(cs)cs.innerHTML=_plContract(cid,p);
+    var cnt=_plCounts(c);['todos','aguardando','responderam','reuniao','fechados'].forEach(function(k){var el=document.getElementById('plcnt-'+k);if(el)el.textContent=cnt[k];});
+    if(typeof portalApplyLeadFilters==='function')portalApplyLeadFilters();
   }
 }
 
