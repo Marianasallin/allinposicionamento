@@ -3562,6 +3562,7 @@ function openProspectModal(cid, pid){
         <div class="fg"><label>Telefone</label><input id="pm-phone" value="${v.phone}" placeholder="+55 11 99999-9999"></div>
         <div class="fg"><label>Email</label><input id="pm-email" value="${v.email}" placeholder="email@exemplo.com"></div>
       </div>
+      <div class="fg" style="margin-bottom:16px"><label>💬 Detalhes da conversa <span style="font-weight:400;color:var(--muted);text-transform:none">(aparece para o cliente no portal)</span></label><textarea id="pm-obs" rows="3" style="width:100%;resize:vertical" placeholder="Anote aqui os detalhes das conversas com o lead...">${v.notes||''}</textarea></div>
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E5E7EB">🤝 Follow-up (Cliente preenche no portal)</div>
       <div class="fgrid3" style="margin-bottom:16px">
         <div class="fg" style="display:flex;align-items:center;gap:8px;padding-top:20px">
@@ -3586,7 +3587,6 @@ function openProspectModal(cid, pid){
         <div class="fg"><label>Valor do Contrato (R$)</label><input id="pm-val" value="${v.contractValue||''}" placeholder="0,00"></div>
         <div class="fg"><label>Motivo não fechou</label><input id="pm-rsn" value="${v.reasonNotClosed||''}" placeholder="Se não fechou..."></div>
       </div>
-      <div class="fg" style="margin-bottom:20px"><label>Observações</label><textarea id="pm-obs" rows="2" style="width:100%;resize:vertical">${v.notes||''}</textarea></div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button class="btn btn-o" onclick="document.getElementById('pm-overlay').remove()">Cancelar</button>
         <button class="btn btn-p" onclick="saveProspect('${cid}','${v.id}')">💾 Salvar Lead</button>
