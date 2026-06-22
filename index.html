@@ -3540,7 +3540,7 @@ function openProspectModal(cid, pid){
   if(!c)return;
   if(!c.prospects)c.prospects=[];
   const p=pid?c.prospects.find(p=>p.id===pid):null;
-  const v=p||{id:'p'+Date.now(),date:new Date().toISOString().substring(0,10),conductedBy:S.currentUser?S.currentUser.name:'',linkedinUrl:'',name:'',role:'',location:'',phone:'',email:'',sentMessage:false,replied:false,scheduledMeeting:false,hadMeeting:false,followUp1:'',followUp2:'',followUp3:'',contractClosed:false,contractValue:'',reasonNotClosed:'',notes:''};
+  const v=p||{id:'p'+Date.now(),date:new Date().toISOString().substring(0,10),conductedBy:S.currentUser?S.currentUser.name:'',linkedinUrl:'',name:'',role:'',location:'',phone:'',email:'',sentMessage:false,replied:false,scheduledMeeting:false,hadMeeting:false,followUp1:'',followUp2:'',followUp3:'',contractClosed:false,contractValue:'',reasonNotClosed:'',convoDetails:'',notes:''};
   const isEdit=!!p;
   const overlay=document.createElement('div');
   overlay.id='pm-overlay';
@@ -3562,7 +3562,8 @@ function openProspectModal(cid, pid){
         <div class="fg"><label>Telefone</label><input id="pm-phone" value="${v.phone}" placeholder="+55 11 99999-9999"></div>
         <div class="fg"><label>Email</label><input id="pm-email" value="${v.email}" placeholder="email@exemplo.com"></div>
       </div>
-      <div class="fg" style="margin-bottom:16px"><label>💬 Detalhes da conversa <span style="font-weight:400;color:var(--muted);text-transform:none">(aparece para o cliente no portal)</span></label><textarea id="pm-obs" rows="3" style="width:100%;resize:vertical" placeholder="Anote aqui os detalhes das conversas com o lead...">${v.notes||''}</textarea></div>
+      <div class="fg" style="margin-bottom:16px"><label>💬 Detalhes da conversa <span style="font-weight:400;color:var(--muted);text-transform:none">(o cliente vê no portal)</span></label><textarea id="pm-convo" rows="3" style="width:100%;resize:vertical" placeholder="Anote aqui os detalhes das conversas com o lead...">${v.convoDetails||''}</textarea></div>
+      ${v.notes&&v.notes.trim()?`<div class="fg" style="margin-bottom:16px"><label>📝 Observações do cliente <span style="font-weight:400;color:var(--muted);text-transform:none">(escrito pelo cliente no portal)</span></label><div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:10px;font-size:13px;color:#374151;white-space:pre-wrap">${escH(v.notes)}</div></div>`:''}
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E5E7EB">🤝 Follow-up (Cliente preenche no portal)</div>
       <div class="fgrid3" style="margin-bottom:16px">
         <div class="fg" style="display:flex;align-items:center;gap:8px;padding-top:20px">
@@ -3620,7 +3621,8 @@ function saveProspect(cid,pid){
     contractClosed:$('pm-cls').checked,
     contractValue:$('pm-val').value,
     reasonNotClosed:$('pm-rsn').value,
-    notes:$('pm-obs').value
+    convoDetails:$('pm-convo').value,
+    notes:(idx>=0&&c.prospects[idx]?(c.prospects[idx].notes||''):'')
   };
   if(!p.name){toast('⚠️ Nome é obrigatório');return;}
   if(idx>=0)c.prospects[idx]=p;else c.prospects.push(p);
@@ -4768,8 +4770,9 @@ function rPortalProspeccao(c){
             +'<input type="number" value="'+(p.contractValue||'')+'" placeholder="Ex: 5000,00" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'contractValue\',this.value)" style="width:100%;border:2px solid #F59E0B;border-radius:8px;padding:11px 12px;font-size:17px;font-weight:700;color:#92400E;background:white;box-sizing:border-box"></div>'
           :'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">❌ Motivo de não fechar (se aplicável)</label>'
             +'<input value="'+(p.reasonNotClosed||'')+'" placeholder="Ex: sem budget, sem interesse..." onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'reasonNotClosed\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>')
-        +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">📝 Observações</label>'
-          +'<textarea rows="2" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'notes\',this.value)" placeholder="Alguma observação sobre esse contato..." style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px;resize:none">'+( p.notes||'')+'</textarea></div>'
+        +(p.convoDetails&&p.convoDetails.trim()?'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">💬 Detalhes da conversa <span style="color:#94A3B8">(nosso time)</span></label><div style="background:#F8FAFF;border:1px solid #DBEAFE;border-radius:8px;padding:8px 10px;font-size:12px;color:#334155;white-space:pre-wrap;line-height:1.4">'+escH(p.convoDetails)+'</div></div>':'')
+        +'<div><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">📝 Suas observações</label>'
+          +'<textarea rows="2" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'notes\',this.value)" placeholder="Escreva aqui suas observações sobre esse contato..." style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px;resize:none">'+( p.notes||'')+'</textarea></div>'
       +'</div></div>';
   }).join('');
 
