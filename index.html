@@ -3542,7 +3542,7 @@ function openProspectModal(cid, pid){
   if(!c)return;
   if(!c.prospects)c.prospects=[];
   const p=pid?c.prospects.find(p=>p.id===pid):null;
-  const v=p||{id:'p'+Date.now(),date:new Date().toISOString().substring(0,10),conductedBy:S.currentUser?S.currentUser.name:'',linkedinUrl:'',name:'',role:'',location:'',phone:'',email:'',sentMessage:false,replied:false,scheduledMeeting:false,hadMeeting:false,followUp1:'',followUp2:'',followUp3:'',contractClosed:false,contractValue:'',reasonNotClosed:'',convoDetails:'',notes:''};
+  const v=p||{id:'p'+Date.now(),date:new Date().toISOString().substring(0,10),conductedBy:S.currentUser?S.currentUser.name:'',linkedinUrl:'',name:'',role:'',location:'',phone:'',email:'',sentMessage:false,replied:false,scheduledMeeting:false,hadMeeting:false,followUp1:'',followUp2:'',followUp3:'',contractClosed:false,contractValue:'',closedDate:'',reasonNotClosed:'',convoDetails:'',notes:''};
   const isEdit=!!p;
   const overlay=document.createElement('div');
   overlay.id='pm-overlay';
@@ -3588,6 +3588,7 @@ function openProspectModal(cid, pid){
           <label for="pm-cls" style="margin:0;cursor:pointer">Fechou Contrato?</label>
         </div>
         <div class="fg"><label>Valor do Contrato (R$)</label><input id="pm-val" value="${v.contractValue||''}" placeholder="0,00"></div>
+        <div class="fg"><label>📅 Data de fechamento</label><input type="date" id="pm-closedate" value="${v.closedDate||''}"></div>
         <div class="fg"><label>Motivo não fechou</label><input id="pm-rsn" value="${v.reasonNotClosed||''}" placeholder="Se não fechou..."></div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -3622,6 +3623,7 @@ function saveProspect(cid,pid){
     followUp3:$('pm-f3').value,
     contractClosed:$('pm-cls').checked,
     contractValue:$('pm-val').value,
+    closedDate:$('pm-closedate').value,
     reasonNotClosed:$('pm-rsn').value,
     convoDetails:$('pm-convo').value,
     notes:(idx>=0&&c.prospects[idx]?(c.prospects[idx].notes||''):'')
@@ -3639,12 +3641,12 @@ function exportProspectsCSV(cid){
   const fmt=d=>d?new Date(d+'T12:00:00').toLocaleDateString('pt-BR'):'';
   const sim=v=>v?'Sim':'Não';
   const cols=['Data','Nome','Cargo','Localização','Telefone','Email','LinkedIn','Conduzido por',
-    'Entrei em contato','Respondeu','Agendou Reunião','Fez Reunião','Fechou Contrato','Valor do Contrato',
+    'Entrei em contato','Respondeu','Agendou Reunião','Fez Reunião','Fechou Contrato','Valor do Contrato','Data de fechamento',
     'Motivo não fechou','Follow-up 1','Follow-up 2','Follow-up 3','Detalhes da conversa','Observações do cliente'];
   const esc=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
   const rows=(c.prospects||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(p=>[
     fmt(p.date),p.name,p.role,p.location,p.phone,p.email,p.linkedinUrl,p.conductedBy,
-    sim(p.sentMessage),sim(p.replied),sim(p.scheduledMeeting),sim(p.hadMeeting),sim(p.contractClosed),p.contractValue,
+    sim(p.sentMessage),sim(p.replied),sim(p.scheduledMeeting),sim(p.hadMeeting),sim(p.contractClosed),p.contractValue,fmt(p.closedDate),
     p.reasonNotClosed,fmt(p.followUp1),fmt(p.followUp2),fmt(p.followUp3),p.convoDetails,p.notes
   ].map(esc).join(';'));
   const csv='﻿'+cols.map(esc).join(';')+'\n'+rows.join('\n');
@@ -4792,7 +4794,9 @@ function rPortalProspeccao(c){
             +'<div style="font-size:14px;font-weight:800;color:#92400E;margin-bottom:4px">🎉 Parabéns pelo contrato fechado! 💰</div>'
             +'<div style="font-size:12px;color:#B45309;margin-bottom:10px;line-height:1.4">⚠️ <strong>Muito importante:</strong> informe abaixo o <strong>valor do contrato fechado</strong>. Esse dado é essencial para o acompanhamento dos seus resultados com a gente — por favor, preencha com atenção.</div>'
             +'<label style="font-size:11px;font-weight:700;color:#92400E;display:block;margin-bottom:4px">Valor do Contrato (R$)</label>'
-            +'<input type="number" value="'+(p.contractValue||'')+'" placeholder="Ex: 5000,00" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'contractValue\',this.value)" style="width:100%;border:2px solid #F59E0B;border-radius:8px;padding:11px 12px;font-size:17px;font-weight:700;color:#92400E;background:white;box-sizing:border-box"></div>'
+            +'<input type="number" value="'+(p.contractValue||'')+'" placeholder="Ex: 5000,00" onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'contractValue\',this.value)" style="width:100%;border:2px solid #F59E0B;border-radius:8px;padding:11px 12px;font-size:17px;font-weight:700;color:#92400E;background:white;box-sizing:border-box">'
+            +'<label style="font-size:11px;font-weight:700;color:#92400E;display:block;margin:12px 0 4px">📅 Data em que fechou o contrato</label>'
+            +'<input type="date" value="'+(p.closedDate||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'closedDate\',this.value)" style="width:100%;border:2px solid #F59E0B;border-radius:8px;padding:9px 12px;font-size:14px;color:#92400E;background:white;box-sizing:border-box"></div>'
           :'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">❌ Motivo de não fechar (se aplicável)</label>'
             +'<input value="'+(p.reasonNotClosed||'')+'" placeholder="Ex: sem budget, sem interesse..." onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'reasonNotClosed\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>')
         +(p.convoDetails&&p.convoDetails.trim()?'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">💬 Detalhes da conversa <span style="color:#94A3B8">(nosso time)</span></label><div style="background:#F8FAFF;border:1px solid #DBEAFE;border-radius:8px;padding:8px 10px;font-size:12px;color:#334155;white-space:pre-wrap;line-height:1.4">'+escH(p.convoDetails)+'</div></div>':'')
