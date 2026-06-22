@@ -1378,8 +1378,8 @@ function rDetail(){
             const isCurrent=key===wk;
             const isFuture=fri>new Date(wk+'T23:59:59');
             const label=fri.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-            const statusColor=isFuture?'#CBD5E1':wr.done?(wr.file||wr.link)?'#16A34A':'#D97706':'#9CA3AF';
-            const statusText=isFuture?'📅 Futuro':wr.done?(wr.file||wr.link)?'✅ Enviado':'⚠️ Sem link':'⏳ Pendente';
+            const statusColor=isFuture?'#CBD5E1':wr.done?'#16A34A':'#9CA3AF';
+            const statusText=isFuture?'📅 Futuro':wr.done?'✅ Enviado':'⏳ Pendente';
             return`<tr style="${isCurrent?'background:#EFF6FF;':isFuture?'background:#F8FAFC;opacity:.7;':''}">
               <td><span style="font-size:12px;font-weight:${isCurrent?700:400}">${label}${isCurrent?' ← esta semana':''}</span></td>
               <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
@@ -1901,9 +1901,9 @@ function rWeeklyPending(){
             const mr=(c.monthlyReports&&c.monthlyReports[mk])||{done:false,file:null,link:''};
             const cas=c.continuousActivities||[];
             const activosCount=cas.filter(a=>a.status==='ativo').length;
-            const wrColor=wr.done?(wr.file||wr.link)?'#16A34A':'#D97706':'#9CA3AF';
+            const wrColor=wr.done?'#16A34A':'#9CA3AF';
             const mrColor=mr.done?(mr.file||mr.link)?'#16A34A':'#D97706':'#9CA3AF';
-            const wrStatus=wr.done?(wr.file||wr.link)?'✅':'⚠️':'⏳';
+            const wrStatus=wr.done?'✅':'⏳';
             const mrStatus=mr.done?(mr.file||mr.link)?'✅':'⚠️':'⏳';
             const prospectsWk=(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length;
             return`<tr onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})" style="cursor:pointer">
