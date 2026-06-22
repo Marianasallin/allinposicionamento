@@ -1875,6 +1875,7 @@ function rWeeklyPending(){
     const semDone=myClients.filter(c=>c.weeklyReports&&c.weeklyReports[wk]&&c.weeklyReports[wk].done).length;
     const menDone=myClients.filter(c=>c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done).length;
     const leads=myClients.reduce((s,c)=>s+((c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length),0);
+    const leadsTotal=myClients.reduce((s,c)=>s+(c.prospects||[]).length,0);
     const allOk=semDone===myClients.length&&menDone===myClients.length;
 
     return`<div class="card" style="margin-bottom:16px">
@@ -1888,7 +1889,7 @@ function rWeeklyPending(){
         </div>
         <div style="display:flex;gap:16px;align-items:center">
           <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:${semDone===myClients.length?'#16A34A':'#D97706'}">${semDone}/${myClients.length}</div><div style="font-size:10px;color:var(--muted)">Semanais</div></div>
-          <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#3B82F6">${leads}</div><div style="font-size:10px;color:var(--muted)">Leads</div></div>
+          <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#3B82F6">${leads}${leadsTotal>leads?`<span style="font-size:11px;color:var(--muted);font-weight:600"> / ${leadsTotal}</span>`:''}</div><div style="font-size:10px;color:var(--muted)">Leads ${leadsTotal>leads?'(sem. / total)':''}</div></div>
           <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:${menDone===myClients.length?'#16A34A':'#D97706'}">${menDone}/${myClients.length}</div><div style="font-size:10px;color:var(--muted)">Mensais</div></div>
           <span style="padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600;background:${allOk?'#DCFCE7':'#FEF3C7'};color:${allOk?'#16A34A':'#D97706'}">${allOk?'✅ Em dia':'⚠️ Pendências'}</span>
         </div>
@@ -1906,10 +1907,11 @@ function rWeeklyPending(){
             const wrStatus=wr.done?'✅':'⏳';
             const mrStatus=mr.done?(mr.file||mr.link)?'✅':'⚠️':'⏳';
             const prospectsWk=(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length;
+            const prospectsTotal=(c.prospects||[]).length;
             return`<tr onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})" style="cursor:pointer">
               <td><div style="font-weight:500;font-size:12px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
-              <td><span style="font-size:13px;color:${wrColor}">${wrStatus} ${wr.done?'Enviado':'Pendente'}</span>${wr.done&&!wr.file&&!wr.link?'<span style="font-size:10px;color:#D97706"> sem arquivo</span>':''}</td>
-              <td><span style="font-weight:600;color:#3B82F6">${prospectsWk}</span></td>
+              <td><span style="font-size:13px;color:${wrColor}">${wrStatus} ${wr.done?'Enviado':'Pendente'}</span></td>
+              <td><span style="font-weight:600;color:#3B82F6">${prospectsWk}</span>${prospectsTotal>prospectsWk?`<span style="font-size:10px;color:var(--muted)"> · ${prospectsTotal} no total</span>`:''}</td>
               <td><span style="font-size:13px;color:${mrColor}">${mrStatus} ${mr.done?'Enviado':'Pendente'}</span>${mr.done&&!mr.file&&!mr.link?'<span style="font-size:10px;color:#D97706"> sem arquivo</span>':''}</td>
               <td><span style="font-size:11px;color:${activosCount===cas.length?'#16A34A':'#D97706'}">${activosCount}/${cas.length} ativos</span></td>
             </tr>`;
