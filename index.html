@@ -5112,7 +5112,8 @@ window.addEventListener('hashchange',handleNavigation);
     function _resnap(){
       _fbSnap={
         ids:D.clients.map(c=>c.id),
-        clients:D.clients.map(c=>JSON.stringify(c)),
+        // Snapshot por CAMPO de cada cliente — permite gravar só o campo que mudou (multiusuário seguro no mesmo cliente)
+        clients:D.clients.map(c=>{var o={};for(var k in c){if(Object.prototype.hasOwnProperty.call(c,k)&&c[k]!==undefined)o[k]=JSON.stringify(c[k]);}return o;}),
         team:JSON.stringify(D.team||[]),
         assignedTasks:JSON.stringify(D.assignedTasks||[])
       };
@@ -5138,7 +5139,13 @@ window.addEventListener('hashchange',handleNavigation);
             return;
           }
           const updates={};
-          D.clients.forEach((c,i)=>{const j=JSON.stringify(c);if(_fbSnap.clients[i]!==j)updates['clients/'+i]=JSON.parse(j);});
+          D.clients.forEach((c,i)=>{
+            const prev=_fbSnap.clients[i]||{};const seen={};
+            // grava só os CAMPOS que mudaram (ex.: só clients/5/campaigns), sem regravar o cliente inteiro
+            for(const k in c){if(!Object.prototype.hasOwnProperty.call(c,k)||c[k]===undefined)continue;seen[k]=1;const j=JSON.stringify(c[k]);if(prev[k]!==j)updates['clients/'+i+'/'+k]=JSON.parse(j);}
+            // campo removido localmente → apaga na nuvem
+            for(const k in prev){if(!seen[k])updates['clients/'+i+'/'+k]=null;}
+          });
           const tj=JSON.stringify(D.team||[]);if(_fbSnap.team!==tj)updates['team']=JSON.parse(tj);
           const aj=JSON.stringify(D.assignedTasks||[]);if(_fbSnap.assignedTasks!==aj)updates['assignedTasks']=JSON.parse(aj);
           if(!Object.keys(updates).length){done();return;}
