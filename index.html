@@ -1897,7 +1897,7 @@ function rWeeklyPending(){
         </div>
       </div>
       <div class="tw"><table>
-        <thead><tr><th>Cliente</th><th>Rel. Semanal</th><th>Leads</th><th>Rel. Mensal</th><th>Contínuos</th></tr></thead>
+        <thead><tr><th>Cliente</th><th>Rel. Semanal</th><th>Leads</th><th>Resp.</th><th>Aceit.</th><th>Rel. Mensal</th><th>Contínuos</th></tr></thead>
         <tbody>
           ${myClients.map(c=>{
             const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,file:null,link:''};
@@ -1914,6 +1914,8 @@ function rWeeklyPending(){
               <td><div style="font-weight:500;font-size:12px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
               <td><span style="font-size:13px;color:${wrColor}">${wrStatus} ${wr.done?'Enviado':'Pendente'}</span></td>
               <td><span style="font-weight:600;color:#3B82F6">${prospectsWk}</span>${prospectsTotal>prospectsWk?`<span style="font-size:10px;color:var(--muted)"> · ${prospectsTotal} no total</span>`:''}</td>
+              <td><span style="font-size:12px">${wr.respRate!=null&&wr.respRate!==''?wr.respRate+'%':'<span style="color:#CBD5E1">—</span>'}</span></td>
+              <td><span style="font-size:12px">${wr.accRate!=null&&wr.accRate!==''?wr.accRate+'%':'<span style="color:#CBD5E1">—</span>'}</span></td>
               <td><span style="font-size:13px;color:${mrColor}">${mrStatus} ${mr.done?'Enviado':'Pendente'}</span>${mr.done&&!mr.file&&!mr.link?'<span style="font-size:10px;color:#D97706"> sem arquivo</span>':''}</td>
               <td><span style="font-size:11px;color:${activosCount===cas.length?'#16A34A':'#D97706'}">${activosCount}/${cas.length} ativos</span></td>
             </tr>`;
@@ -2063,10 +2065,15 @@ function rMinhaSemanaGestao(user){
     const leads=mc.reduce(function(s,c){return s+((c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length);},0);
     const newProspects=mc.flatMap(c=>(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk)).length;
     const wkOk=wkDone===mc.length&&mc.length>0;
+    const _rr=[],_aa=[];mc.forEach(function(c){const w=(c.weeklyReports||{})[wk];if(!w)return;var r=parseFloat(w.respRate);if(!isNaN(r))_rr.push(r);var a=parseFloat(w.accRate);if(!isNaN(a))_aa.push(a);});
+    const _rAvg=_rr.length?Math.round(_rr.reduce((s,x)=>s+x,0)/_rr.length):null;
+    const _aAvg=_aa.length?Math.round(_aa.reduce((s,x)=>s+x,0)/_aa.length):null;
     return '<tr>'
       +'<td><div style="display:flex;align-items:center;gap:8px"><div class="av av-s" style="background:'+m.color+'">'+m.initials+'</div><strong style="font-size:12px">'+m.name.split(' ')[0]+'</strong></div></td>'
       +'<td style="text-align:center"><span style="font-weight:700;color:'+(wkOk?'#16A34A':'#EF4444')+'">'+wkDone+'/'+mc.length+'</span></td>'
       +'<td style="text-align:center"><span style="font-weight:700;color:#7C3AED">'+newProspects+'</span></td>'
+      +'<td style="text-align:center"><span style="font-size:12px">'+(_rAvg!=null?_rAvg+'%':'—')+'</span></td>'
+      +'<td style="text-align:center"><span style="font-size:12px">'+(_aAvg!=null?_aAvg+'%':'—')+'</span></td>'
       +'<td style="text-align:center"><span style="font-weight:700;color:'+(mDone===mc.length&&mc.length>0?'#16A34A':'#D97706')+'">'+mDone+'/'+mc.length+'</span></td>'
       +'</tr>';
   }).join('');
@@ -2131,7 +2138,7 @@ function rMinhaSemanaGestao(user){
     +'<div class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8)">'
     +'<h3 style="color:white;margin:0">👥 Performance da Equipe — Sexta '+wkLabel+'</h3></div>'
     +'<div class="tw"><table>'
-    +'<thead><tr><th>Social Seller</th><th style="text-align:center">Rel. Semanais</th><th style="text-align:center">Novos Leads</th><th style="text-align:center">Rel. Mensal</th></tr></thead>'
+    +'<thead><tr><th>Social Seller</th><th style="text-align:center">Rel. Semanais</th><th style="text-align:center">Novos Leads</th><th style="text-align:center">Resp. méd.</th><th style="text-align:center">Aceit. méd.</th><th style="text-align:center">Rel. Mensal</th></tr></thead>'
     +'<tbody>'+teamRows+'</tbody></table></div></div>'
 
     // Funil do mês
@@ -3790,7 +3797,20 @@ function rDetailCampanhas(c){
       </div>
     </div>`;
   }).join('');
-  return header+cards;
+  const _wrEntries=Object.keys(c.weeklyReports||{}).map(function(k){const w=c.weeklyReports[k]||{};return{k:k,resp:w.respRate,acc:w.accRate,ins:(w.note||'').trim()};}).filter(function(e){return (e.resp!=null&&e.resp!=='')||(e.acc!=null&&e.acc!=='')||e.ins;}).sort(function(a,b){return (''+b.k).localeCompare(''+a.k);}).slice(0,8);
+  const taxasBlock=_wrEntries.length?`<div class="card" style="margin-bottom:16px">
+    <div class="ch"><div><h3>📊 Taxas semanais (do relatório)</h3><span style="font-size:11px;color:var(--muted)">Taxa de resposta e aceitação por semana · alimentadas na Minha Semana</span></div></div>
+    <div class="tw"><table>
+      <thead><tr><th>Semana</th><th style="text-align:center">Resp.</th><th style="text-align:center">Aceit.</th><th>💡 Insight</th></tr></thead>
+      <tbody>${_wrEntries.map(function(e){return`<tr>
+        <td style="white-space:nowrap">${fd(e.k)}</td>
+        <td style="text-align:center">${(e.resp!=null&&e.resp!=='')?e.resp+'%':'—'}</td>
+        <td style="text-align:center">${(e.acc!=null&&e.acc!=='')?e.acc+'%':'—'}</td>
+        <td style="font-size:11px;color:var(--muted)">${escH(e.ins||'')}</td>
+      </tr>`;}).join('')}</tbody>
+    </table></div>
+  </div>`:'';
+  return header+taxasBlock+cards;
 }
 function openCampaignModal(cid,campId){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
