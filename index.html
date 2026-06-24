@@ -2423,34 +2423,32 @@ function rMinhaSemana(){
   <!-- SEÇÃO 3: Relatórios Semanais -->
   <div class="card" style="margin-bottom:20px">
     <div class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8);border-radius:8px 8px 0 0">
-      <h3 style="margin:0;color:white">⚡ Relatórios Semanais — Sexta ${wkLabel}</h3>
-      <span style="font-size:12px;color:rgba(255,255,255,.8)">${semanaisDone}/${myClients.length} enviados</span>
+      <div><h3 style="margin:0;color:white">⚡ Relatórios Semanais — Sexta ${wkLabel}</h3>
+      <span style="font-size:12px;color:rgba(255,255,255,.8)">${semanaisDone}/${myClients.length} enviados · uso interno (o cliente não vê)</span></div>
     </div>
     <div class="tw"><table>
-      <thead><tr><th style="width:110px">Cliente</th><th style="width:70px">Status</th><th>💬 Mensagem enviada (WhatsApp)</th><th style="width:150px">Observação</th><th style="width:46px"></th></tr></thead>
+      <thead><tr><th style="width:120px">Cliente</th><th style="width:60px">Status</th><th style="width:48px;text-align:center">Leads</th><th style="width:60px;text-align:center">Resp.</th><th style="width:60px;text-align:center">Aceit.</th><th>💬 Mensagem / 💡 Insights</th></tr></thead>
       <tbody>
         ${myClients.map(c=>{
-          const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,message:'',note:''};
+          const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,message:'',note:'',respRate:'',accRate:''};
           const _esc=s=>(s||'').replace(/</g,'&lt;');
           const msgFull=(wr.message||'').trim();
-          const noteFull=(wr.note||'').trim();
-          const msgPrev=msgFull?_esc(msgFull.replace(/\s+/g,' ').slice(0,80))+(msgFull.length>80?'…':''):'';
-          const notePrev=noteFull?_esc(noteFull.replace(/\s+/g,' ').slice(0,40))+(noteFull.length>40?'…':''):'';
+          const insFull=(wr.note||'').trim();
+          const leadsWk=(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length;
+          const msgPrev=msgFull?_esc(msgFull.replace(/\s+/g,' ').slice(0,60))+(msgFull.length>60?'…':''):'';
           return`<tr>
             <td><div style="font-weight:600;font-size:13px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
             <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
               <input type="checkbox" onchange="toggleWeeklyReport('${c.id}','${wk}',this.checked)" ${wr.done?'checked':''}>
               <span style="font-size:11px;color:${wr.done?'#16A34A':'#9CA3AF'}">${wr.done?'✅':'⏳'}</span>
             </label></td>
+            <td style="text-align:center;font-weight:600;font-size:13px;color:var(--primary)">${leadsWk}</td>
+            <td style="text-align:center"><input class="mini" type="number" min="0" max="100" value="${wr.respRate!=null?wr.respRate:''}" onblur="updateWeekReportField('${c.id}','${wk}','respRate',this.value)" style="width:48px;text-align:center" placeholder="%"></td>
+            <td style="text-align:center"><input class="mini" type="number" min="0" max="100" value="${wr.accRate!=null?wr.accRate:''}" onblur="updateWeekReportField('${c.id}','${wk}','accRate',this.value)" style="width:48px;text-align:center" placeholder="%"></td>
             <td onclick="openWeekMsgModal('${c.id}','${wk}')" style="cursor:pointer">
-              ${msgPrev?`<div style="font-size:12px;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${msgPrev}</div>`
-                :`<span style="font-size:12px;color:var(--primary)">+ Escrever mensagem</span>`}
+              ${msgPrev?`<div style="font-size:12px;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${msgPrev}</div>${insFull?`<div style="font-size:10px;color:#7C3AED;margin-top:2px">💡 insight preenchido</div>`:''}`
+                :`<span style="font-size:12px;color:var(--primary)">+ Escrever mensagem / insights</span>`}
             </td>
-            <td onclick="openWeekMsgModal('${c.id}','${wk}')" style="cursor:pointer">
-              ${notePrev?`<div style="font-size:11px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${notePrev}</div>`
-                :`<span style="font-size:11px;color:#CBD5E1">—</span>`}
-            </td>
-            <td><button class="btn btn-o btn-s" onclick="openWeekMsgModal('${c.id}','${wk}')" title="Escrever / editar" style="font-size:13px">✏️</button></td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -2494,14 +2492,17 @@ function rMinhaSemana(){
   </details>
 
   <!-- SEÇÃO 4: Prospecção da Semana -->
-  <div class="card" style="margin-bottom:16px">
-    <div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA);border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <h3 style="margin:0;color:white">🎯 Leads da Semana</h3>
-        <span style="font-size:12px;color:rgba(255,255,255,.85)">Leads adicionados nesta semana por cliente</span>
+  <details class="card" style="margin-bottom:16px" open>
+    <summary class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA);border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;cursor:pointer;list-style:none">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="acc-arrow" style="color:white;font-size:13px">▶</span>
+        <div>
+          <h3 style="margin:0;color:white">🎯 Leads da Semana</h3>
+          <span style="font-size:12px;color:rgba(255,255,255,.85)">Leads adicionados nesta semana por cliente</span>
+        </div>
       </div>
-      <button class="btn btn-s" style="background:white;color:#7C3AED;border:none;font-weight:700;white-space:nowrap" onclick="exportarLeadsPDF('${user.name.replace(/'/g,"\\'")}','${S.minhaSemanaFilterMonth}')">📄 Exportar Leads (PDF)</button>
-    </div>
+      <button class="btn btn-s" style="background:white;color:#7C3AED;border:none;font-weight:700;white-space:nowrap" onclick="event.preventDefault();event.stopPropagation();exportarLeadsPDF('${user.name.replace(/'/g,"\\'")}','${S.minhaSemanaFilterMonth}')">📄 Exportar Leads (PDF)</button>
+    </summary>
     <div style="padding:0">
       ${myClients.filter(c=>!c.semLeads).map(c=>{
         const weekProspects=(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk);
@@ -2521,7 +2522,7 @@ function rMinhaSemana(){
         </div>`;
       }).join('')}
     </div>
-  </div>
+  </details>
   ${myICClients.length?`
   <!-- SEÇÃO IC: Implementação Comercial (Nayara só visualiza) -->
   <div class="card" style="margin-bottom:16px">
@@ -2811,8 +2812,8 @@ function openWeekMsgModal(cid,wk){
     <div style="padding:20px;overflow:auto">
       <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Mensagem que você enviou (WhatsApp)</label>
       <textarea id="wmsg-text" style="width:100%;min-height:230px;padding:12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;line-height:1.5;resize:vertical;box-sizing:border-box" placeholder="Cole aqui a mensagem que você mandou para o cliente...">${(wr.message||'').replace(/</g,'&lt;')}</textarea>
-      <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin:14px 0 6px">Observação</label>
-      <textarea id="wmsg-note" style="width:100%;min-height:70px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box" placeholder="Observação (opcional)...">${(wr.note||'').replace(/</g,'&lt;')}</textarea>
+      <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin:14px 0 6px">💡 Insights da semana (sua avaliação)</label>
+      <textarea id="wmsg-note" style="width:100%;min-height:90px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box" placeholder="Sua avaliação da semana: o que funcionou, o que ajustar, perfis que respondem melhor...">${(wr.note||'').replace(/</g,'&lt;')}</textarea>
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-o" onclick="document.getElementById('wmsg-overlay').remove()">Cancelar</button>
@@ -2924,21 +2925,13 @@ function _taskSort(a,b){
   return da<db?-1:da>db?1:0; // por vencimento
 }
 function renderTasksSection(user){
-  // SEMPRE visível, independente de semana: mostra todas as tarefas (pendentes primeiro, por vencimento)
   const myTasks=D.assignedTasks.filter(t=>t.assignedToId===user.id).slice().sort(_taskSort);
   const myCreated=D.assignedTasks.filter(t=>t.createdById===user.id).slice().sort(_taskSort);
-  const pendingCount=myTasks.filter(t=>!t.done).length;
-  const createdPendingCount=myCreated.filter(t=>!t.done).length;
+  const myPend=myTasks.filter(t=>!t.done), myDone=myTasks.filter(t=>t.done);
+  const crPend=myCreated.filter(t=>!t.done), crDone=myCreated.filter(t=>t.done);
   // CEO/Gestão já veem o que atribuíram no painel "Tarefas da Equipe" — evita duplicar aqui
   const hideCreated=(user.role==='CEO'||user.role==='Gestão');
-  return`<div class="card" style="margin-bottom:20px">
-    <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9)">
-      <div><h3 style="margin:0;color:white">📌 Tarefas Atribuídas</h3>
-      <span style="font-size:12px;color:rgba(255,255,255,.85)">${pendingCount} pendente${pendingCount!==1?'s':''} para você</span></div>
-      <button class="btn btn-s" onclick="openTaskModal()" style="background:white;color:#0891B2;font-weight:700">+ Nova Tarefa</button>
-    </div>
-    <div style="padding:0">
-      ${myTasks.length?myTasks.map(t=>`
+  const rowMine=t=>`
         <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #F3F4F6;background:${t.done?'#F9FAFB':'white'}">
           <input type="checkbox" style="margin-top:3px;cursor:pointer" ${t.done?'checked':''} onchange="toggleTaskDone('${t.id}')">
           <div style="flex:1">
@@ -2950,13 +2943,8 @@ function renderTasksSection(user){
             <span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:${t.done?'#DCFCE7':'#FEF3C7'};color:${t.done?'#16A34A':'#D97706'}">${t.done?'✅ Feito':'⏳ Pendente'}</span>
             ${taskDueBadge(t)}
           </div>
-        </div>`).join('')
-      :`<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Nenhuma tarefa para você.</div>`}
-    </div>
-    ${(myCreated.length&&!hideCreated)?`
-    <div style="border-top:2px solid #F3F4F6">
-      <div style="padding:10px 16px;background:#F9FAFB;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Tarefas que você atribuiu (${createdPendingCount} pendente${createdPendingCount!==1?'s':''})</div>
-      ${myCreated.map(t=>`
+        </div>`;
+  const rowCreated=t=>`
         <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 16px;border-bottom:1px solid #F3F4F6;background:${t.done?'#F9FAFB':'white'}">
           <div style="flex:1">
             <div style="font-size:13px;font-weight:500;color:${t.done?'#9CA3AF':'var(--text)'};text-decoration:${t.done?'line-through':'none'}">${t.description}</div>
@@ -2968,7 +2956,23 @@ function renderTasksSection(user){
             ${taskDueBadge(t)}
           </div>
           <button onclick="deleteTask('${t.id}')" style="background:none;border:none;cursor:pointer;color:#EF4444;font-size:14px;padding:2px 4px" title="Remover">🗑</button>
-        </div>`).join('')}
+        </div>`;
+  const doneAccordion=(arr,rowFn)=>arr.length?`<details><summary style="list-style:none;cursor:pointer;padding:10px 16px;font-size:12px;color:#16A34A;font-weight:600;border-bottom:1px solid #F3F4F6">✅ Ver concluídas (${arr.length})</summary>${arr.map(rowFn).join('')}</details>`:'';
+  return`<div class="card" style="margin-bottom:20px">
+    <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9)">
+      <div><h3 style="margin:0;color:white">📌 Tarefas Atribuídas</h3>
+      <span style="font-size:12px;color:rgba(255,255,255,.85)">${myPend.length} pendente${myPend.length!==1?'s':''} para você</span></div>
+      <button class="btn btn-s" onclick="openTaskModal()" style="background:white;color:#0891B2;font-weight:700">+ Nova Tarefa</button>
+    </div>
+    <div style="padding:0">
+      ${myPend.length?myPend.map(rowMine).join(''):`<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Nenhuma tarefa pendente para você. 🎉</div>`}
+      ${doneAccordion(myDone,rowMine)}
+    </div>
+    ${(myCreated.length&&!hideCreated)?`
+    <div style="border-top:2px solid #F3F4F6">
+      <div style="padding:10px 16px;background:#F9FAFB;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Tarefas que você atribuiu (${crPend.length} pendente${crPend.length!==1?'s':''})</div>
+      ${crPend.map(rowCreated).join('')}
+      ${doneAccordion(crDone,rowCreated)}
     </div>`:''}
   </div>`;
 }
