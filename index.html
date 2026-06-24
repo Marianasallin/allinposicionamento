@@ -1744,6 +1744,7 @@ function rDetail(){
     <div style="display:flex;gap:8px;align-items:center">
       <button class="btn btn-p btn-s" style="font-size:11px" onclick="compartilharAcesso('${c.id}')">📲 Enviar acesso ao portal</button>
       <button class="btn btn-o btn-s" style="font-size:11px" onclick="resetPortalPassword('${c.id}')" title="${c.portalPassword?'Cliente já criou senha — clique para resetar':'Cliente ainda não criou senha'}">🔑 ${c.portalPassword?'Resetar senha':'Senha não criada'}</button>
+      <button class="btn btn-o btn-s" style="font-size:11px" onclick="openPortalEmailsModal('${c.id}')" title="Permitir que mais pessoas acessem o portal deste cliente">👥 Emails de acesso${(c.portalEmails&&c.portalEmails.length)?' ('+(c.portalEmails.length+1)+')':''}</button>
       <button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red);font-size:11px" onclick="deleteClient('${c.id}')">🗑️ Excluir Cliente</button>
     </div>
   </div>
@@ -4539,7 +4540,8 @@ function rejectArt(cid,artId){
 // CLIENT PORTAL — TOKEN AUTHENTICATION
 // ────────────────────────────────────────────────────────────
 function validateClientEmail(email){
-  return D.clients.find(c=>c.email.toLowerCase()===email.toLowerCase())||null;
+  const e=(email||'').trim().toLowerCase();
+  return D.clients.find(c=>(c.email||'').toLowerCase()===e||(c.portalEmails||[]).some(x=>(x||'').trim().toLowerCase()===e))||null;
 }
 
 function validateClientPassword(client,password){
@@ -4596,6 +4598,55 @@ function resetPortalPassword(cid){
   if(!confirm('Resetar a senha do portal de '+c.name+'?\n\nO cliente vai criar uma nova senha no próximo acesso (e-mail continua o mesmo).'))return;
   delete c.portalPassword;
   save();toast('🔑 Senha resetada. O cliente cria uma nova no próximo acesso.');render();
+}
+function openPortalEmailsModal(cid){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  if(!Array.isArray(c.portalEmails))c.portalEmails=[];
+  const _esc=s=>(s||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const extras=c.portalEmails.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #F1F5F9">
+      <span style="flex:1;font-size:13px">${_esc(e)}</span>
+      <button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red);font-size:11px" onclick="removePortalEmail('${cid}','${_esc(e)}')">Remover</button>
+    </div>`).join('')||'<div style="font-size:12px;color:var(--muted);padding:6px 0">Nenhum email adicional ainda.</div>';
+  const ov=document.createElement('div');ov.id='pemails-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="background:linear-gradient(135deg,var(--primary),#1d4ed8);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center">
+      <div><h3 style="margin:0;color:white;font-size:15px">👥 Emails de acesso ao portal</h3>
+      <span style="font-size:12px;color:rgba(255,255,255,.85)">${c.name.split(' ').slice(0,2).join(' ')}</span></div>
+      <button onclick="document.getElementById('pemails-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
+    </div>
+    <div style="padding:20px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Email principal</div>
+      <div style="font-size:13px;background:#F9FAFB;border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:16px">${_esc(c.email)||'<span style="color:var(--muted)">(sem email principal)</span>'}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Emails adicionais (também acessam o portal)</div>
+      <div style="margin-bottom:12px">${extras}</div>
+      <div style="display:flex;gap:8px">
+        <input id="pemail-new" type="email" placeholder="novo.email@exemplo.com" style="flex:1;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+        <button class="btn btn-p" onclick="addPortalEmail('${cid}')">+ Adicionar</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px">Cada pessoa cria a própria senha no primeiro acesso. Todos veem o mesmo portal deste cliente.</div>
+    </div>
+  </div>`;
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+  setTimeout(()=>{const i=document.getElementById('pemail-new');if(i)i.focus();},50);
+}
+function addPortalEmail(cid){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  if(!Array.isArray(c.portalEmails))c.portalEmails=[];
+  const el=document.getElementById('pemail-new');const v=(el?el.value:'').trim();
+  if(!v||v.indexOf('@')<0){toast('⚠️ Digite um email válido');return;}
+  const low=v.toLowerCase();
+  if((c.email||'').toLowerCase()===low){toast('ℹ️ Esse já é o email principal');return;}
+  if(c.portalEmails.some(e=>(e||'').toLowerCase()===low)){toast('ℹ️ Esse email já está cadastrado');return;}
+  c.portalEmails.push(v);save();toast('✅ Email adicionado');openPortalEmailsModal(cid);
+  const ov=document.querySelectorAll('#pemails-overlay');if(ov.length>1)ov[0].remove();
+}
+function removePortalEmail(cid,email){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  c.portalEmails=(c.portalEmails||[]).filter(e=>(e||'').toLowerCase()!==(email||'').toLowerCase());
+  save();toast('🗑️ Email removido');openPortalEmailsModal(cid);
+  const ov=document.querySelectorAll('#pemails-overlay');if(ov.length>1)ov[0].remove();
 }
 function logoutClientPortal(){
   S.isClientPortal=false;
