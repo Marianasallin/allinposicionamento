@@ -2468,7 +2468,7 @@ function rMinhaSemana(){
       ${monthDueBadge}
     </summary>
     <div class="tw"><table>
-      <thead><tr><th>Cliente</th><th>Status</th><th>🔗 Link do relatório</th></tr></thead>
+      <thead><tr><th>Cliente</th><th>Status</th><th>🔗 Link (antigo)</th><th>✍️ Análise do mês (cliente)</th></tr></thead>
       <tbody>
         ${myClients.map(c=>{
           const mr=(c.monthlyReports&&c.monthlyReports[mk])||{done:false,file:null,link:''};
@@ -2484,6 +2484,10 @@ function rMinhaSemana(){
               <div style="margin-top:4px">
                 <input class="mini" type="url" placeholder="Cole o link (Drive)" style="width:170px" value="${mr.link||''}" onblur="updateMonthReportLink('${c.id}','${mk}',this.value)">
               </div>
+            </td>
+            <td>
+              <button class="btn btn-o btn-s" onclick="openMonthReportModal('${c.id}','${mk}')" style="font-size:12px">✍️ Editar / liberar</button>
+              ${mr.released?'<div style="font-size:10px;color:#16A34A;margin-top:3px">✅ Liberado para o cliente</div>':((mr.analysis&&mr.analysis.trim())?'<div style="font-size:10px;color:#D97706;margin-top:3px">📝 Rascunho (não liberado)</div>':'')}
             </td>
           </tr>`;
         }).join('')}
@@ -2833,6 +2837,69 @@ function saveWeekMsg(cid,wk){
   save();
   const ov=document.getElementById('wmsg-overlay');if(ov)ov.remove();
   toast('💾 Mensagem salva');render();
+}
+// ── RELATÓRIO MENSAL: consolidação + validação da Mari ──────────
+function _clientMonthStats(c,mk){
+  const wrs=c.weeklyReports||{};const rS=[],aS=[],ins=[];
+  Object.keys(wrs).forEach(function(k){
+    const d=new Date(k+'T12:00:00');if(isNaN(d))return;
+    if(getMonthKey(d)!==mk)return;
+    const w=wrs[k]||{};
+    const r=parseFloat(w.respRate);if(!isNaN(r))rS.push(r);
+    const a=parseFloat(w.accRate);if(!isNaN(a))aS.push(a);
+    if(w.note&&w.note.trim())ins.push({wk:k,date:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),text:w.note.trim()});
+  });
+  const avg=arr=>arr.length?Math.round(arr.reduce((s,x)=>s+x,0)/arr.length):null;
+  ins.sort((a,b)=>a.wk.localeCompare(b.wk));
+  return {respAvg:avg(rS),accAvg:avg(aS),insights:ins,leads:getClientLeadsForMonth(c,mk)};
+}
+function openMonthReportModal(cid,mk){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  if(!c.monthlyReports)c.monthlyReports={};
+  const mr=c.monthlyReports[mk]||{done:false,analysis:'',released:false};
+  const st=_clientMonthStats(c,mk);
+  const _esc=s=>(s||'').replace(/</g,'&lt;');
+  const insHtml=st.insights.length?st.insights.map(i=>`<div style="font-size:12px;color:#475569;padding:6px 0;border-bottom:1px solid #F1F5F9"><strong style="color:#0D3D9B">${i.date}:</strong> ${_esc(i.text)}</div>`).join(''):'<div style="font-size:12px;color:#9CA3AF">Nenhum insight semanal registrado neste mês.</div>';
+  const ov=document.createElement('div');ov.id='mrep-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:640px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;display:flex;flex-direction:column">
+    <div style="background:linear-gradient(135deg,#D97706,#F59E0B);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between">
+      <div><h3 style="margin:0;color:white;font-size:15px">📊 Relatório Mensal — ${c.name.split(' ').slice(0,2).join(' ')}</h3>
+      <span style="font-size:12px;color:rgba(255,255,255,.85)">${mk}${mr.released?' · ✅ liberado para o cliente':''}</span></div>
+      <button onclick="document.getElementById('mrep-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
+    </div>
+    <div style="padding:20px;overflow:auto">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+        <div style="background:#F8FAFF;border-radius:10px;padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">Leads no mês</div><div style="font-size:22px;font-weight:800;color:#0D3D9B">${st.leads}</div></div>
+        <div style="background:#F8FAFF;border-radius:10px;padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">Resposta média</div><div style="font-size:22px;font-weight:800">${st.respAvg!=null?st.respAvg+'%':'—'}</div></div>
+        <div style="background:#F8FAFF;border-radius:10px;padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">Aceitação média</div><div style="font-size:22px;font-weight:800">${st.accAvg!=null?st.accAvg+'%':'—'}</div></div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">💡 Insights das meninas (referência)</div>
+      <div style="background:#F9FAFB;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:16px;max-height:150px;overflow:auto">${insHtml}</div>
+      <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">✍️ Análise do mês (você valida — é o que o cliente vê)</label>
+      <textarea id="mrep-analysis" style="width:100%;min-height:120px;padding:12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;line-height:1.5;resize:vertical;box-sizing:border-box" placeholder="Escreva a análise final do mês para o cliente...">${_esc(mr.analysis)}</textarea>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--muted)">${mr.released?'✅ Visível para o cliente':'🔒 Ainda não liberado — o cliente não vê'}</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-o" onclick="saveMonthReport('${cid}','${mk}',false)">💾 Salvar rascunho</button>
+        <button class="btn btn-p" onclick="saveMonthReport('${cid}','${mk}',true)" style="background:#16A34A;border-color:#16A34A">🚀 Liberar para o cliente</button>
+      </div>
+    </div>
+  </div>`;
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+function saveMonthReport(cid,mk,release){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  if(!c.monthlyReports)c.monthlyReports={};
+  if(!c.monthlyReports[mk])c.monthlyReports[mk]={done:false,file:null,link:''};
+  const a=document.getElementById('mrep-analysis');
+  c.monthlyReports[mk].analysis=a?a.value:'';
+  if(release){c.monthlyReports[mk].released=true;c.monthlyReports[mk].done=true;c.monthlyReports[mk].releasedAt=new Date().toISOString();}
+  save();
+  const ov=document.getElementById('mrep-overlay');if(ov)ov.remove();
+  toast(release?'🚀 Liberado para o cliente':'💾 Rascunho salvo');render();
 }
 function updateUserNotes(name,v){const m=D.team.find(m=>m.name===name);if(!m)return;m.personalNotes=v;save();toast('💾 Anotações salvas');}
 function exportarLeadsPDF(userName,monthKey){
@@ -4945,6 +5012,15 @@ function rPortalRelatorios(c){
     const prv=months[i+1];
     const isMost=i===0;
     const revStr=r.revenue>0?'<div style="margin-top:12px;text-align:center;padding:10px;background:#F0FDF4;border-radius:10px"><div style="font-size:18px;font-weight:700;color:#16A34A">R$ '+r.revenue.toLocaleString('pt-BR')+'</div><div style="font-size:10px;color:#64748B">💰 Receita</div></div>':'';
+    const _mr=(c.monthlyReports||{})[r.month]||{};
+    const _st=_clientMonthStats(c,r.month);
+    const anaStr=_mr.released?('<div style="margin-top:12px;border-top:1px solid #EEF2FB;padding-top:12px">'
+      +'<div style="display:flex;gap:8px;margin-bottom:'+((_mr.analysis||'').trim()?'10px':'0')+'">'
+      +'<div style="flex:1;text-align:center;padding:8px;background:#F8FAFF;border-radius:8px"><div style="font-size:16px;font-weight:700;color:#0D3D9B">'+(_st.respAvg!=null?_st.respAvg+'%':'—')+'</div><div style="font-size:10px;color:#64748B">Taxa de resposta média</div></div>'
+      +'<div style="flex:1;text-align:center;padding:8px;background:#F8FAFF;border-radius:8px"><div style="font-size:16px;font-weight:700;color:#0D3D9B">'+(_st.accAvg!=null?_st.accAvg+'%':'—')+'</div><div style="font-size:10px;color:#64748B">Taxa de aceitação média</div></div>'
+      +'</div>'
+      +((_mr.analysis||'').trim()?'<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px">📝 Análise do mês</div><div style="font-size:13px;color:#334155;line-height:1.5;background:#F8FAFF;border:1px solid #DBEAFE;border-radius:8px;padding:10px 12px;white-space:pre-wrap">'+(_mr.analysis||'').replace(/</g,'&lt;')+'</div>':'')
+      +'</div>'):'';
     return '<div class="portal-card" style="'+(isMost?'border-left:4px solid #0D3D9B;':'')+'">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
       +'<div><div style="font-size:15px;font-weight:700;color:#1E293B">'+r.month+'</div>'
@@ -4955,7 +5031,7 @@ function rPortalRelatorios(c){
       +'<div style="text-align:center;padding:12px;background:#F5F3FF;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#7C3AED">'+r.leads+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">💬 Responderam</div>'+trend(r.leads,prv&&prv.leads)+'</div>'
       +'<div style="text-align:center;padding:12px;background:#FFF7ED;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#EA580C">'+r.meetings+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">🤝 Reuniões</div>'+trend(r.meetings,prv&&prv.meetings)+'</div>'
       +'<div style="text-align:center;padding:12px;background:#F0FDF4;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#16A34A">'+r.sales+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">✅ Fechamentos</div>'+trend(r.sales,prv&&prv.sales)+'</div>'
-      +'</div>'+revStr+'</div>';
+      +'</div>'+revStr+anaStr+'</div>';
   }).join('');
   const empty='<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhum resultado ainda.<br><small>Os resultados aparecerão automaticamente conforme os prospects forem atualizados.</small></div>';
   return '<div class="portal-hero" style="margin-bottom:24px"><div><h1>📈 Resultados</h1><p>Calculado automaticamente dos leads — '+months.length+' mês(es)</p></div></div>'
