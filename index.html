@@ -1650,9 +1650,9 @@ function rDetail(){
             <option value="finalizado" ${c.contractStatus==='finalizado'?'selected':''}>Finalizado</option>
           </select>
         </div>
-        <div class="fg"><label>Vencimento</label><input id="ct-cd" type="date" value="${c.contractDue?new Date(c.contractDue).toISOString().split('T')[0]:''}"></div>
-        <div class="fg"><label>Data de início do contrato</label><input id="ct-sd" type="date" value="${c.startDate||''}"></div>
-        <div class="fg"><label>Data de início da prospecção</label><input id="ct-prosp" type="date" value="${c.prospectionStart||''}" onchange="_setVencFromProsp('ct-prosp','ct-cd',12)"></div>
+        <div class="fg"><label>Vencimento</label><input id="ct-cd" type="date" value="${c.contractDue?new Date(c.contractDue).toISOString().split('T')[0]:''}" onchange="setContractDate('${c.id}','contractDue',this.value)"></div>
+        <div class="fg"><label>Data de início do contrato</label><input id="ct-sd" type="date" value="${c.startDate||''}" onchange="setContractDate('${c.id}','startDate',this.value)"></div>
+        <div class="fg"><label>Data de início da prospecção</label><input id="ct-prosp" type="date" value="${c.prospectionStart||''}" onchange="_setVencFromProsp('ct-prosp','ct-cd',12);setContractDate('${c.id}','prospectionStart',this.value);setContractDate('${c.id}','contractDue',(document.getElementById('ct-cd')||{}).value)"></div>
         ${_fin?`<div class="fg"><label>Valor do Contrato 🔒</label><input id="ct-val" placeholder="R$ 0,00" value="${c.contractValue||''}"></div>
         <div class="fg"><label>Forma de Pagamento 🔒</label>
           <select id="ct-pm">
@@ -3142,6 +3142,12 @@ function _setVencFromProsp(prospId, vencId, months){
   const fim=new Date(d.getFullYear(), d.getMonth()+m, d.getDate());
   cv.value=fim.toISOString().slice(0,10);
   toast('📅 Vencimento calculado: '+fim.toLocaleDateString('pt-BR')+' (prospecção + '+m+' meses). Pode ajustar se precisar.');
+}
+function setContractDate(cid,field,value){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  if(field==='contractDue'){c.contractDue=value?new Date(value).getTime():null;}
+  else{c[field]=value;}
+  save();toast('💾 Data salva');
 }
 function saveContrato(cid){
   const c=D.clients.find(c=>c.id===cid);
