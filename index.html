@@ -2515,8 +2515,8 @@ function rMinhaSemana(){
               </div>
             </td>
             <td>
-              <button class="btn btn-o btn-s" onclick="openMonthReportModal('${c.id}','${mk}')" style="font-size:12px">✍️ Editar / liberar</button>
-              ${mr.released?'<div style="font-size:10px;color:#16A34A;margin-top:3px">✅ Liberado para o cliente</div>':((mr.analysis&&mr.analysis.trim())?'<div style="font-size:10px;color:#D97706;margin-top:3px">📝 Rascunho (não liberado)</div>':'')}
+              <button class="btn btn-o btn-s" onclick="openMonthReportModal('${c.id}','${mk}')" style="font-size:12px">✍️ Escrever análise</button>
+              ${mr.released?'<div style="font-size:10px;color:#16A34A;margin-top:3px">✅ Liberado pela gestão</div>':((mr.analysis&&mr.analysis.trim())?'<div style="font-size:10px;color:#D97706;margin-top:3px">📝 Escrito — aguardando validação</div>':'')}
             </td>
           </tr>`;
         }).join('')}
@@ -2887,6 +2887,7 @@ function openMonthReportModal(cid,mk){
   if(!c.monthlyReports)c.monthlyReports={};
   const mr=c.monthlyReports[mk]||{done:false,analysis:'',released:false};
   const st=_clientMonthStats(c,mk);
+  const _ru=S.currentUser||{};const isGestao=_ru.role==='CEO'||_ru.role==='Gestão';
   const _esc=s=>(s||'').replace(/</g,'&lt;');
   const insHtml=st.insights.length?st.insights.map(i=>`<div style="font-size:12px;color:#475569;padding:6px 0;border-bottom:1px solid #F1F5F9"><strong style="color:#0D3D9B">${i.date}:</strong> ${_esc(i.text)}</div>`).join(''):'<div style="font-size:12px;color:#9CA3AF">Nenhum insight semanal registrado neste mês.</div>';
   const ov=document.createElement('div');ov.id='mrep-overlay';
@@ -2905,14 +2906,14 @@ function openMonthReportModal(cid,mk){
       </div>
       <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">💡 Insights das meninas (referência)</div>
       <div style="background:#F9FAFB;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:16px;max-height:150px;overflow:auto">${insHtml}</div>
-      <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">✍️ Análise do mês (você valida — é o que o cliente vê)</label>
+      <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">✍️ Análise do mês — é o que o cliente vê ${isGestao?'(escrita pela equipe · você valida e libera)':'(escreva aqui · a gestão valida e libera)'}</label>
       <textarea id="mrep-analysis" style="width:100%;min-height:120px;padding:12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;line-height:1.5;resize:vertical;box-sizing:border-box" placeholder="Escreva a análise final do mês para o cliente...">${_esc(mr.analysis)}</textarea>
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap">
-      <span style="font-size:11px;color:var(--muted)">${mr.released?'✅ Visível para o cliente':'🔒 Ainda não liberado — o cliente não vê'}</span>
+      <span style="font-size:11px;color:var(--muted)">${mr.released?'✅ Visível para o cliente':(isGestao?'🔒 Ainda não liberado — o cliente não vê':'🔒 A gestão valida e libera para o cliente')}</span>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-o" onclick="saveMonthReport('${cid}','${mk}',false)">💾 Salvar rascunho</button>
-        <button class="btn btn-p" onclick="saveMonthReport('${cid}','${mk}',true)" style="background:#16A34A;border-color:#16A34A">🚀 Liberar para o cliente</button>
+        <button class="btn btn-o" onclick="saveMonthReport('${cid}','${mk}',false)">💾 Salvar</button>
+        ${isGestao?`<button class="btn btn-p" onclick="saveMonthReport('${cid}','${mk}',true)" style="background:#16A34A;border-color:#16A34A">✅ Validar e liberar</button>`:''}
       </div>
     </div>
   </div>`;
