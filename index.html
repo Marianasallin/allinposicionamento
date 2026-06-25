@@ -5280,6 +5280,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
+    const APP_BUILD=20260625; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -5373,6 +5374,22 @@ window.addEventListener('hashchange',handleNavigation);
           _localDirty=false;
         }
         _fbReady=true;
+
+        // ── Auto-atualização: abas com versão antiga recarregam sozinhas (param de sobrescrever dados de quem está atualizado) ──
+        function _maybeReload(b){
+          if(!(b>APP_BUILD))return;
+          const ae=document.activeElement;
+          if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable)){setTimeout(function(){_maybeReload(b);},5000);return;}
+          location.reload();
+        }
+        try{
+          _db.ref('allin/_build').once('value').then(function(s){
+            const sb=parseInt(s.val())||0;
+            if(sb>APP_BUILD){_maybeReload(sb);return;}
+            if(APP_BUILD>sb){_db.ref('allin/_build').set(APP_BUILD);}
+          }).catch(function(){});
+          _db.ref('allin/_build').on('value',function(s){_maybeReload(parseInt(s.val())||0);});
+        }catch(e){}
 
         // Aplica uma atualização vinda do Firebase (reconstrói a tela)
         const applyFbUpdate=(fbData)=>{
