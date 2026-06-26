@@ -5397,6 +5397,33 @@ window.addEventListener('hashchange',handleNavigation);
           _db.ref('allin/_build').on('value',function(s){_maybeReload(parseInt(s.val())||0);});
         }catch(e){}
 
+        // ── Backup automático diário (mantém os últimos 7 dias num nó separado) ──
+        function _dailyBackup(){
+          try{
+            if(!((D.clients||[]).length))return;
+            const day=new Date().toISOString().slice(0,10);
+            _db.ref('allin_backups/'+day).once('value').then(function(s){
+              if(s.exists())return; // já existe backup de hoje
+              const snap={at:Date.now(),build:APP_BUILD,clients:D.clients||[],team:D.team||[],assignedTasks:D.assignedTasks||[]};
+              _db.ref('allin_backups/'+day).set(JSON.parse(JSON.stringify(snap))).then(function(){
+                _db.ref('allin_backups').once('value').then(function(all){
+                  const keys=Object.keys(all.val()||{}).sort();
+                  if(keys.length>7)keys.slice(0,keys.length-7).forEach(function(k){_db.ref('allin_backups/'+k).remove();});
+                }).catch(function(){});
+              }).catch(function(){});
+            }).catch(function(){});
+          }catch(e){}
+        }
+        setTimeout(_dailyBackup,4000);
+        // Restauração manual (uso técnico via console): listBackups() e restoreBackup('AAAA-MM-DD')
+        window.listBackups=function(){return _db.ref('allin_backups').once('value').then(function(s){const v=s.val()||{};const o={};Object.keys(v).forEach(function(k){o[k]=(v[k].clients||[]).length+' clientes · '+new Date(v[k].at).toLocaleString('pt-BR');});console.log(o);return o;});};
+        window.restoreBackup=function(day){
+          return _db.ref('allin_backups/'+day).once('value').then(function(s){
+            const b=s.val();if(!b){console.warn('Backup não encontrado: '+day);return false;}
+            return _db.ref('allin').update({clients:JSON.parse(JSON.stringify(b.clients||[])),team:JSON.parse(JSON.stringify(b.team||[])),assignedTasks:JSON.parse(JSON.stringify(b.assignedTasks||[]))}).then(function(){console.log('✅ Restaurado do backup de '+day);return true;});
+          });
+        };
+
         // Aplica uma atualização vinda do Firebase (reconstrói a tela)
         const applyFbUpdate=(fbData)=>{
           const sanitized=sanitizeD(fbData);
