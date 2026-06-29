@@ -1898,7 +1898,7 @@ function rWeeklyPending(){
         </div>
       </div>
       <div class="tw"><table>
-        <thead><tr><th>Cliente</th><th>Rel. Semanal</th><th>Leads</th><th>Resp.</th><th>Aceit.</th><th>Rel. Mensal</th><th>Contínuos</th></tr></thead>
+        <thead><tr><th>Cliente</th><th>Rel. Semanal</th><th>Leads</th><th>Rel. Mensal</th><th>Contínuos</th></tr></thead>
         <tbody>
           ${myClients.map(c=>{
             const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,file:null,link:''};
@@ -1911,13 +1911,10 @@ function rWeeklyPending(){
             const mrStatus=mr.done?(mr.file||mr.link)?'✅':'⚠️':'⏳';
             const prospectsWk=(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length;
             const prospectsTotal=(c.prospects||[]).length;
-            const _cwr=_clientWeekRates(c,wk);
-            return`<tr onclick="nav('clients',{clientId:'${c.id}',tab:'campanhas'})" style="cursor:pointer">
+            return`<tr onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})" style="cursor:pointer">
               <td><div style="font-weight:500;font-size:12px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
               <td><span style="font-size:13px;color:${wrColor}">${wrStatus} ${wr.done?'Enviado':'Pendente'}</span></td>
               <td><span style="font-weight:600;color:#3B82F6">${prospectsWk}</span>${prospectsTotal>prospectsWk?`<span style="font-size:10px;color:var(--muted)"> · ${prospectsTotal} no total</span>`:''}</td>
-              <td><span style="font-size:12px">${_cwr.respAvg!=null?_cwr.respAvg+'%':'<span style="color:#CBD5E1">—</span>'}</span></td>
-              <td><span style="font-size:12px">${_cwr.accAvg!=null?_cwr.accAvg+'%':'<span style="color:#CBD5E1">—</span>'}</span></td>
               <td><span style="font-size:13px;color:${mrColor}">${mrStatus} ${mr.done?'Enviado':'Pendente'}</span>${mr.done&&!mr.file&&!mr.link?'<span style="font-size:10px;color:#D97706"> sem arquivo</span>':''}</td>
               <td><span style="font-size:11px;color:${activosCount===cas.length?'#16A34A':'#D97706'}">${activosCount}/${cas.length} ativos</span></td>
             </tr>`;
@@ -3815,7 +3812,8 @@ function rDetailCampanhas(c){
         <div style="min-width:0"><h3 style="margin:0;color:white;font-size:14px">📣 ${escH(cp.name)}</h3>
         <span style="font-size:11px;color:rgba(255,255,255,.9)">Lançada: ${fd(cp.launchDate)}${cp.target?' · '+escH(cp.target):''}${cp.location?' · '+escH(cp.location):''}${cp.sector?' · '+escH(cp.sector):''}</span></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-          <button class="btn btn-s" style="background:white;color:#0891B2;font-weight:700;font-size:11px" onclick="openCampMeasureModal('${c.id}','${cp.id}',null)">+ Atualização</button>
+          <button class="btn btn-s" style="background:white;color:#0891B2;font-weight:700;font-size:11px" onclick="openCampWeek('${c.id}','${cp.id}')">📅 Atualizar esta semana</button>
+          <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="openCampMeasureModal('${c.id}','${cp.id}',null)">+ Outra data</button>
           <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="openCampaignModal('${c.id}','${cp.id}')">✏️ Editar</button>
           <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="deleteCampaign('${c.id}','${cp.id}')">🗑</button>
         </div>
@@ -3882,11 +3880,18 @@ function deleteCampaign(cid,campId){
   c.campaigns=(c.campaigns||[]).filter(x=>x.id!==campId);save();toast('🗑️ Campanha removida');render();
 }
 // Modal de medição — "+ Atualização" (measId null = nova; com id = editar do histórico)
-function openCampMeasureModal(cid,campId,measId){
+function openCampWeek(cid,campId){
+  const c=D.clients.find(c=>c.id===cid);if(!c)return;
+  const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
+  const wk=thisWeekKey();
+  const existing=_campHist(cp).find(m=>m.date&&weekKeyOf(m.date)===wk);
+  openCampMeasureModal(cid,campId,existing?existing.id:null,wk);
+}
+function openCampMeasureModal(cid,campId,measId,defaultDate){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
   const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
   const editing=measId?(_campHist(cp).find(x=>x.id===measId)||null):null;
-  const m=editing||{date:new Date().toISOString().slice(0,10),prospects:'',convite:'',mensagens:'',seguir:'',visitar:'',ssi:'',respRate:'',accRate:'',obs:''};
+  const m=editing||{date:defaultDate||new Date().toISOString().slice(0,10),prospects:'',convite:'',mensagens:'',seguir:'',visitar:'',ssi:'',respRate:'',accRate:'',obs:''};
   const ov=document.createElement('div');ov.id='campmeas-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
@@ -5283,7 +5288,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026062503; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026062504; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
