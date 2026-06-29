@@ -1911,12 +1911,13 @@ function rWeeklyPending(){
             const mrStatus=mr.done?(mr.file||mr.link)?'✅':'⚠️':'⏳';
             const prospectsWk=(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length;
             const prospectsTotal=(c.prospects||[]).length;
-            return`<tr onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})" style="cursor:pointer">
+            const _cwr=_clientWeekRates(c,wk);
+            return`<tr onclick="nav('clients',{clientId:'${c.id}',tab:'campanhas'})" style="cursor:pointer">
               <td><div style="font-weight:500;font-size:12px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
               <td><span style="font-size:13px;color:${wrColor}">${wrStatus} ${wr.done?'Enviado':'Pendente'}</span></td>
               <td><span style="font-weight:600;color:#3B82F6">${prospectsWk}</span>${prospectsTotal>prospectsWk?`<span style="font-size:10px;color:var(--muted)"> · ${prospectsTotal} no total</span>`:''}</td>
-              <td><span style="font-size:12px">${wr.respRate!=null&&wr.respRate!==''?wr.respRate+'%':'<span style="color:#CBD5E1">—</span>'}</span></td>
-              <td><span style="font-size:12px">${wr.accRate!=null&&wr.accRate!==''?wr.accRate+'%':'<span style="color:#CBD5E1">—</span>'}</span></td>
+              <td><span style="font-size:12px">${_cwr.respAvg!=null?_cwr.respAvg+'%':'<span style="color:#CBD5E1">—</span>'}</span></td>
+              <td><span style="font-size:12px">${_cwr.accAvg!=null?_cwr.accAvg+'%':'<span style="color:#CBD5E1">—</span>'}</span></td>
               <td><span style="font-size:13px;color:${mrColor}">${mrStatus} ${mr.done?'Enviado':'Pendente'}</span>${mr.done&&!mr.file&&!mr.link?'<span style="font-size:10px;color:#D97706"> sem arquivo</span>':''}</td>
               <td><span style="font-size:11px;color:${activosCount===cas.length?'#16A34A':'#D97706'}">${activosCount}/${cas.length} ativos</span></td>
             </tr>`;
@@ -2066,7 +2067,7 @@ function rMinhaSemanaGestao(user){
     const leads=mc.reduce(function(s,c){return s+((c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length);},0);
     const newProspects=mc.flatMap(c=>(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk)).length;
     const wkOk=wkDone===mc.length&&mc.length>0;
-    const _rr=[],_aa=[];mc.forEach(function(c){const w=(c.weeklyReports||{})[wk];if(!w)return;var r=parseFloat(w.respRate);if(!isNaN(r))_rr.push(r);var a=parseFloat(w.accRate);if(!isNaN(a))_aa.push(a);});
+    const _rr=[],_aa=[];mc.forEach(function(c){const w=_clientWeekRates(c,wk);if(w.respAvg!=null)_rr.push(w.respAvg);if(w.accAvg!=null)_aa.push(w.accAvg);});
     const _rAvg=_rr.length?Math.round(_rr.reduce((s,x)=>s+x,0)/_rr.length):null;
     const _aAvg=_aa.length?Math.round(_aa.reduce((s,x)=>s+x,0)/_aa.length):null;
     return '<tr>'
@@ -2456,15 +2457,14 @@ function rMinhaSemana(){
       <span style="font-size:12px;color:rgba(255,255,255,.8)">${semanaisDone}/${myClients.length} enviados · uso interno (o cliente não vê)</span></div>
     </div>
     <div class="tw"><table>
-      <thead><tr><th style="width:120px">Cliente</th><th style="width:60px">Status</th><th style="width:48px;text-align:center">Leads</th><th style="width:60px;text-align:center">Resp.</th><th style="width:60px;text-align:center">Aceit.</th><th>💬 Mensagem / 💡 Insights</th></tr></thead>
+      <thead><tr><th style="width:140px">Cliente</th><th style="width:70px">Status</th><th style="width:60px;text-align:center">Leads</th><th>💬 Mensagem enviada (WhatsApp)</th></tr></thead>
       <tbody>
         ${myClients.map(c=>{
-          const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,message:'',note:'',respRate:'',accRate:''};
+          const wr=(c.weeklyReports&&c.weeklyReports[wk])||{done:false,message:''};
           const _esc=s=>(s||'').replace(/</g,'&lt;');
           const msgFull=(wr.message||'').trim();
-          const insFull=(wr.note||'').trim();
           const leadsWk=(c.prospects||[]).filter(p=>weekKeyOf(p.date)===wk).length;
-          const msgPrev=msgFull?_esc(msgFull.replace(/\s+/g,' ').slice(0,60))+(msgFull.length>60?'…':''):'';
+          const msgPrev=msgFull?_esc(msgFull.replace(/\s+/g,' ').slice(0,90))+(msgFull.length>90?'…':''):'';
           return`<tr>
             <td><div style="font-weight:600;font-size:13px">${c.name.split(' ').slice(0,2).join(' ')}</div></td>
             <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer">
@@ -2472,11 +2472,9 @@ function rMinhaSemana(){
               <span style="font-size:11px;color:${wr.done?'#16A34A':'#9CA3AF'}">${wr.done?'✅':'⏳'}</span>
             </label></td>
             <td style="text-align:center;font-weight:600;font-size:13px;color:var(--primary)">${leadsWk}</td>
-            <td style="text-align:center"><input class="mini" type="number" min="0" max="100" value="${wr.respRate!=null?wr.respRate:''}" onblur="updateWeekReportField('${c.id}','${wk}','respRate',this.value)" style="width:48px;text-align:center" placeholder="%"></td>
-            <td style="text-align:center"><input class="mini" type="number" min="0" max="100" value="${wr.accRate!=null?wr.accRate:''}" onblur="updateWeekReportField('${c.id}','${wk}','accRate',this.value)" style="width:48px;text-align:center" placeholder="%"></td>
             <td onclick="openWeekMsgModal('${c.id}','${wk}')" style="cursor:pointer">
-              ${msgPrev?`<div style="font-size:12px;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${msgPrev}</div>${insFull?`<div style="font-size:10px;color:#7C3AED;margin-top:2px">💡 insight preenchido</div>`:''}`
-                :`<span style="font-size:12px;color:var(--primary)">+ Escrever mensagem / insights</span>`}
+              ${msgPrev?`<div style="font-size:12px;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${msgPrev}</div>`
+                :`<span style="font-size:12px;color:var(--primary)">+ Escrever mensagem</span>`}
             </td>
           </tr>`;
         }).join('')}
@@ -2845,8 +2843,7 @@ function openWeekMsgModal(cid,wk){
     <div style="padding:20px;overflow:auto">
       <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Mensagem que você enviou (WhatsApp)</label>
       <textarea id="wmsg-text" style="width:100%;min-height:230px;padding:12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;line-height:1.5;resize:vertical;box-sizing:border-box" placeholder="Cole aqui a mensagem que você mandou para o cliente...">${(wr.message||'').replace(/</g,'&lt;')}</textarea>
-      <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin:14px 0 6px">💡 Insights da semana (sua avaliação)</label>
-      <textarea id="wmsg-note" style="width:100%;min-height:90px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box" placeholder="Sua avaliação da semana: o que funcionou, o que ajustar, perfis que respondem melhor...">${(wr.note||'').replace(/</g,'&lt;')}</textarea>
+      <div style="font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5"><i>💡 Os <strong>insights</strong> e as <strong>taxas (resposta/aceitação)</strong> agora ficam em cada campanha do cliente — aba <strong>Campanhas → "+ Atualização"</strong>.</i></div>
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-o" onclick="document.getElementById('wmsg-overlay').remove()">Cancelar</button>
@@ -2862,25 +2859,32 @@ function saveWeekMsg(cid,wk){
   if(!c.weeklyReports[wk])c.weeklyReports[wk]={done:false,message:'',note:'',leads:0};
   const t=document.getElementById('wmsg-text'),n=document.getElementById('wmsg-note');
   c.weeklyReports[wk].message=t?t.value:'';
-  c.weeklyReports[wk].note=n?n.value:'';
+  if(n)c.weeklyReports[wk].note=n.value;
   save();
   const ov=document.getElementById('wmsg-overlay');if(ov)ov.remove();
   toast('💾 Mensagem salva');render();
 }
 // ── RELATÓRIO MENSAL: consolidação + validação da Mari ──────────
-function _clientMonthStats(c,mk){
-  const wrs=c.weeklyReports||{};const rS=[],aS=[],ins=[];
-  Object.keys(wrs).forEach(function(k){
-    const d=new Date(k+'T12:00:00');if(isNaN(d))return;
-    if(getMonthKey(d)!==mk)return;
-    const w=wrs[k]||{};
-    const r=parseFloat(w.respRate);if(!isNaN(r))rS.push(r);
-    const a=parseFloat(w.accRate);if(!isNaN(a))aS.push(a);
-    if(w.note&&w.note.trim())ins.push({wk:k,date:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),text:w.note.trim()});
+// Agrega taxas (resposta/aceitação) e insights das CAMPANHAS do cliente, filtrando por data.
+function _campAgg(c,match){
+  const rS=[],aS=[],ins=[];
+  (c.campaigns||[]).forEach(function(cp){
+    _campHist(cp).forEach(function(m){
+      if(!m.date||!match(m.date))return;
+      const r=parseFloat(m.respRate);if(!isNaN(r))rS.push(r);
+      const a=parseFloat(m.accRate);if(!isNaN(a))aS.push(a);
+      if(m.obs&&(''+m.obs).trim()){const d=new Date(m.date+'T12:00:00');ins.push({camp:cp.name||'Campanha',date:isNaN(d)?m.date:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),text:(''+m.obs).trim(),sort:m.date});}
+    });
   });
   const avg=arr=>arr.length?Math.round(arr.reduce((s,x)=>s+x,0)/arr.length):null;
-  ins.sort((a,b)=>a.wk.localeCompare(b.wk));
-  return {respAvg:avg(rS),accAvg:avg(aS),insights:ins,leads:getClientLeadsForMonth(c,mk)};
+  ins.sort((a,b)=>(''+a.sort).localeCompare(''+b.sort));
+  return {respAvg:avg(rS),accAvg:avg(aS),insights:ins};
+}
+// Médias das campanhas na semana (sexta wk) — média entre todas as campanhas do cliente
+function _clientWeekRates(c,wk){return _campAgg(c,function(d){return weekKeyOf(d)===wk;});}
+function _clientMonthStats(c,mk){
+  const a=_campAgg(c,function(d){const x=new Date(d+'T12:00:00');return !isNaN(x)&&getMonthKey(x)===mk;});
+  return {respAvg:a.respAvg,accAvg:a.accAvg,insights:a.insights,leads:getClientLeadsForMonth(c,mk)};
 }
 function openMonthReportModal(cid,mk){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
@@ -2889,7 +2893,7 @@ function openMonthReportModal(cid,mk){
   const st=_clientMonthStats(c,mk);
   const _ru=S.currentUser||{};const isGestao=_ru.role==='CEO'||_ru.role==='Gestão';
   const _esc=s=>(s||'').replace(/</g,'&lt;');
-  const insHtml=st.insights.length?st.insights.map(i=>`<div style="font-size:12px;color:#475569;padding:6px 0;border-bottom:1px solid #F1F5F9"><strong style="color:#0D3D9B">${i.date}:</strong> ${_esc(i.text)}</div>`).join(''):'<div style="font-size:12px;color:#9CA3AF">Nenhum insight semanal registrado neste mês.</div>';
+  const insHtml=st.insights.length?st.insights.map(i=>`<div style="font-size:12px;color:#475569;padding:6px 0;border-bottom:1px solid #F1F5F9"><strong style="color:#0D3D9B">${i.date}</strong> <span style="color:#0891B2">· ${_esc(i.camp||'')}</span>: ${_esc(i.text)}</div>`).join(''):'<div style="font-size:12px;color:#9CA3AF">Nenhum insight de campanha registrado neste mês.</div>';
   const ov=document.createElement('div');ov.id='mrep-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:640px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;display:flex;flex-direction:column">
@@ -3801,9 +3805,11 @@ function rDetailCampanhas(c){
       <td style="text-align:center">${u.seguir||'—'}</td>
       <td style="text-align:center">${u.visitar||'—'}</td>
       <td style="text-align:center;font-weight:700;color:var(--primary)">${u.ssi||'—'}</td>
+      <td style="text-align:center">${(u.respRate!=null&&u.respRate!=='')?u.respRate+'%':'—'}</td>
+      <td style="text-align:center">${(u.accRate!=null&&u.accRate!=='')?u.accRate+'%':'—'}</td>
       <td style="font-size:11px;color:var(--muted);max-width:200px">${escH(u.obs||'')}</td>
       <td style="white-space:nowrap"><button class="btn btn-o btn-s" style="font-size:10px" onclick="openCampMeasureModal('${c.id}','${cp.id}','${u.id}')">✏️</button> <button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="deleteCampMeasure('${c.id}','${cp.id}','${u.id}')">🗑</button></td>
-    </tr>`).join(''):`<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:14px">Nenhuma medição ainda. Clique em "+ Atualização".</td></tr>`;
+    </tr>`).join(''):`<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:14px">Nenhuma medição ainda. Clique em "+ Atualização".</td></tr>`;
     return`<div class="card" style="margin-bottom:16px">
       <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9);align-items:flex-start;flex-wrap:wrap;gap:8px">
         <div style="min-width:0"><h3 style="margin:0;color:white;font-size:14px">📣 ${escH(cp.name)}</h3>
@@ -3820,26 +3826,13 @@ function rDetailCampanhas(c){
         ${hist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:10px;color:var(--muted);align-self:center">Atual:</span>${chip('Convite',m.convite)}${chip('Mensagens',m.mensagens)}${chip('Seguir',m.seguir)}${chip('Visitar',m.visitar)}${chip('SSI',m.ssi)}</div>`:''}
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 4px">📈 Histórico de medições</div>
         <div class="tw"><table>
-          <thead><tr><th>Data</th><th style="text-align:center">Prospects</th><th style="text-align:center">Convite</th><th style="text-align:center">Mensagens</th><th style="text-align:center">Seguir</th><th style="text-align:center">Visitar</th><th style="text-align:center">SSI</th><th>Obs.</th><th></th></tr></thead>
+          <thead><tr><th>Data</th><th style="text-align:center">Prospects</th><th style="text-align:center">Convite</th><th style="text-align:center">Mensagens</th><th style="text-align:center">Seguir</th><th style="text-align:center">Visitar</th><th style="text-align:center">SSI</th><th style="text-align:center">Resp.</th><th style="text-align:center">Aceit.</th><th>💡 Insight</th><th></th></tr></thead>
           <tbody>${histRows}</tbody>
         </table></div>
       </div>
     </div>`;
   }).join('');
-  const _wrEntries=Object.keys(c.weeklyReports||{}).map(function(k){const w=c.weeklyReports[k]||{};return{k:k,resp:w.respRate,acc:w.accRate,ins:(w.note||'').trim()};}).filter(function(e){return (e.resp!=null&&e.resp!=='')||(e.acc!=null&&e.acc!=='')||e.ins;}).sort(function(a,b){return (''+b.k).localeCompare(''+a.k);}).slice(0,8);
-  const taxasBlock=_wrEntries.length?`<div class="card" style="margin-bottom:16px">
-    <div class="ch"><div><h3>📊 Taxas semanais (do relatório)</h3><span style="font-size:11px;color:var(--muted)">Taxa de resposta e aceitação por semana · alimentadas na Minha Semana</span></div></div>
-    <div class="tw"><table>
-      <thead><tr><th>Semana</th><th style="text-align:center">Resp.</th><th style="text-align:center">Aceit.</th><th>💡 Insight</th></tr></thead>
-      <tbody>${_wrEntries.map(function(e){return`<tr>
-        <td style="white-space:nowrap">${fd(e.k)}</td>
-        <td style="text-align:center">${(e.resp!=null&&e.resp!=='')?e.resp+'%':'—'}</td>
-        <td style="text-align:center">${(e.acc!=null&&e.acc!=='')?e.acc+'%':'—'}</td>
-        <td style="font-size:11px;color:var(--muted)">${escH(e.ins||'')}</td>
-      </tr>`;}).join('')}</tbody>
-    </table></div>
-  </div>`:'';
-  return header+taxasBlock+cards;
+  return header+cards;
 }
 function openCampaignModal(cid,campId){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
@@ -3893,7 +3886,7 @@ function openCampMeasureModal(cid,campId,measId){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
   const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
   const editing=measId?(_campHist(cp).find(x=>x.id===measId)||null):null;
-  const m=editing||{date:new Date().toISOString().slice(0,10),prospects:'',convite:'',mensagens:'',seguir:'',visitar:'',ssi:'',obs:''};
+  const m=editing||{date:new Date().toISOString().slice(0,10),prospects:'',convite:'',mensagens:'',seguir:'',visitar:'',ssi:'',respRate:'',accRate:'',obs:''};
   const ov=document.createElement('div');ov.id='campmeas-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
@@ -3916,8 +3909,12 @@ function openCampMeasureModal(cid,campId,measId){
         <div class="fg"><label>Seguir</label><input type="number" id="cms-seguir" value="${escH(m.seguir)}" placeholder="0"></div>
         <div class="fg"><label>Visitar</label><input type="number" id="cms-visitar" value="${escH(m.visitar)}" placeholder="0"></div>
       </div>
+      <div class="fgrid">
+        <div class="fg"><label>Taxa de resposta (%)</label><input type="number" id="cms-resp" min="0" max="100" value="${escH(m.respRate)}" placeholder="0-100"></div>
+        <div class="fg"><label>Taxa de aceitação (%)</label><input type="number" id="cms-acc" min="0" max="100" value="${escH(m.accRate)}" placeholder="0-100"></div>
+      </div>
       <div class="fg"><label>SSI (índice LinkedIn)</label><input type="number" id="cms-ssi" value="${escH(m.ssi)}" placeholder="0-100" style="max-width:160px"></div>
-      <div class="fg"><label>Observação</label><textarea id="cms-obs" rows="2" style="resize:vertical;width:100%" placeholder="Ex: acréscimo de prospects, campanha reformulada, observações da semana...">${escH(m.obs)}</textarea></div>
+      <div class="fg"><label>💡 Insight da semana</label><textarea id="cms-obs" rows="2" style="resize:vertical;width:100%" placeholder="Sua avaliação: o que funcionou, o que ajustar, perfis que respondem melhor...">${escH(m.obs)}</textarea></div>
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-o" onclick="document.getElementById('campmeas-overlay').remove()">Cancelar</button>
@@ -3937,7 +3934,7 @@ function saveCampMeasure(cid,campId,measId){
   const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
   _campMigrate(cp);
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
-  const data={date:g('cms-date'),prospects:g('cms-prospects'),convite:g('cms-convite'),mensagens:g('cms-mensagens'),seguir:g('cms-seguir'),visitar:g('cms-visitar'),ssi:g('cms-ssi'),obs:g('cms-obs')};
+  const data={date:g('cms-date'),prospects:g('cms-prospects'),convite:g('cms-convite'),mensagens:g('cms-mensagens'),seguir:g('cms-seguir'),visitar:g('cms-visitar'),ssi:g('cms-ssi'),respRate:g('cms-resp'),accRate:g('cms-acc'),obs:g('cms-obs')};
   if(measId){const mm=cp.measurements.find(x=>x.id===measId);if(mm)Object.assign(mm,data);else cp.measurements.push(Object.assign({id:'m'+Date.now()},data));}
   else cp.measurements.push(Object.assign({id:'m'+Date.now()},data));
   save();const ov=document.getElementById('campmeas-overlay');if(ov)ov.remove();toast('✅ Medição salva');render();
@@ -5286,7 +5283,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026062502; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026062503; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
