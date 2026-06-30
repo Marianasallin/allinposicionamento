@@ -1501,7 +1501,7 @@ function rDetail(){
                 </div>
               </div>
               <div style="font-size:12px;color:var(--muted);margin-bottom:8px">📅 ${fmtDate(enc.date)}${enc.time?' · 🕐 '+enc.time:''}</div>
-              ${enc.attendees&&enc.attendees.length?`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">👥 ${enc.attendees.join(', ')}</div>`:''}
+              ${enc.attendees&&enc.attendees.length?`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">👥 ${(enc.attendees||[]).join(', ')}</div>`:''}
               ${enc.description?`<div style="font-size:12px;color:var(--text);background:#F8FAFF;padding:8px 10px;border-radius:6px;border-left:3px solid var(--primary);margin-bottom:10px;line-height:1.5">${enc.description.length>120?enc.description.substring(0,120)+'…':enc.description}</div>`:''}
               <div style="display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--border);padding-top:10px">
                 ${enc.transcriptionLink?`<a href="${enc.transcriptionLink}" target="_blank" style="font-size:12px;color:var(--primary);text-decoration:none;display:flex;align-items:center;gap:5px">📝 <span style="text-decoration:underline">Ver Transcrição ↗</span></a>`:`<span style="font-size:12px;color:#CBD5E1">📝 Sem transcrição</span>`}
@@ -1518,7 +1518,7 @@ function rDetail(){
           }).join('')}
         </div>
         ${encs.length>3?`<div style="margin-top:16px"><h4 style="font-size:13px;color:var(--muted);margin-bottom:10px">Encontros Adicionais</h4>`+[...encs].slice(3).map((enc,ii)=>{const i=ii+3;return`<div class="card" style="margin-bottom:10px">
-          <div class="ch"><div><h4 style="margin:0">${fmtDate(enc.date)}${enc.time?' · 🕐 '+enc.time:''}</h4><p style="margin:4px 0 0;font-size:12px;color:var(--muted)">👥 ${enc.attendees.join(', ')||'—'}</p></div>
+          <div class="ch"><div><h4 style="margin:0">${fmtDate(enc.date)}${enc.time?' · 🕐 '+enc.time:''}</h4><p style="margin:4px 0 0;font-size:12px;color:var(--muted)">👥 ${(enc.attendees||[]).join(', ')||'—'}</p></div>
           <div style="display:flex;gap:4px"><button class="btn btn-o btn-s" onclick="openEncounterModal('${c.id}','${i}')">✏️</button><button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="deleteEncounter('${c.id}',${i})">🗑️</button></div></div>
           <div class="cb"><p style="margin:0;font-size:13px">${enc.description||'—'}</p></div></div>`;}).join('')+`</div>`:''}
       </div>`;
@@ -1527,7 +1527,7 @@ function rDetail(){
       body=`<button class="btn btn-p btn-s" style="margin-bottom:16px" onclick="openEncounterModal('${c.id}')">+ Registrar Encontro</button>
       ${encsSorted.length?encsSorted.map((enc,i)=>`<div class="card" style="margin-bottom:12px">
         <div class="ch">
-          <div><h4 style="margin:0">${fmtDate(enc.date)}${enc.time?' · 🕐 '+enc.time:''}</h4><p style="margin:4px 0 0;font-size:12px;color:var(--muted)">👥 ${enc.attendees.join(', ')||'Sem participantes'}</p></div>
+          <div><h4 style="margin:0">${fmtDate(enc.date)}${enc.time?' · 🕐 '+enc.time:''}</h4><p style="margin:4px 0 0;font-size:12px;color:var(--muted)">👥 ${(enc.attendees||[]).join(', ')||'Sem participantes'}</p></div>
           <div style="display:flex;gap:4px"><button class="btn btn-o btn-s" onclick="openEncounterModal('${c.id}','${i}')">✏️ Editar</button><button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="deleteEncounter('${c.id}',${i})">🗑️</button></div>
         </div>
         <div class="cb">
@@ -4402,7 +4402,7 @@ function rClientView(){
       <div class="ch">
         <div>
           <h4 style="margin:0">${fmtDate(enc.date)}${enc.time?' · 🕐 '+enc.time:''}</h4>
-          <p style="margin:4px 0 0 0;font-size:12px;color:var(--muted)">👥 ${enc.attendees.join(', ')||'Sem participantes'}</p>
+          <p style="margin:4px 0 0 0;font-size:12px;color:var(--muted)">👥 ${(enc.attendees||[]).join(', ')||'Sem participantes'}</p>
         </div>
       </div>
       <div class="cb">
@@ -5091,7 +5091,7 @@ function rPortalReunioes(c){
           </div>
           <div style="flex:1">
             <div style="font-size:13px;font-weight:600;color:#1E293B;margin-bottom:4px">${enc.description||'Encontro registrado'}</div>
-            ${enc.attendees&&enc.attendees.length?`<div style="font-size:11px;color:#64748B;margin-bottom:6px">👥 Participantes: ${enc.attendees.join(', ')}</div>`:''}
+            ${enc.attendees&&enc.attendees.length?`<div style="font-size:11px;color:#64748B;margin-bottom:6px">👥 Participantes: ${(enc.attendees||[]).join(', ')}</div>`:''}
             ${enc.notes?`<div style="font-size:12px;color:#475569;background:#F8FAFF;padding:8px 12px;border-radius:8px;border-left:3px solid #4A90E2">${enc.notes}</div>`:''}
             ${enc.attachments&&enc.attachments.length?`<div style="font-size:11px;color:#64748B;margin-top:6px">📎 ${enc.attachments.length} anexo(s)</div>`:''}
           </div>
@@ -5289,7 +5289,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026063001; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063002; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
