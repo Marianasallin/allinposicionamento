@@ -2130,9 +2130,15 @@ function rMinhaSemanaGestao(user){
     }).join('')
     +'</div>';
 
-  // === Encontros IC (remuneração da Nayara) — segue o filtro de mês da página ===
-  const _icMonth=S.gestaoFilterMonth;
+  // === Encontros IC (remuneração da Nayara) — com filtro de mês próprio ===
   const _icClients=D.clients.filter(c=>(c.products||[]).includes('Implementação Comercial'));
+  const _ptMo=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const _icMonthsSet=new Set();
+  _icClients.forEach(c=>((c.encounters&&c.encounters.list)||[]).forEach(e=>{if(e.date)_icMonthsSet.add(getMonthKey(new Date(e.date+'T12:00:00')));}));
+  _icMonthsSet.add(getMonthKey(new Date()));
+  const _icMonths=[..._icMonthsSet].sort((a,b)=>{const[ma,ya]=a.split(' ');const[mb,yb]=b.split(' ');return(parseInt(yb)*12+_ptMo.indexOf(mb))-(parseInt(ya)*12+_ptMo.indexOf(ma));});
+  if(!S.icMonth||!_icMonths.includes(S.icMonth))S.icMonth=_icMonths.includes(getMonthKey(new Date()))?getMonthKey(new Date()):_icMonths[0];
+  const _icMonth=S.icMonth;
   let _icTotal=0,_icDualUnmarked=0;
   const _icRows=_icClients.map(function(c){
     const encs=(c.encounters&&c.encounters.list)||[];
@@ -2142,19 +2148,22 @@ function rMinhaSemanaGestao(user){
     const isGP=(c.products||[]).includes('Gestão de Perfil');
     const unmarked=isGP?inMonth.filter(e=>!e.tipo).length:0;
     _icDualUnmarked+=unmarked;
-    return{name:c.name,n:n,unmarked:unmarked,isGP:isGP};
+    return{id:c.id,name:c.name,n:n,unmarked:unmarked,isGP:isGP};
   }).sort((a,b)=>b.n-a.n||a.name.localeCompare(b.name,'pt-BR'));
+  const _icMonthChips=_icMonths.map(m=>'<span class="fc '+(_icMonth===m?'active':'')+'" onclick="S.icMonth=\''+m+'\';render()" style="font-size:11px">'+m+'</span>').join('');
   const _icCardHtml='<div class="card" style="margin-bottom:20px">'
     +'<div class="ch" style="background:linear-gradient(135deg,#0D9488,#14B8A6)">'
     +'<h3 style="color:white;margin:0">🤝 Encontros — Implementação Comercial</h3>'
     +'<span style="font-size:12px;color:rgba(255,255,255,.85)">'+_icMonth+'</span></div>'
     +'<div class="cb">'
     +(_icClients.length
-      ?('<div style="text-align:center;padding:8px 0 16px"><div style="font-size:34px;font-weight:900;color:#0D9488">'+_icTotal+'</div><div style="font-size:12px;color:var(--muted)">encontro'+(_icTotal===1?'':'s')+' em '+_icMonth+'</div></div>'
+      ?('<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Mês:</span>'+_icMonthChips+'</div>'
+        +'<div style="text-align:center;padding:4px 0 14px"><div style="font-size:34px;font-weight:900;color:#0D9488">'+_icTotal+'</div><div style="font-size:12px;color:var(--muted)">encontro'+(_icTotal===1?'':'s')+' em '+_icMonth+'</div></div>'
+        +'<details open><summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border);font-size:12px;font-weight:700;color:var(--muted)"><span class="acc-arrow" style="transition:transform .2s">▶</span>Por cliente — abrir/fechar</summary>'
         +'<div class="tw"><table><thead><tr><th>Cliente</th><th style="text-align:center">Encontros</th></tr></thead><tbody>'
-        +_icRows.map(r=>'<tr><td style="font-size:13px;font-weight:600">'+r.name.split(' ').slice(0,2).join(' ')+(r.isGP?' <span style="font-size:9px;color:#9CA3AF;font-weight:500">(IC+GP)</span>':'')+'</td><td style="text-align:center;font-weight:700;color:#0D9488">'+r.n+(r.unmarked?' <span title="'+r.unmarked+' encontro(s) antigo(s) sem tipo definido" style="color:#D97706;font-size:11px">⚠️'+r.unmarked+'</span>':'')+'</td></tr>').join('')
-        +'</tbody></table></div>'
-        +(_icDualUnmarked?'<div style="font-size:11px;color:#D97706;padding:10px 4px 0">⚠️ '+_icDualUnmarked+' encontro(s) de clientes IC+GP ainda sem tipo definido não estão sendo contados. Abra cada encontro e marque como Implementação Comercial ou Gestão de Perfil.</div>':''))
+        +_icRows.map(r=>'<tr><td style="font-size:13px;font-weight:600">'+r.name.split(' ').slice(0,2).join(' ')+(r.isGP?' <span style="font-size:9px;color:#9CA3AF;font-weight:500">(IC+GP)</span>':'')+'</td><td style="text-align:center"><span onclick="nav(\'clients\',{clientId:\''+r.id+'\',tab:\'encontros\'})" title="Abrir os encontros deste cliente" style="cursor:pointer;font-weight:700;color:#0D9488;text-decoration:underline">'+r.n+'</span>'+(r.unmarked?' <span title="'+r.unmarked+' encontro(s) antigo(s) sem tipo definido" style="color:#D97706;font-size:11px">⚠️'+r.unmarked+'</span>':'')+'</td></tr>').join('')
+        +'</tbody></table></div></details>'
+        +(_icDualUnmarked?'<div style="font-size:11px;color:#D97706;padding:10px 4px 0">⚠️ '+_icDualUnmarked+' encontro(s) de clientes IC+GP ainda sem tipo definido não estão sendo contados. Clique no número do cliente, abra cada encontro e marque IC ou GP.</div>':''))
       :'<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Nenhum cliente de Implementação Comercial.</div>')
     +'</div></div>';
 
@@ -3578,7 +3587,8 @@ function openEncounterModal(cid,encIdx){
   const enc=isEdit?c.encounters.list[encIdx]:_encDraft;
   const encRef=isEdit?String(encIdx):'new';
   const _hasIC=(c.products||[]).includes('Implementação Comercial');
-  const _defTipo=enc.tipo||(_hasIC?'IC':'GP');
+  const _isDual=_hasIC&&(c.products||[]).includes('Gestão de Perfil');
+  const _defTipo=enc.tipo||(_isDual?'':(_hasIC?'IC':'GP'));
   closeEncounterModal();
   const tnames=TEAM_NAMES();
   const html=`<div class="overlay" id="em-overlay" onclick="if(event.target===this)cancelEncounterModal()">
@@ -3593,8 +3603,9 @@ function openEncounterModal(cid,encIdx){
             </div>
           </div>
         </div>
-        ${_hasIC?`<div class="fg" style="grid-column:1/-1"><label>Tipo de encontro</label>
+        ${_hasIC?`<div class="fg" style="grid-column:1/-1"><label>Tipo de encontro${_isDual?' *':''}</label>
           <select id="em-tipo" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px">
+            ${_isDual?`<option value="" ${_defTipo===''?'selected':''}>— Selecione —</option>`:''}
             <option value="IC" ${_defTipo==='IC'?'selected':''}>🤝 Implementação Comercial (conta para a Nayara)</option>
             <option value="GP" ${_defTipo==='GP'?'selected':''}>👤 Gestão de Perfil</option>
           </select>
@@ -3666,6 +3677,7 @@ function saveEncounter(cid,encIdx){
     if(!date){toast('⚠️ Informe a data do encontro!');return;}
     const time=$('em-time')?$('em-time').value:'';
     const tipo=$('em-tipo')?$('em-tipo').value:'GP';
+    if($('em-tipo')&&!tipo){toast('⚠️ Selecione o tipo do encontro (Implementação Comercial ou Gestão de Perfil).');return;}
     const tnames=TEAM_NAMES();
     const attendees=[];
     tnames.forEach((n,i)=>{if($(`em-att-${i}`)?.checked)attendees.push(n);});
@@ -5348,7 +5360,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026063003; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063004; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
