@@ -1500,7 +1500,7 @@ function rDetail(){
                   <button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="deleteEncounter('${c.id}',${i})" title="Remover">🗑️</button>
                 </div>
               </div>
-              <div style="font-size:12px;color:var(--muted);margin-bottom:8px">📅 ${fmtDate(enc.date)}</div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:8px">📅 ${fmtDate(enc.date)}${enc.time?' · 🕐 '+enc.time:''}</div>
               ${enc.attendees&&enc.attendees.length?`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">👥 ${enc.attendees.join(', ')}</div>`:''}
               ${enc.description?`<div style="font-size:12px;color:var(--text);background:#F8FAFF;padding:8px 10px;border-radius:6px;border-left:3px solid var(--primary);margin-bottom:10px;line-height:1.5">${enc.description.length>120?enc.description.substring(0,120)+'…':enc.description}</div>`:''}
               <div style="display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--border);padding-top:10px">
@@ -1518,7 +1518,7 @@ function rDetail(){
           }).join('')}
         </div>
         ${encs.length>3?`<div style="margin-top:16px"><h4 style="font-size:13px;color:var(--muted);margin-bottom:10px">Encontros Adicionais</h4>`+[...encs].slice(3).map((enc,ii)=>{const i=ii+3;return`<div class="card" style="margin-bottom:10px">
-          <div class="ch"><div><h4 style="margin:0">${fmtDate(enc.date)}</h4><p style="margin:4px 0 0;font-size:12px;color:var(--muted)">👥 ${enc.attendees.join(', ')||'—'}</p></div>
+          <div class="ch"><div><h4 style="margin:0">${fmtDate(enc.date)}${enc.time?' · 🕐 '+enc.time:''}</h4><p style="margin:4px 0 0;font-size:12px;color:var(--muted)">👥 ${enc.attendees.join(', ')||'—'}</p></div>
           <div style="display:flex;gap:4px"><button class="btn btn-o btn-s" onclick="openEncounterModal('${c.id}','${i}')">✏️</button><button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="deleteEncounter('${c.id}',${i})">🗑️</button></div></div>
           <div class="cb"><p style="margin:0;font-size:13px">${enc.description||'—'}</p></div></div>`;}).join('')+`</div>`:''}
       </div>`;
@@ -1527,7 +1527,7 @@ function rDetail(){
       body=`<button class="btn btn-p btn-s" style="margin-bottom:16px" onclick="openEncounterModal('${c.id}')">+ Registrar Encontro</button>
       ${encsSorted.length?encsSorted.map((enc,i)=>`<div class="card" style="margin-bottom:12px">
         <div class="ch">
-          <div><h4 style="margin:0">${fmtDate(enc.date)}</h4><p style="margin:4px 0 0;font-size:12px;color:var(--muted)">👥 ${enc.attendees.join(', ')||'Sem participantes'}</p></div>
+          <div><h4 style="margin:0">${fmtDate(enc.date)}${enc.time?' · 🕐 '+enc.time:''}</h4><p style="margin:4px 0 0;font-size:12px;color:var(--muted)">👥 ${enc.attendees.join(', ')||'Sem participantes'}</p></div>
           <div style="display:flex;gap:4px"><button class="btn btn-o btn-s" onclick="openEncounterModal('${c.id}','${i}')">✏️ Editar</button><button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="deleteEncounter('${c.id}',${i})">🗑️</button></div>
         </div>
         <div class="cb">
@@ -3524,7 +3524,7 @@ function openEncounterModal(cid,encIdx){
   if(!c.encounters)c.encounters={list:[]};
   if(!c.encounters.list)c.encounters.list=[];
   const isEdit=!_encIsNew(encIdx)&&c.encounters.list[encIdx];
-  if(!isEdit&&!_encDraft)_encDraft={date:new Date().toISOString().split('T')[0],description:'',attendees:[],attachments:[],notes:'',transcriptionLink:'',recordingLink:''};
+  if(!isEdit&&!_encDraft)_encDraft={date:new Date().toISOString().split('T')[0],time:'',description:'',attendees:[],attachments:[],notes:'',transcriptionLink:'',recordingLink:''};
   const enc=isEdit?c.encounters.list[encIdx]:_encDraft;
   const encRef=isEdit?String(encIdx):'new';
   closeEncounterModal();
@@ -3534,7 +3534,7 @@ function openEncounterModal(cid,encIdx){
       <div class="modal-hd"><h3>${isEdit?'✏️ Editar':'🤝 Registrar'} Encontro</h3><button class="btn btn-o btn-s" onclick="cancelEncounterModal()">✕</button></div>
       <div class="modal-body">
         <div class="fgrid">
-          <div class="fg"><label>Data do Encontro *</label><input id="em-date" type="date" value="${enc.date||''}"></div>
+          <div class="fg"><label>Data e Hora do Encontro *</label><div style="display:flex;gap:8px"><input id="em-date" type="date" value="${enc.date||''}" style="flex:1"><input id="em-time" type="time" value="${enc.time||''}" style="width:120px" title="Hora"></div></div>
           <div class="fg"><label>Participantes</label>
             <div style="display:flex;flex-direction:column;gap:6px;padding:8px;background:#F9FAFB;border-radius:8px;border:1px solid var(--border)">
               ${tnames.map((n,i)=>`<label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="em-att-${i}" ${enc.attendees.includes(n)?'checked':''}> ${n.split(' ')[0]}</label>`).join('')}
@@ -3606,6 +3606,7 @@ function saveEncounter(cid,encIdx){
     const isNew=_encIsNew(encIdx);
     const date=$('em-date')?$('em-date').value:'';
     if(!date){toast('⚠️ Informe a data do encontro!');return;}
+    const time=$('em-time')?$('em-time').value:'';
     const tnames=TEAM_NAMES();
     const attendees=[];
     tnames.forEach((n,i)=>{if($(`em-att-${i}`)?.checked)attendees.push(n);});
@@ -3616,7 +3617,7 @@ function saveEncounter(cid,encIdx){
     // anexos: do rascunho (novo) ou do encontro existente (edição) — opcionais
     const src=isNew?(_encDraft||{}):(c.encounters.list[encIdx]||{});
     const attachments=Array.isArray(src.attachments)?src.attachments:[];
-    const encounter={date,description,attendees,notes,transcriptionLink,recordingLink,attachments};
+    const encounter={date,time,description,attendees,notes,transcriptionLink,recordingLink,attachments};
     if(isNew){c.encounters.list.push(encounter);_encDraft=null;}
     else{c.encounters.list[encIdx]=encounter;}
     save();closeEncounterModal();toast('✅ Encontro salvo!');render();
@@ -4400,7 +4401,7 @@ function rClientView(){
     body=`${encsSorted.length?encsSorted.map((enc,i)=>`<div class="card" style="margin-bottom:12px">
       <div class="ch">
         <div>
-          <h4 style="margin:0">${fmtDate(enc.date)}</h4>
+          <h4 style="margin:0">${fmtDate(enc.date)}${enc.time?' · 🕐 '+enc.time:''}</h4>
           <p style="margin:4px 0 0 0;font-size:12px;color:var(--muted)">👥 ${enc.attendees.join(', ')||'Sem participantes'}</p>
         </div>
       </div>
@@ -5288,7 +5289,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026062504; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063001; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
