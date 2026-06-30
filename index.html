@@ -2033,6 +2033,15 @@ function rFunc(){
 // ────────────────────────────────────────────────────────────
 // MINHA SEMANA — GESTÃO (Mari + Naiara)
 // ────────────────────────────────────────────────────────────
+// Conta como encontro de IC (pagamento Nayara): marcado IC, ou — se for encontro antigo
+// sem marcação — só quando o cliente é exclusivamente IC (cliente IC+GP precisa marcação manual).
+function _encCountsIC(c,e){
+  if(e.tipo==='IC')return true;
+  if(e.tipo==='GP')return false;
+  const isIC=(c.products||[]).includes('Implementação Comercial');
+  const isGP=(c.products||[]).includes('Gestão de Perfil');
+  return isIC&&!isGP;
+}
 function rMinhaSemanaGestao(user){
   // Coletar todas as sextas de todos os clientes ativos
   const _atv=D.clients.filter(c=>c.contractStatus==='ativo');
@@ -2078,16 +2087,24 @@ function rMinhaSemanaGestao(user){
   }).join('');
 
   // === BLOCO 2: Alertas urgentes ===
-  const expiring=ativos.filter(function(c){
+  // Alertas de contrato: só os que já venceram OU vão vencer em até 60 dias (corta os de 180+ dias)
+  const expiring=D.clients.filter(function(c){
+    if(c.contractStatus==='finalizado')return false;
+    if(c.contractStatus==='vencido')return true;
     if(!c.contractDue)return false;
     const d=new Date(c.contractDue);const now=new Date();
-    return(d-now)/(1000*60*60*24)<=14;
+    return(d-now)/(1000*60*60*24)<=60;
   });
   const overdue=ativos.flatMap(c=>(c.deliverables||[]).filter(d=>d.status==='atrasado').map(d=>({client:c.name,del:d.name,resp:d.responsible||'—'})));
   const noSeller=ativos.filter(function(c){const ss=(c.assignees||[])[0];return(!ss||ss==='')&&ss!=='N/A';});
   const alertsHtml=(expiring.length===0&&overdue.length===0&&noSeller.length===0)
     ?'<div style="padding:16px;color:#16A34A;text-align:center;font-weight:600">✅ Nenhum alerta esta semana!</div>'
-    :(expiring.map(c=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #FEF3C7"><span style="font-size:18px">⚠️</span><div><strong style="font-size:12px">'+c.name+'</strong><br><span style="font-size:11px;color:#D97706">Contrato vence em '+getContractDaysRemaining(c.contractDue)+'</span></div></div>').join('')
+    :(expiring.map(function(c){
+        const dr=getDaysUntil(c.contractDue);
+        const venc=(c.contractStatus==='vencido')||(dr!=null&&dr<0);
+        const txt=venc?('Contrato vencido'+(dr!=null&&dr<0?(' há '+Math.abs(dr)+' dia'+(Math.abs(dr)===1?'':'s')):'')):('Contrato vence em '+dr+' dia'+(dr===1?'':'s'));
+        return'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #FEF3C7"><span style="font-size:18px">'+(venc?'🔴':'⚠️')+'</span><div><strong style="font-size:12px">'+c.name+'</strong><br><span style="font-size:11px;color:'+(venc?'#DC2626':'#D97706')+'">'+txt+'</span></div></div>';
+      }).join('')
     +overdue.slice(0,5).map(a=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #FEE2E2"><span style="font-size:18px">🔴</span><div><strong style="font-size:12px">'+a.client+'</strong> — '+a.del+'<br><span style="font-size:11px;color:#DC2626">Entrega atrasada · '+a.resp+'</span></div></div>').join('')
     +noSeller.map(c=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #F3F4F6"><span style="font-size:18px">👤</span><div><strong style="font-size:12px">'+c.name+'</strong><br><span style="font-size:11px;color:#9CA3AF">Sem Social Seller atribuída</span></div></div>').join(''));
 
@@ -2113,6 +2130,34 @@ function rMinhaSemanaGestao(user){
     }).join('')
     +'</div>';
 
+  // === Encontros IC (remuneração da Nayara) — segue o filtro de mês da página ===
+  const _icMonth=S.gestaoFilterMonth;
+  const _icClients=D.clients.filter(c=>(c.products||[]).includes('Implementação Comercial'));
+  let _icTotal=0,_icDualUnmarked=0;
+  const _icRows=_icClients.map(function(c){
+    const encs=(c.encounters&&c.encounters.list)||[];
+    const inMonth=encs.filter(e=>e.date&&getMonthKey(new Date(e.date+'T12:00:00'))===_icMonth);
+    const n=inMonth.filter(e=>_encCountsIC(c,e)).length;
+    _icTotal+=n;
+    const isGP=(c.products||[]).includes('Gestão de Perfil');
+    const unmarked=isGP?inMonth.filter(e=>!e.tipo).length:0;
+    _icDualUnmarked+=unmarked;
+    return{name:c.name,n:n,unmarked:unmarked,isGP:isGP};
+  }).sort((a,b)=>b.n-a.n||a.name.localeCompare(b.name,'pt-BR'));
+  const _icCardHtml='<div class="card" style="margin-bottom:20px">'
+    +'<div class="ch" style="background:linear-gradient(135deg,#0D9488,#14B8A6)">'
+    +'<h3 style="color:white;margin:0">🤝 Encontros — Implementação Comercial</h3>'
+    +'<span style="font-size:12px;color:rgba(255,255,255,.85)">'+_icMonth+'</span></div>'
+    +'<div class="cb">'
+    +(_icClients.length
+      ?('<div style="text-align:center;padding:8px 0 16px"><div style="font-size:34px;font-weight:900;color:#0D9488">'+_icTotal+'</div><div style="font-size:12px;color:var(--muted)">encontro'+(_icTotal===1?'':'s')+' em '+_icMonth+'</div></div>'
+        +'<div class="tw"><table><thead><tr><th>Cliente</th><th style="text-align:center">Encontros</th></tr></thead><tbody>'
+        +_icRows.map(r=>'<tr><td style="font-size:13px;font-weight:600">'+r.name.split(' ').slice(0,2).join(' ')+(r.isGP?' <span style="font-size:9px;color:#9CA3AF;font-weight:500">(IC+GP)</span>':'')+'</td><td style="text-align:center;font-weight:700;color:#0D9488">'+r.n+(r.unmarked?' <span title="'+r.unmarked+' encontro(s) antigo(s) sem tipo definido" style="color:#D97706;font-size:11px">⚠️'+r.unmarked+'</span>':'')+'</td></tr>').join('')
+        +'</tbody></table></div>'
+        +(_icDualUnmarked?'<div style="font-size:11px;color:#D97706;padding:10px 4px 0">⚠️ '+_icDualUnmarked+' encontro(s) de clientes IC+GP ainda sem tipo definido não estão sendo contados. Abra cada encontro e marque como Implementação Comercial ou Gestão de Perfil.</div>':''))
+      :'<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Nenhum cliente de Implementação Comercial.</div>')
+    +'</div></div>';
+
   return'<div style="margin-bottom:8px"><h2 style="font-size:18px;margin:0">⚡ Minha Semana — Gestão</h2>'
     +'<div style="font-size:12px;color:var(--muted)">Sexta '+wkLabel+' · '+user.name.split(' ')[0]+'</div></div>'
     +monthFilterHtml+weekFilterHtml
@@ -2132,17 +2177,21 @@ function rMinhaSemanaGestao(user){
     // Meta de leads
     +rLeadGoalEquipe(S.gestaoFilterMonth)
 
-    // Performance da equipe
-    +'<div class="card" style="margin-bottom:20px">'
-    +'<div class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8)">'
-    +'<h3 style="color:white;margin:0">👥 Performance da Equipe — Sexta '+wkLabel+'</h3></div>'
+    // Performance da equipe (recolhível)
+    +'<details class="card" style="margin-bottom:20px" open>'
+    +'<summary class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8);border-radius:8px 8px 0 0;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px">'
+    +'<span class="acc-arrow" style="color:white;font-size:13px;transition:transform .2s">▶</span>'
+    +'<h3 style="color:white;margin:0">👥 Performance da Equipe — Sexta '+wkLabel+'</h3></summary>'
     +'<div class="tw"><table>'
     +'<thead><tr><th>Social Seller</th><th style="text-align:center">Rel. Semanais</th><th style="text-align:center">Novos Leads</th><th style="text-align:center">Resp. méd.</th><th style="text-align:center">Aceit. méd.</th><th style="text-align:center">Rel. Mensal</th></tr></thead>'
-    +'<tbody>'+teamRows+'</tbody></table></div></div>'
+    +'<tbody>'+teamRows+'</tbody></table></div></details>'
 
-    // Relatório Mensal — validação e liberação (Mari)
-    +'<div class="card" style="margin-bottom:20px">'
-    +'<div class="ch" style="background:linear-gradient(135deg,#D97706,#F59E0B)"><div><h3 style="color:white;margin:0">📊 Relatório Mensal — '+mk+'</h3><span style="font-size:12px;color:rgba(255,255,255,.85)">Veja as médias e os insights, escreva a análise e libere para o cliente</span></div></div>'
+    // Encontros — Implementação Comercial (remuneração Nayara) — só Gestão vê esta tela
+    +_icCardHtml
+
+    // Relatório Mensal — validação e liberação (Mari) (recolhível)
+    +'<details class="card" style="margin-bottom:20px" open>'
+    +'<summary class="ch" style="background:linear-gradient(135deg,#D97706,#F59E0B);border-radius:8px 8px 0 0;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px"><span class="acc-arrow" style="color:white;font-size:13px;transition:transform .2s">▶</span><div><h3 style="color:white;margin:0">📊 Relatório Mensal — '+mk+'</h3><span style="font-size:12px;color:rgba(255,255,255,.85)">Veja as médias e os insights, escreva a análise e libere para o cliente</span></div></summary>'
     +'<div class="tw"><table><thead><tr><th>Cliente</th><th style="text-align:center">Leads</th><th style="text-align:center">Resp. méd.</th><th style="text-align:center">Aceit. méd.</th><th style="text-align:center">Status</th><th></th></tr></thead><tbody>'
     +ativos.filter(c=>(c.products||[]).includes('Gestão de Perfil')&&!c.semLeads).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')).map(function(c){
         const st=_clientMonthStats(c,mk);const mr=(c.monthlyReports||{})[mk]||{};
@@ -2155,7 +2204,7 @@ function rMinhaSemanaGestao(user){
           +'<td style="text-align:right"><button class="btn btn-p btn-s" style="font-size:11px;white-space:nowrap" onclick="openMonthReportModal(\''+c.id+'\',\''+mk+'\')">✍️ Abrir / validar</button></td>'
         +'</tr>';
       }).join('')
-    +'</tbody></table></div></div>'
+    +'</tbody></table></div></details>'
 
     // Funil do mês
     +'<div class="card" style="margin-bottom:20px">'
@@ -2285,12 +2334,13 @@ function rTarefasEquipe(){
     +'</div>';
   }).join('');
   const totalPend=allTasks.filter(t=>!t.done).length;
-  return'<div class="card">'
-    +'<div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9)">'
-    +'<h3 style="color:white;margin:0">👥 Tarefas da Equipe</h3>'
+  return'<details class="card" open>'
+    +'<summary class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9);border-radius:8px 8px 0 0;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px">'
+    +'<span class="acc-arrow" style="color:white;font-size:13px;transition:transform .2s">▶</span>'
+    +'<h3 style="color:white;margin:0;flex:1">👥 Tarefas da Equipe</h3>'
     +'<span style="font-size:12px;color:rgba(255,255,255,.85)">'+totalPend+' pendente'+(totalPend!==1?'s':'')+' no total</span>'
-    +'</div>'
-    +'<div>'+rows+'</div></div>';
+    +'</summary>'
+    +'<div>'+rows+'</div></details>';
 }
 
 // MINHA SEMANA — CONTEÚDO (Gabriela) — a definir após reunião
@@ -3527,6 +3577,8 @@ function openEncounterModal(cid,encIdx){
   if(!isEdit&&!_encDraft)_encDraft={date:new Date().toISOString().split('T')[0],time:'',description:'',attendees:[],attachments:[],notes:'',transcriptionLink:'',recordingLink:''};
   const enc=isEdit?c.encounters.list[encIdx]:_encDraft;
   const encRef=isEdit?String(encIdx):'new';
+  const _hasIC=(c.products||[]).includes('Implementação Comercial');
+  const _defTipo=enc.tipo||(_hasIC?'IC':'GP');
   closeEncounterModal();
   const tnames=TEAM_NAMES();
   const html=`<div class="overlay" id="em-overlay" onclick="if(event.target===this)cancelEncounterModal()">
@@ -3541,6 +3593,12 @@ function openEncounterModal(cid,encIdx){
             </div>
           </div>
         </div>
+        ${_hasIC?`<div class="fg" style="grid-column:1/-1"><label>Tipo de encontro</label>
+          <select id="em-tipo" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px">
+            <option value="IC" ${_defTipo==='IC'?'selected':''}>🤝 Implementação Comercial (conta para a Nayara)</option>
+            <option value="GP" ${_defTipo==='GP'?'selected':''}>👤 Gestão de Perfil</option>
+          </select>
+        </div>`:''}
         <div class="fg" style="grid-column:1/-1"><label>📝 Resumo da Reunião</label><textarea id="em-desc" style="height:90px" placeholder="Assuntos discutidos, decisões tomadas, próximos passos...">${enc.description||''}</textarea></div>
         <div class="fgrid">
           <div class="fg"><label>🔗 Link da Transcrição</label><input id="em-transcription" type="url" placeholder="https://..." value="${enc.transcriptionLink||''}"></div>
@@ -3607,6 +3665,7 @@ function saveEncounter(cid,encIdx){
     const date=$('em-date')?$('em-date').value:'';
     if(!date){toast('⚠️ Informe a data do encontro!');return;}
     const time=$('em-time')?$('em-time').value:'';
+    const tipo=$('em-tipo')?$('em-tipo').value:'GP';
     const tnames=TEAM_NAMES();
     const attendees=[];
     tnames.forEach((n,i)=>{if($(`em-att-${i}`)?.checked)attendees.push(n);});
@@ -3617,7 +3676,7 @@ function saveEncounter(cid,encIdx){
     // anexos: do rascunho (novo) ou do encontro existente (edição) — opcionais
     const src=isNew?(_encDraft||{}):(c.encounters.list[encIdx]||{});
     const attachments=Array.isArray(src.attachments)?src.attachments:[];
-    const encounter={date,time,description,attendees,notes,transcriptionLink,recordingLink,attachments};
+    const encounter={date,time,tipo,description,attendees,notes,transcriptionLink,recordingLink,attachments};
     if(isNew){c.encounters.list.push(encounter);_encDraft=null;}
     else{c.encounters.list[encIdx]=encounter;}
     save();closeEncounterModal();toast('✅ Encontro salvo!');render();
@@ -5289,7 +5348,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026063002; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063003; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
