@@ -2340,6 +2340,7 @@ function rTarefasEquipe(){
           +'<div style="font-size:10px;color:var(--muted);margin-top:2px">Atribuída por: '+t.createdBy.split(' ')[0]+'</div>'
         +'</div>'
         +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:'+(t.done?'#DCFCE7':'#FEF3C7')+';color:'+(t.done?'#16A34A':'#D97706')+'">'+(t.done?'✅':'⏳')+'</span>'+taskDueBadge(t)+'</div>'
+        +'<button onclick="openEditTaskModal(\''+t.id+'\')" style="background:none;border:none;cursor:pointer;color:#0891B2;font-size:13px;padding:2px 4px" title="Editar">✏️</button>'
         +'<button onclick="deleteTask(\''+t.id+'\')" style="background:none;border:none;cursor:pointer;color:#EF4444;font-size:13px;padding:2px 4px" title="Remover">🗑</button>'
       +'</div>';
         const _p=p.tasks.filter(t=>!t.done),_d=p.tasks.filter(t=>t.done);
@@ -3068,6 +3069,40 @@ function deleteTask(taskId){
   D.assignedTasks=D.assignedTasks.filter(t=>t.id!==taskId);
   save();render();
 }
+function openEditTaskModal(taskId){
+  const t=D.assignedTasks.find(x=>x.id===taskId);if(!t)return;
+  const esc=s=>(s==null?'':(''+s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  closeEditTaskModal();
+  const html=`<div class="overlay" id="et-overlay" onclick="if(event.target===this)closeEditTaskModal()">
+    <div class="modal" style="max-width:460px">
+      <div class="modal-hd"><h3>✏️ Editar Tarefa</h3><button class="btn btn-o btn-s" onclick="closeEditTaskModal()">✕</button></div>
+      <div class="modal-body">
+        <div class="fg" style="margin-bottom:12px"><label>Descrição da tarefa</label><textarea id="et-desc" style="width:100%;height:80px">${esc(t.description)}</textarea></div>
+        <div class="fgrid">
+          <div class="fg"><label>Prazo</label><input id="et-due" type="date" value="${t.dueDate||''}"></div>
+          <div class="fg"><label>Comentário (opcional)</label><input id="et-comment" value="${esc(t.comment||'')}"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:10px">Para: <strong>${esc((t.assignedTo||'').split(' ')[0])}</strong> · Atribuída por: ${esc((t.createdBy||'').split(' ')[0])}</div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-o" onclick="closeEditTaskModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveEditTask('${t.id}')">💾 Salvar</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function closeEditTaskModal(){const el=document.getElementById('et-overlay');if(el)el.remove();}
+function saveEditTask(taskId){
+  const t=D.assignedTasks.find(x=>x.id===taskId);if(!t)return;
+  const desc=(document.getElementById('et-desc').value||'').trim();
+  if(!desc){alert('Descreva a tarefa.');return;}
+  t.description=desc;
+  t.dueDate=document.getElementById('et-due').value||'';
+  t.comment=(document.getElementById('et-comment').value||'').trim();
+  save();closeEditTaskModal();render();
+  if(typeof toast==='function')toast('✅ Tarefa atualizada!');
+}
 // Badge de vencimento de uma tarefa (independente de semana)
 function taskDueBadge(t){
   const due=t.dueDate||t.weekKey||'';
@@ -3119,6 +3154,7 @@ function renderTasksSection(user){
             <span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:${t.done?'#DCFCE7':'#FEF3C7'};color:${t.done?'#16A34A':'#D97706'}">${t.done?'✅ Feito':'⏳ Pendente'}</span>
             ${taskDueBadge(t)}
           </div>
+          <button onclick="openEditTaskModal('${t.id}')" style="background:none;border:none;cursor:pointer;color:#0891B2;font-size:14px;padding:2px 4px" title="Editar">✏️</button>
           <button onclick="deleteTask('${t.id}')" style="background:none;border:none;cursor:pointer;color:#EF4444;font-size:14px;padding:2px 4px" title="Remover">🗑</button>
         </div>`;
   const doneAccordion=(arr,rowFn)=>arr.length?`<details><summary style="list-style:none;cursor:pointer;padding:10px 16px;font-size:12px;color:#16A34A;font-weight:600;border-bottom:1px solid #F3F4F6">✅ Ver concluídas (${arr.length})</summary>${arr.map(rowFn).join('')}</details>`:'';
@@ -5367,7 +5403,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026063008; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063009; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
