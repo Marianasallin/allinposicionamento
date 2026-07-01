@@ -5360,7 +5360,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026063004; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063005; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -5396,7 +5396,25 @@ window.addEventListener('hashchange',handleNavigation);
           D.clients.forEach((c,i)=>{
             const prev=_fbSnap.clients[i]||{};const seen={};
             // grava só os CAMPOS que mudaram (ex.: só clients/5/campaigns), sem regravar o cliente inteiro
-            for(const k in c){if(!Object.prototype.hasOwnProperty.call(c,k)||c[k]===undefined)continue;seen[k]=1;const j=JSON.stringify(c[k]);if(prev[k]!==j)updates['clients/'+i+'/'+k]=JSON.parse(j);}
+            for(const k in c){
+              if(!Object.prototype.hasOwnProperty.call(c,k)||c[k]===undefined)continue;
+              seen[k]=1;const j=JSON.stringify(c[k]);
+              if(prev[k]===j)continue;
+              const cur=c[k];let pv;try{pv=prev[k]!=null?JSON.parse(prev[k]):undefined;}catch(_e){pv=undefined;}
+              // Listas (leads/prospects, campanhas, entregas...): quando a lista só cresceu ou teve
+              // itens editados, grava SÓ os índices que mudaram — sem reescrever a lista inteira.
+              // Isso evita que uma aba com a lista antiga apague um item que outra aba acabou de adicionar.
+              // (Em remoção, a lista encolhe → grava a lista toda, como antes, pra não deixar buraco no array.)
+              if(Array.isArray(cur)&&Array.isArray(pv)&&cur.length>=pv.length){
+                for(let ix=0;ix<cur.length;ix++){
+                  const cj=JSON.stringify(cur[ix]);
+                  const pj=ix<pv.length?JSON.stringify(pv[ix]):undefined;
+                  if(cj!==pj)updates['clients/'+i+'/'+k+'/'+ix]=cur[ix];
+                }
+              }else{
+                updates['clients/'+i+'/'+k]=JSON.parse(j);
+              }
+            }
             // campo removido localmente → apaga na nuvem
             for(const k in prev){if(!seen[k])updates['clients/'+i+'/'+k]=null;}
           });
