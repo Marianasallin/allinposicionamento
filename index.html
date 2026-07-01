@@ -2338,6 +2338,8 @@ function rTarefasEquipe(){
           +'<div style="font-size:12px;font-weight:500;color:'+(t.done?'#9CA3AF':'var(--text)')+';text-decoration:'+(t.done?'line-through':'none')+'">'+t.description+'</div>'
           +(t.comment?'<div style="font-size:11px;color:#0891B2;margin-top:2px">💬 '+t.comment+'</div>':'')
           +'<div style="font-size:10px;color:var(--muted);margin-top:2px">Atribuída por: '+t.createdBy.split(' ')[0]+'</div>'
+          +_taskRepliesHtml(t)
+          +'<button onclick="openReplyTaskModal(\''+t.id+'\')" style="margin-top:6px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;color:#0891B2;padding:3px 10px">💬 Responder</button>'
         +'</div>'
         +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:'+(t.done?'#DCFCE7':'#FEF3C7')+';color:'+(t.done?'#16A34A':'#D97706')+'">'+(t.done?'✅':'⏳')+'</span>'+taskDueBadge(t)+'</div>'
         +'<button onclick="openEditTaskModal(\''+t.id+'\')" style="background:none;border:none;cursor:pointer;color:#0891B2;font-size:13px;padding:2px 4px" title="Editar">✏️</button>'
@@ -3103,6 +3105,47 @@ function saveEditTask(taskId){
   save();closeEditTaskModal();render();
   if(typeof toast==='function')toast('✅ Tarefa atualizada!');
 }
+function _taskRepliesHtml(t){
+  const rs=t.replies||[];
+  if(!rs.length)return'';
+  const esc=s=>(s==null?'':(''+s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return '<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">'
+    +rs.map(r=>'<div style="font-size:11px;color:var(--text);background:#F0F9FF;border-left:2px solid #0891B2;padding:4px 8px;border-radius:4px">💬 <strong>'+esc((r.by||'').split(' ')[0])+':</strong> '+esc(r.text)+'</div>').join('')
+    +'</div>';
+}
+function openReplyTaskModal(taskId){
+  const t=D.assignedTasks.find(x=>x.id===taskId);if(!t)return;
+  const esc=s=>(s==null?'':(''+s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  closeReplyTaskModal();
+  const rs=t.replies||[];
+  const html=`<div class="overlay" id="rt-overlay" onclick="if(event.target===this)closeReplyTaskModal()">
+    <div class="modal" style="max-width:460px">
+      <div class="modal-hd"><h3>💬 Responder Tarefa</h3><button class="btn btn-o btn-s" onclick="closeReplyTaskModal()">✕</button></div>
+      <div class="modal-body">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Tarefa: <strong>${esc(t.description)}</strong></div>
+        ${rs.length?`<div style="margin-bottom:12px;display:flex;flex-direction:column;gap:6px;max-height:200px;overflow:auto">${rs.map(r=>`<div style="font-size:12px;background:#F0F9FF;border-left:2px solid #0891B2;padding:6px 10px;border-radius:4px">💬 <strong>${esc((r.by||'').split(' ')[0])}:</strong> ${esc(r.text)}<div style="font-size:10px;color:var(--muted);margin-top:2px">${r.at?new Date(r.at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}</div></div>`).join('')}</div>`:''}
+        <div class="fg"><label>Sua resposta</label><textarea id="rt-text" style="width:100%;height:80px" placeholder="Escreva sua resposta..."></textarea></div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-o" onclick="closeReplyTaskModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveTaskReply('${t.id}')">💬 Responder</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+  setTimeout(()=>{const el=document.getElementById('rt-text');if(el)el.focus();},50);
+}
+function closeReplyTaskModal(){const el=document.getElementById('rt-overlay');if(el)el.remove();}
+function saveTaskReply(taskId){
+  const user=S.currentUser;if(!user)return;
+  const t=D.assignedTasks.find(x=>x.id===taskId);if(!t)return;
+  const text=(document.getElementById('rt-text').value||'').trim();
+  if(!text){alert('Escreva uma resposta.');return;}
+  if(!t.replies)t.replies=[];
+  t.replies.push({by:user.name,text:text,at:new Date().toISOString()});
+  save();closeReplyTaskModal();render();
+  if(typeof toast==='function')toast('💬 Resposta enviada!');
+}
 // Badge de vencimento de uma tarefa (independente de semana)
 function taskDueBadge(t){
   const due=t.dueDate||t.weekKey||'';
@@ -3137,6 +3180,8 @@ function renderTasksSection(user){
             <div style="font-size:13px;font-weight:500;color:${t.done?'#9CA3AF':'var(--text)'};text-decoration:${t.done?'line-through':'none'}">${t.description}</div>
             ${t.comment?`<div style="font-size:11px;color:#0891B2;margin-top:3px">💬 ${t.comment}</div>`:''}
             <div style="font-size:10px;color:var(--muted);margin-top:3px">De: ${t.createdBy}</div>
+            ${_taskRepliesHtml(t)}
+            <button onclick="openReplyTaskModal('${t.id}')" style="margin-top:6px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;color:#0891B2;padding:3px 10px">💬 Responder</button>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
             <span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:${t.done?'#DCFCE7':'#FEF3C7'};color:${t.done?'#16A34A':'#D97706'}">${t.done?'✅ Feito':'⏳ Pendente'}</span>
@@ -3149,6 +3194,8 @@ function renderTasksSection(user){
             <div style="font-size:13px;font-weight:500;color:${t.done?'#9CA3AF':'var(--text)'};text-decoration:${t.done?'line-through':'none'}">${t.description}</div>
             ${t.comment?`<div style="font-size:11px;color:#0891B2;margin-top:3px">💬 ${t.comment}</div>`:''}
             <div style="font-size:10px;color:var(--muted);margin-top:3px">Para: <strong>${t.assignedTo.split(' ')[0]}</strong></div>
+            ${_taskRepliesHtml(t)}
+            <button onclick="openReplyTaskModal('${t.id}')" style="margin-top:6px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;color:#0891B2;padding:3px 10px">💬 Responder</button>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
             <span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:${t.done?'#DCFCE7':'#FEF3C7'};color:${t.done?'#16A34A':'#D97706'}">${t.done?'✅ Feito':'⏳ Pendente'}</span>
@@ -5403,7 +5450,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026063009; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063010; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
