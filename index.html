@@ -270,6 +270,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
     <div class="ni" onclick="nav('team')"><span class="ni-icon">👩‍💼</span><span>Equipe</span></div>
     <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
       <div class="ni" onclick="window.open(window.location.origin+window.location.pathname+'#portal','_blank')" style="background:rgba(0,160,220,.15);border:1px solid rgba(0,160,220,.3)"><span class="ni-icon">🌐</span><span>Portal do Cliente</span></div>
+      <div class="ni" onclick="forcarAtualizacao()" title="Recarrega os dados mais recentes do servidor (resolve tela desatualizada)"><span class="ni-icon">🔄</span><span>Atualizar dados</span></div>
     </div>
   </nav>
   <div class="sb-footer" id="sb-footer" style="cursor:pointer" onclick="logoutAdmin()">
@@ -2864,6 +2865,11 @@ function selectProfile(memberId){
   toast(`✅ Bem-vinda, ${m.name.split(' ')[0]}!`);
 }
 
+function forcarAtualizacao(){
+  if(!confirm('Atualizar os dados do sistema? A tela vai recarregar com as informações mais recentes do servidor.'))return;
+  try{localStorage.removeItem('allin');}catch(e){}
+  location.reload();
+}
 function logoutAdmin(){
   if(!confirm('Trocar de usuário?'))return;
   S.currentUser=null;
@@ -5450,7 +5456,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026063010; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063011; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
