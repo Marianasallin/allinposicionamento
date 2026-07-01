@@ -818,11 +818,7 @@ D.clients.forEach((c,i)=>{
     const lastName=nameParts[nameParts.length-1];
     c.email=`${firstName}.${lastName}@allinposicionamento.com.br`;
   }
-  // Set birthday if not already set (sample: different for each for testing)
-  if(!c.birthday||c.birthday===''){
-    const birthdays=['15/03/1990','22/07/1985','08/11/1992','03/01/1988','19/05/1995','27/09/1991','14/06/1989','30/04/1993','12/12/1987','05/08/1994'];
-    c.birthday=birthdays[i%birthdays.length];
-  }
+  // (Removido: não preencher aniversário com data fictícia — deixa vazio até alguém informar a data real)
 });
 save();
 
@@ -5371,7 +5367,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026063007; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063008; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
