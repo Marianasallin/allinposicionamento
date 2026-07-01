@@ -2109,7 +2109,8 @@ function rMinhaSemanaGestao(user){
     +noSeller.map(c=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #F3F4F6"><span style="font-size:18px">👤</span><div><strong style="font-size:12px">'+c.name+'</strong><br><span style="font-size:11px;color:#9CA3AF">Sem Social Seller atribuída</span></div></div>').join(''));
 
   // === BLOCO 3: Funil de prospecção da semana ===
-  const allPros=ativos.flatMap(c=>(c.prospects||[]).filter(p=>p.date&&p.date.substring(0,7)===thisMonth));
+  // Leads seguem o filtro de mês do topo (S.gestaoFilterMonth), não o mês atual fixo
+  const allPros=ativos.flatMap(c=>(c.prospects||[]).filter(p=>p.date&&getMonthKey(new Date(p.date+'T12:00:00'))===S.gestaoFilterMonth));
   const fRep=allPros.filter(p=>p.replied).length;
   const fMeet=allPros.filter(p=>p.hadMeeting).length;
   const fClosed=allPros.filter(p=>p.contractClosed).length;
@@ -2174,7 +2175,7 @@ function rMinhaSemanaGestao(user){
     // Stats rápidos
     +'<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">'
     +'<div class="stat-card"><div class="stat-val" style="color:var(--primary)">'+ativos.length+'</div><div class="stat-label">Clientes Ativos</div></div>'
-    +'<div class="stat-card"><div class="stat-val" style="color:#16A34A">'+allPros.length+'</div><div class="stat-label">Leads este mês</div></div>'
+    +'<div class="stat-card"><div class="stat-val" style="color:#16A34A">'+allPros.length+'</div><div class="stat-label">Leads no mês</div></div>'
     +'<div class="stat-card"><div class="stat-val" style="color:#7C3AED">'+fClosed+'</div><div class="stat-label">Fechamentos ('+convRate+'%)</div></div>'
     +'<div class="stat-card"><div class="stat-val" style="color:#057642">'+(revenue>0?'R$ '+revenue.toLocaleString('pt-BR'):'R$ 0')+'</div><div class="stat-label">Receita (leads)</div></div>'
     +'</div>'
@@ -2218,7 +2219,7 @@ function rMinhaSemanaGestao(user){
     // Funil do mês
     +'<div class="card" style="margin-bottom:20px">'
     +'<div class="ch" style="background:linear-gradient(135deg,#7C3AED,#9333EA)">'
-    +'<h3 style="color:white;margin:0">🎯 Funil de Leads — '+mk+'</h3></div>'
+    +'<h3 style="color:white;margin:0">🎯 Funil de Leads — '+S.gestaoFilterMonth+'</h3></div>'
     +'<div class="cb">'
     +(allPros.length?('<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;text-align:center">'
     +'<div><div style="font-size:28px;font-weight:800;color:#0077B5">'+allPros.length+'</div><div style="font-size:11px;color:var(--muted)">📩 Leads</div></div>'
@@ -2233,7 +2234,7 @@ function rMinhaSemanaGestao(user){
     +'<div style="font-size:12px;color:#16A34A;font-weight:600">✅ Fechamentos ('+convRate+'% conversão)</div>'
     +(revenue>0?'<div style="font-size:14px;font-weight:700;color:#057642;margin-top:4px">R$ '+revenue.toLocaleString('pt-BR')+'</div>':'')
     +'</div>')
-    :('<div style="text-align:center;padding:24px 16px;color:var(--muted);font-size:13px">📭 Nenhum lead cadastrado em '+mk+' ainda.<br><span style="font-size:12px">Este funil preenche <strong>automaticamente</strong> conforme a equipe cadastra os leads na aba <strong>🎯 Leads</strong> de cada cliente. Não precisa preencher aqui.</span></div>'))
+    :('<div style="text-align:center;padding:24px 16px;color:var(--muted);font-size:13px">📭 Nenhum lead cadastrado em '+S.gestaoFilterMonth+' ainda.<br><span style="font-size:12px">Este funil preenche <strong>automaticamente</strong> conforme a equipe cadastra os leads na aba <strong>🎯 Leads</strong> de cada cliente. Não precisa preencher aqui.</span></div>'))
     +'</div></div>'
 
     // Alertas
@@ -5360,7 +5361,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026063005; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063006; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
