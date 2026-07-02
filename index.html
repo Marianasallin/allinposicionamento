@@ -2868,7 +2868,8 @@ function selectProfile(memberId){
 function forcarAtualizacao(){
   if(!confirm('Atualizar os dados do sistema? A tela vai recarregar com as informações mais recentes do servidor.'))return;
   try{localStorage.removeItem('allin');}catch(e){}
-  location.reload();
+  // Recarrega com cache-busting para NUNCA carregar uma versão antiga do sistema (que sobrescreveria os dados)
+  location.replace(location.origin+location.pathname+'?v='+Date.now()+location.hash);
 }
 function logoutAdmin(){
   if(!confirm('Trocar de usuário?'))return;
@@ -5456,7 +5457,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026063011; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063012; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
