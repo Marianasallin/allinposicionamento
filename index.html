@@ -5457,7 +5457,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _fbReady=false;
     let _localDirty=false;
     let _pendingFbSync=false;
-    const APP_BUILD=2026063012; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063013; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -5570,12 +5570,27 @@ window.addEventListener('hashchange',handleNavigation);
         }
         _fbReady=true;
 
-        // ── Auto-atualização: abas com versão antiga recarregam sozinhas (param de sobrescrever dados de quem está atualizado) ──
+        // ── Auto-atualização: abas com versão antiga se atualizam SOZINHAS (sem F5) e param de sobrescrever dados ──
+        // Recarrega com cache-busting (?v=timestamp) para SEMPRE pegar a versão nova, nunca a antiga do cache.
+        function _doUpdateReload(){
+          try{location.replace(location.origin+location.pathname+'?v='+Date.now()+location.hash);}
+          catch(e){location.reload();}
+        }
+        window._doUpdateReload=_doUpdateReload;
+        function _showUpdateBanner(){
+          if(document.getElementById('update-banner'))return;
+          const bar=document.createElement('div');
+          bar.id='update-banner';
+          bar.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(135deg,#D97706,#F59E0B);color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:14px;font-size:13px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.25);flex-wrap:wrap;text-align:center';
+          bar.innerHTML='🔄 Uma nova versão do sistema está pronta. <strong>Salve o que está digitando</strong> — vai atualizar sozinho quando você terminar. <button onclick="_doUpdateReload()" style="background:#fff;color:#B45309;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer">Atualizar agora</button>';
+          document.body.appendChild(bar);
+        }
         function _maybeReload(b){
           if(!(b>APP_BUILD))return;
           const ae=document.activeElement;
-          if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable)){setTimeout(function(){_maybeReload(b);},5000);return;}
-          location.reload();
+          const digitando=ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable);
+          if(digitando){_showUpdateBanner();setTimeout(function(){_maybeReload(b);},4000);return;} // avisa e espera terminar de digitar
+          _doUpdateReload(); // ninguém digitando → atualiza sozinho, na hora
         }
         try{
           _db.ref('allin/_build').once('value').then(function(s){
