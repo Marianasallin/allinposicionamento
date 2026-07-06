@@ -271,6 +271,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
     <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
       <div class="ni" onclick="window.open(window.location.origin+window.location.pathname+'#portal','_blank')" style="background:rgba(0,160,220,.15);border:1px solid rgba(0,160,220,.3)"><span class="ni-icon">🌐</span><span>Portal do Cliente</span></div>
       <div class="ni" onclick="forcarAtualizacao()" title="Recarrega os dados mais recentes do servidor (resolve tela desatualizada)"><span class="ni-icon">🔄</span><span>Atualizar dados</span></div>
+      <div class="ni" onclick="trocarMinhaSenha()" title="Alterar a sua senha de acesso"><span class="ni-icon">🔑</span><span>Minha senha</span></div>
     </div>
   </nav>
   <div class="sb-footer" id="sb-footer" style="cursor:pointer" onclick="logoutAdmin()">
@@ -841,18 +842,12 @@ function render(){
     if(_portalToken){return $('view').innerHTML='<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:#0D3D9B;font-family:system-ui,sans-serif"><div style="font-size:40px">🔷</div><div style="font-size:15px;font-weight:600">Carregando sua Central...</div><div style="font-size:12px;color:#64748B">Um instante 💙</div></div>';}
     return $('view').innerHTML=rLoginPortal();
   }
-  // Handle admin login
-  if(!S.adminAuth){
-    document.getElementById('sidebar').style.display='none';
-    document.querySelector('.topbar').style.display='none';
-    document.getElementById('main').style.marginLeft='0';
-    return $('view').innerHTML=rAdminLogin();
-  }
+  // Login individual: escolhe o perfil e digita a própria senha
   if(!S.currentUser){
     document.getElementById('sidebar').style.display='none';
     document.querySelector('.topbar').style.display='none';
     document.getElementById('main').style.marginLeft='0';
-    return $('view').innerHTML=rProfileSelect();
+    return $('view').innerHTML=(S.loginPickId?rMemberLogin():rProfileSelect());
   }
   // Restore normal layout
   document.getElementById('sidebar').style.display='flex';
@@ -861,6 +856,9 @@ function render(){
   // Update sidebar footer with current user
   const sbFooter=$('sb-user-info');
   if(sbFooter) sbFooter.innerHTML=`${S.currentUser.name}<br><span style="font-size:10px;opacity:.7">${S.currentUser.role||'ALL IN'}</span>`;
+  // Banner "Vendo como" (impersonação da Gestão)
+  var _vb=document.getElementById('veras-banner');if(_vb)_vb.remove();
+  if(S._realUser){document.body.insertAdjacentHTML('beforeend','<div id="veras-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#7C3AED,#9333EA);color:#fff;padding:9px 14px;text-align:center;font-size:13px;font-weight:600;box-shadow:0 -2px 10px rgba(0,0,0,.2)">👁 Você está vendo como <strong>'+(S.currentUser.name||'').split(' ')[0]+'</strong> (só visualização) <button onclick="voltarMeuPerfil()" style="margin-left:12px;background:#fff;color:#7C3AED;border:none;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer">Voltar ao meu perfil</button></div>');}
   // Normal admin views
   try{
     const _viewFns={dash:rDash,clients:rClients,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rTeam,team:rTeam,clientView:rClientView};
@@ -2735,6 +2733,16 @@ function rTeam(){
         <div style="display:flex;flex-wrap:wrap;gap:5px">
           ${myClients.length?myClients.map(c=>`<span class="tag" style="cursor:pointer;font-size:11px" onclick="nav('clients',{clientId:'${c.id}',tab:'entregas'})">${c.name.split(' ')[0]} ${c.name.split(' ')[1]||''}</span>`).join(''):`<span style="font-size:12px;color:var(--muted)">Nenhum cliente atribuído.</span>`}
         </div>
+        ${_isGestao(S.currentUser)?`
+        <div style="margin-top:12px;border-top:1px dashed var(--border);padding-top:10px">
+          <div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🔐 Acesso</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+            <span style="font-size:11px;padding:3px 9px;border-radius:99px;font-weight:600;background:${_memberActive(m)?'#DCFCE7':'#FEE2E2'};color:${_memberActive(m)?'#16A34A':'#DC2626'}">${_memberActive(m)?'🟢 Ativa':'🔴 Inativa'}</span>
+            <button class="btn btn-o btn-s" style="font-size:11px" onclick="resetMemberPwd('${m.id}')">🔑 ${m.pwd?'Resetar senha':'Definir senha'}</button>
+            ${S.currentUser&&m.id!==S.currentUser.id?`<button class="btn btn-o btn-s" style="font-size:11px" onclick="toggleMemberActive('${m.id}')">${_memberActive(m)?'🔴 Inativar acesso':'🟢 Ativar acesso'}</button>
+            <button class="btn btn-o btn-s" style="font-size:11px" onclick="verComo('${m.id}')">👁 Ver como</button>`:'<span style="font-size:11px;color:var(--muted)">(você)</span>'}
+          </div>
+        </div>`:''}
         ${canEdit?`
         <div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:12px">
           <div onclick="toggleTeamCad('${m.id}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;margin-bottom:8px">
@@ -2822,9 +2830,10 @@ function rAdminLogin(){
 }
 
 function rProfileSelect(){
-  const members=D.team.length?D.team:[{id:'default',name:'Mariana Souza',initials:'MS',color:'#0077B5',role:'Estrategista LinkedIn'}];
+  const _all=(D.team||[]).filter(_memberActive);
+  const members=_all.length?_all:[{id:'default',name:'Mariana Souza',initials:'MS',color:'#0077B5',role:'Estrategista LinkedIn'}];
   const cards=members.map(m=>`
-    <div onclick="selectProfile('${m.id}')" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 16px;background:white;border:2px solid #E5E7EB;border-radius:16px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='#0D3D9B';this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(13,61,155,.15)'" onmouseout="this.style.borderColor='#E5E7EB';this.style.transform='none';this.style.boxShadow='none'">
+    <div onclick="pickProfile('${m.id}')" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 16px;background:white;border:2px solid #E5E7EB;border-radius:16px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='#0D3D9B';this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(13,61,155,.15)'" onmouseout="this.style.borderColor='#E5E7EB';this.style.transform='none';this.style.boxShadow='none'">
       <div style="width:56px;height:56px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:white">${m.initials}</div>
       <div style="text-align:center">
         <div style="font-size:13px;font-weight:600;color:#1A1A2E">${m.name.split(' ')[0]}</div>
@@ -2873,13 +2882,83 @@ function forcarAtualizacao(){
   location.replace(location.origin+location.pathname+'?v='+Date.now()+location.hash);
 }
 function logoutAdmin(){
-  if(!confirm('Trocar de usuário?'))return;
+  if(!confirm('Sair / trocar de usuário?'))return;
   S.currentUser=null;
+  S._realUser=null;
+  S.loginPickId=null;
   S.adminAuth=false;
   S.teamAuth=false;
   sessionStorage.removeItem('adminAuth');
   sessionStorage.removeItem('currentUser');
   render();
+}
+
+// ── LOGIN INDIVIDUAL (senha por pessoa) ──────────────────────────
+async function _hashPwd(s){
+  const str='allinv1|'+s;
+  try{const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');}
+  catch(e){let h=5381;for(let i=0;i<str.length;i++){h=((h<<5)+h+str.charCodeAt(i))>>>0;}return 'f'+h.toString(16);}
+}
+function _isGestao(m){return !!(m&&(m.role==='CEO'||m.role==='Gestão'));}
+function _memberActive(m){return !!(m&&m.active!==false);}
+function pickProfile(id){S.loginPickId=id;S.loginErr='';render();setTimeout(function(){var el=$('ml-pwd');if(el)el.focus();},60);}
+function backToProfiles(){S.loginPickId=null;S.loginErr='';render();}
+async function doMemberLogin(){
+  const m=D.team.find(x=>x.id===S.loginPickId);if(!m)return;
+  if(!_memberActive(m)){S.loginErr='Acesso desativado. Fale com a Gestão.';render();return;}
+  const pwd=($('ml-pwd')?$('ml-pwd').value:'')||'';
+  if(pwd.length<3){S.loginErr='Senha muito curta (mínimo 3).';render();return;}
+  const h=await _hashPwd(pwd);
+  if(!m.pwd){m.pwd=h;save();_finishLogin(m);return;} // primeiro acesso define a senha
+  if(m.pwd===h){_finishLogin(m);}
+  else{S.loginErr='Senha incorreta.';render();setTimeout(function(){var el=$('ml-pwd');if(el){el.focus();el.select();}},60);}
+}
+function _finishLogin(m){S.loginPickId=null;S.loginErr='';S.adminAuth=true;sessionStorage.setItem('adminAuth','true');selectProfile(m.id);}
+async function trocarMinhaSenha(){
+  const m=S.currentUser;if(!m)return;
+  const nv=prompt('Nova senha (mínimo 3 caracteres):');if(nv==null)return;
+  if((''+nv).length<3){toast('Senha muito curta.');return;}
+  const real=D.team.find(x=>x.id===m.id);if(!real){toast('Perfil não encontrado.');return;}
+  real.pwd=await _hashPwd(nv);save();toast('🔑 Senha alterada!');
+}
+async function resetMemberPwd(id){
+  if(!_isGestao(S.currentUser)){toast('Só a Gestão pode fazer isso.');return;}
+  const m=D.team.find(x=>x.id===id);if(!m)return;
+  const nv=prompt('Definir/resetar senha de '+m.name.split(' ')[0]+' (mínimo 3):');if(nv==null)return;
+  if((''+nv).length<3){toast('Senha muito curta.');return;}
+  m.pwd=await _hashPwd(nv);save();toast('🔑 Senha definida para '+m.name.split(' ')[0]);
+}
+function toggleMemberActive(id){
+  if(!_isGestao(S.currentUser)){toast('Só a Gestão pode fazer isso.');return;}
+  const m=D.team.find(x=>x.id===id);if(!m)return;
+  if(S.currentUser&&m.id===S.currentUser.id){toast('Você não pode desativar a si mesma.');return;}
+  const cur=_memberActive(m);
+  if(cur&&!confirm('Inativar o acesso de '+m.name.split(' ')[0]+'? Ela não vai mais conseguir entrar no sistema.'))return;
+  m.active=!cur;save();toast(m.active?('🟢 '+m.name.split(' ')[0]+' ativada'):('🔴 '+m.name.split(' ')[0]+' — acesso removido'));render();
+}
+function verComo(id){
+  if(!_isGestao(S.currentUser)){toast('Só a Gestão pode fazer isso.');return;}
+  const m=D.team.find(x=>x.id===id);if(!m||(S.currentUser&&m.id===S.currentUser.id))return;
+  if(!S._realUser)S._realUser=S.currentUser;
+  S.currentUser=m;S.view='minhasamana';render();
+  toast('👁 Vendo como '+m.name.split(' ')[0]);
+}
+function voltarMeuPerfil(){if(S._realUser){S.currentUser=S._realUser;S._realUser=null;S.view='dash';render();}}
+function rMemberLogin(){
+  const m=D.team.find(x=>x.id===S.loginPickId);
+  if(!m)return rProfileSelect();
+  const first=!m.pwd;
+  return `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0A2D4E,#0D3D9B)">
+    <div style="background:white;border-radius:20px;padding:36px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center">
+      <div style="width:64px;height:64px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:white;margin:0 auto 12px">${m.initials}</div>
+      <h2 style="font-size:18px;margin:0 0 4px;color:#1A1A2E">Olá, ${m.name.split(' ')[0]}!</h2>
+      <p style="color:#6B7280;font-size:13px;margin:0 0 20px">${first?'🔐 Primeiro acesso — crie a sua senha':'Digite a sua senha'}</p>
+      <input type="password" id="ml-pwd" placeholder="${first?'Crie uma senha (mín. 3)':'Sua senha'}" style="width:100%;padding:12px 14px;border:2px solid #E5E7EB;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:${S.loginErr?'8px':'14px'}" onkeypress="if(event.key==='Enter')doMemberLogin()">
+      ${S.loginErr?`<div style="color:#DC2626;font-size:12px;margin-bottom:12px">${S.loginErr}</div>`:''}
+      <button onclick="doMemberLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#0D3D9B,#0077B5);color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">${first?'Criar senha e entrar':'🔓 Entrar'}</button>
+      <button onclick="backToProfiles()" style="width:100%;padding:8px;background:none;border:none;color:#6B7280;font-size:12px;cursor:pointer;margin-top:8px">← Voltar</button>
+    </div>
+  </div>`;
 }
 
 // ── TEAM PASSWORD ─────────────────────────────────────────────
@@ -5460,7 +5539,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063016; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063017; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
