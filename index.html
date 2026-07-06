@@ -5460,7 +5460,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063015; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063016; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -5632,7 +5632,8 @@ window.addEventListener('hashchange',handleNavigation);
               const snap={at:Date.now(),build:APP_BUILD,clients:D.clients||[],team:D.team||[],assignedTasks:D.assignedTasks||[]};
               _db.ref('allin_backups/'+day).set(JSON.parse(JSON.stringify(snap))).then(function(){
                 _db.ref('allin_backups').once('value').then(function(all){
-                  const keys=Object.keys(all.val()||{}).sort();
+                  // limpa só os backups DIÁRIOS antigos (mantém 7) — não toca nos 'auto-' nem nos especiais
+                  const keys=Object.keys(all.val()||{}).filter(function(k){return /^\d{4}-\d{2}-\d{2}$/.test(k);}).sort();
                   if(keys.length>7)keys.slice(0,keys.length-7).forEach(function(k){_db.ref('allin_backups/'+k).remove();});
                 }).catch(function(){});
               }).catch(function(){});
@@ -5640,6 +5641,26 @@ window.addEventListener('hashchange',handleNavigation);
           }catch(e){}
         }
         setTimeout(_dailyBackup,4000);
+        // ── Vigia automático: snapshot a cada 30 min, SÓ se a base estiver saudável (nunca salva estado corrompido por cima) ──
+        function _autoWatchdog(){
+          try{
+            const cl=D.clients||[];
+            const saudavel = cl.length>=25 && cl.some(function(c){return c&&/gabriel weydt/i.test(c.name||'');});
+            if(!saudavel)return; // base suspeita → não gera ponto de recuperação (preserva os bons)
+            const key='auto-'+new Date().toISOString().slice(0,13); // um por hora
+            _db.ref('allin_backups/'+key).once('value').then(function(s){
+              if(s.exists())return;
+              _db.ref('allin_backups/'+key).set(JSON.parse(JSON.stringify({at:Date.now(),build:APP_BUILD,clients:cl,team:D.team||[],assignedTasks:D.assignedTasks||[]}))).then(function(){
+                _db.ref('allin_backups').once('value').then(function(all){
+                  const keys=Object.keys(all.val()||{}).filter(function(k){return k.indexOf('auto-')===0;}).sort();
+                  if(keys.length>8)keys.slice(0,keys.length-8).forEach(function(k){_db.ref('allin_backups/'+k).remove();});
+                }).catch(function(){});
+              }).catch(function(){});
+            }).catch(function(){});
+          }catch(e){}
+        }
+        setTimeout(_autoWatchdog,9000);
+        setInterval(_autoWatchdog,1800000);
         // Restauração manual (uso técnico via console): listBackups() e restoreBackup('AAAA-MM-DD')
         window.listBackups=function(){return _db.ref('allin_backups').once('value').then(function(s){const v=s.val()||{};const o={};Object.keys(v).forEach(function(k){o[k]=(v[k].clients||[]).length+' clientes · '+new Date(v[k].at).toLocaleString('pt-BR');});console.log(o);return o;});};
         window.restoreBackup=function(day){
