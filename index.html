@@ -2919,7 +2919,7 @@ async function doMemberLogin(){
   if(m.pwd===h){_finishLogin(m);}
   else{S.loginErr='Senha incorreta.';render();setTimeout(function(){var el=$('ml-pwd');if(el){el.focus();el.select();}},60);}
 }
-function _finishLogin(m){S.loginPickId=null;S.loginErr='';S.adminAuth=true;sessionStorage.setItem('adminAuth','true');selectProfile(m.id);}
+function _finishLogin(m){S.loginPickId=null;S.loginErr='';S.adminAuth=true;sessionStorage.setItem('adminAuth','true');try{sessionStorage.setItem('authEpoch',String(window.__authEpoch||0));}catch(e){}selectProfile(m.id);}
 async function trocarMinhaSenha(){
   const m=S.currentUser;if(!m)return;
   const nv=prompt('Nova senha (mínimo 3 caracteres):');if(nv==null)return;
@@ -5545,7 +5545,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063020; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063021; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -5694,6 +5694,21 @@ window.addEventListener('hashchange',handleNavigation);
           }).catch(function(){});
           _db.ref('allin/_build').on('value',function(s){_maybeReload(parseInt(s.val())||0);});
           _db.ref('allin/_rev').on('value',function(s){const v=parseInt(s.val());if(!isNaN(v)&&v>_dataRev)_dataRev=v;}); // mantém o carimbo local sempre >= servidor
+          // ── Sessão: derruba login antigo (época) e valida se o usuário ainda está ativo ──
+          window.__authEpoch=window.__authEpoch||0;
+          window.__enforceSession=function(){
+            if(!S.currentUser||S.isClientPortal)return;
+            const m=(D.team||[]).find(x=>x.id===S.currentUser.id);
+            const ativo=!!(m&&m.active!==false);
+            const sEp=parseInt(sessionStorage.getItem('authEpoch')||'0')||0;
+            if(!ativo||sEp<(window.__authEpoch||0)){
+              S.currentUser=null;S._realUser=null;S.loginPickId=null;
+              try{sessionStorage.removeItem('currentUser');sessionStorage.removeItem('adminAuth');}catch(e){}
+              render();
+              if(typeof toast==='function')toast('🔒 Entre novamente com a sua senha.');
+            }
+          };
+          _db.ref('allin/_authEpoch').on('value',function(s){window.__authEpoch=parseInt(s.val())||0;window.__enforceSession();});
         }catch(e){}
 
         // ── Presença: cada aparelho registra qual VERSÃO está rodando e quando foi visto ──
@@ -5759,7 +5774,7 @@ window.addEventListener('hashchange',handleNavigation);
         const applyFbUpdate=(fbData)=>{
           if(fbData&&typeof fbData._rev==='number'&&fbData._rev>_dataRev)_dataRev=fbData._rev; // acompanha o carimbo do servidor
           const sanitized=sanitizeD(fbData);
-          if(sanitized){delete sanitized._rev;delete sanitized._build;delete sanitized._presence;} // metadados não fazem parte de D (evita re-render à toa e não são regravados)
+          if(sanitized){delete sanitized._rev;delete sanitized._build;delete sanitized._presence;delete sanitized._authEpoch;} // metadados não fazem parte de D
           if(JSON.stringify(sanitized)!==JSON.stringify(D)){
             D=sanitized;
             localStorage.setItem('allin',JSON.stringify(D));
@@ -5768,6 +5783,7 @@ window.addEventListener('hashchange',handleNavigation);
             toast('🔄 Atualizado em tempo real');
             render();
           }
+          if(window.__enforceSession)window.__enforceSession(); // revalida sessão (usuário inativo/época) após sincronizar
         };
         const _isTyping=()=>{const ae=document.activeElement;return!!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));};
         // Listener em tempo real — atualiza todos os dispositivos conectados
