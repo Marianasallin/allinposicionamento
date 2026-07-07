@@ -886,7 +886,7 @@ function render(){
 function rDashProspeccao(){
   try{
     const _ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    const sellers=D.team.filter(m=>m.role==='Social Seller'||m.role==='Assistente');
+    const sellers=D.team.filter(m=>(m.role==='Social Seller'||m.role==='Assistente')&&_memberActive(m));
     // meses que têm leads (todos os clientes) + mês atual, recentes primeiro
     const monthsSet=new Set();
     D.clients.forEach(c=>(c.prospects||[]).forEach(p=>{if(p.date)monthsSet.add(getMonthKey(new Date(p.date+'T12:00:00')));}));
@@ -1953,7 +1953,7 @@ function rWeeklyPending(){
 function rFunc(){
   const wk=thisWeekKey();
   const mk=currentTrackingMonthKey();
-  const cards=D.team.map(m=>{
+  const cards=D.team.filter(_memberActive).map(m=>{
     const myClients=D.clients.filter(c=>c.assignees.includes(m.name)&&c.contractStatus==='ativo');
     const gpClients=myClients.filter(c=>c.products.includes('Gestão de Perfil')&&!c.semLeads);
     const icClients=myClients.filter(c=>c.products.includes('Implementação Comercial')&&!c.products.includes('Gestão de Perfil'));
@@ -2065,7 +2065,7 @@ function rMinhaSemanaGestao(user){
   const wkLabel=wkDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
   const mk=currentTrackingMonthKey();
   const ativos=D.clients.filter(c=>c.contractStatus==='ativo');
-  const sellers=D.team.filter(m=>m.role==='Social Seller'||m.role==='Assistente');
+  const sellers=D.team.filter(m=>(m.role==='Social Seller'||m.role==='Assistente')&&_memberActive(m));
   const thisMonth=new Date().toISOString().substring(0,7);
 
   // === BLOCO 1: Performance da Equipe esta semana ===
@@ -2249,7 +2249,7 @@ function rMinhaSemanaGestao(user){
 }
 
 function rLeadGoalEquipe(monthKey){
-  const sellers=D.team.filter(m=>m.role==='Social Seller'||m.role==='Assistente');
+  const sellers=D.team.filter(m=>(m.role==='Social Seller'||m.role==='Assistente')&&_memberActive(m));
   const _ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   // meses com dados para histórico
   const _allM=[...new Set(D.clients.flatMap(c=>(c.prospects||[]).map(p=>{if(!p.date)return null;const d=new Date(p.date+'T12:00:00');return _ptM[d.getMonth()]+' '+d.getFullYear();}).filter(Boolean)))].sort((a,b)=>{const[mA,yA]=a.split(' ');const[mB,yB]=b.split(' ');return(parseInt(yB)*12+_ptM.indexOf(mB))-(parseInt(yA)*12+_ptM.indexOf(mA));});
@@ -2672,7 +2672,7 @@ function rTeam(){
   const unassigned=totalClients-assigned;
 
   const contentRoles=['CEO','Gestão','Head de Conteúdo'];
-  const cards=D.team.map(m=>{
+  const cards=D.team.filter(_memberActive).map(m=>{
     const isContent=contentRoles.includes(m.role);
     const myClients=D.clients.filter(c=>c.contractStatus==='ativo'&&(isContent?(c.contentOwners||[]).includes(m.name):c.assignees.includes(m.name)));
     const gpClients=myClients.filter(c=>c.products.includes('Gestão de Perfil')&&!c.semLeads);
@@ -2795,7 +2795,11 @@ function rTeam(){
   </div>
   ${unassigned>0?`<div class="card" style="margin-bottom:18px"><div class="ch" style="background:#FFFBEB"><h3>⚠️ ${unassigned} clientes sem responsável</h3><button class="btn btn-o btn-s" onclick="nav('clients')">Atribuir →</button></div></div>`:''}
   <div class="sh"><h2>Equipe (${D.team.length} pessoas)</h2>${headerRight}</div>
-  <div class="grid2">${cards}</div>`;
+  <div class="grid2">${cards}</div>${(function(){
+    const _inativos=(D.team||[]).filter(m=>m&&!_memberActive(m));
+    if(!(_isGestao(S.currentUser)&&_inativos.length))return '';
+    return '<div class="card" style="margin-top:16px"><div class="ch" style="background:#F3F4F6"><h3 style="margin:0;color:#6B7280;font-size:14px">🔴 Acessos inativos ('+_inativos.length+')</h3></div><div class="cb" style="display:flex;flex-direction:column;gap:10px">'+_inativos.map(function(m){return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div class="av av-s" style="background:'+m.color+';opacity:.55">'+m.initials+'</div><strong style="font-size:13px;flex:1;color:#6B7280">'+m.name+'</strong><button class="btn btn-o btn-s" style="font-size:11px" onclick="toggleMemberActive(\''+m.id+'\')">🟢 Reativar acesso</button><button class="btn btn-o btn-s" style="font-size:11px" onclick="resetMemberPwd(\''+m.id+'\')">🔑 Resetar senha</button></div>';}).join('')+'</div></div>';
+  })()}`;
 }
 function unlockTeamEdit(){
   const pwd=prompt('Senha para editar cadastros (Mari & Naiara):');
@@ -5539,7 +5543,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063017; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063018; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
