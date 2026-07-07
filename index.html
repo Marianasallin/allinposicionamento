@@ -2204,17 +2204,17 @@ function rMinhaSemanaGestao(user){
 
     // Relatório Mensal — validação e liberação (Mari) (recolhível)
     +'<details class="card" style="margin-bottom:20px" open>'
-    +'<summary class="ch" style="background:linear-gradient(135deg,#D97706,#F59E0B);border-radius:8px 8px 0 0;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px"><span class="acc-arrow" style="color:white;font-size:13px;transition:transform .2s">▶</span><div><h3 style="color:white;margin:0">📊 Relatório Mensal — '+mk+'</h3><span style="font-size:12px;color:rgba(255,255,255,.85)">Veja as médias e os insights, escreva a análise e libere para o cliente</span></div></summary>'
+    +'<summary class="ch" style="background:linear-gradient(135deg,#D97706,#F59E0B);border-radius:8px 8px 0 0;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px"><span class="acc-arrow" style="color:white;font-size:13px;transition:transform .2s">▶</span><div><h3 style="color:white;margin:0">📊 Relatório Mensal — '+S.gestaoFilterMonth+'</h3><span style="font-size:12px;color:rgba(255,255,255,.85)">Veja as médias e os insights, escreva a análise e libere para o cliente</span></div></summary>'
     +'<div class="tw"><table><thead><tr><th>Cliente</th><th style="text-align:center">Leads</th><th style="text-align:center">Resp. méd.</th><th style="text-align:center">Aceit. méd.</th><th style="text-align:center">Status</th><th></th></tr></thead><tbody>'
     +ativos.filter(c=>(c.products||[]).includes('Gestão de Perfil')&&!c.semLeads).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')).map(function(c){
-        const st=_clientMonthStats(c,mk);const mr=(c.monthlyReports||{})[mk]||{};
+        const st=_clientMonthStats(c,S.gestaoFilterMonth);const mr=(c.monthlyReports||{})[S.gestaoFilterMonth]||{};
         return '<tr>'
           +'<td style="font-size:13px;font-weight:600">'+c.name.split(' ').slice(0,2).join(' ')+'</td>'
           +'<td style="text-align:center;font-weight:600;color:#0D3D9B">'+st.leads+'</td>'
           +'<td style="text-align:center">'+(st.respAvg!=null?st.respAvg+'%':'—')+'</td>'
           +'<td style="text-align:center">'+(st.accAvg!=null?st.accAvg+'%':'—')+'</td>'
           +'<td style="text-align:center">'+(mr.released?'<span style="font-size:11px;color:#16A34A">✅ Liberado</span>':((mr.analysis&&mr.analysis.trim())?'<span style="font-size:11px;color:#D97706">📝 Rascunho</span>':'<span style="font-size:11px;color:#9CA3AF">— pendente</span>'))+'</td>'
-          +'<td style="text-align:right"><button class="btn btn-p btn-s" style="font-size:11px;white-space:nowrap" onclick="openMonthReportModal(\''+c.id+'\',\''+mk+'\')">✍️ Abrir / validar</button></td>'
+          +'<td style="text-align:right"><button class="btn btn-p btn-s" style="font-size:11px;white-space:nowrap" onclick="openMonthReportModal(\''+c.id+'\',\''+S.gestaoFilterMonth+'\')">✍️ Abrir / validar</button></td>'
         +'</tr>';
       }).join('')
     +'</tbody></table></div></details>'
@@ -5545,7 +5545,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063019; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063020; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
