@@ -5157,7 +5157,6 @@ function rPortalDashboard(c){
         <h1>Olá, ${c.name.split(' ')[0]}! 👋</h1>
         <p>Acompanhe suas entregas, resultados e encontros com nosso time</p>
       </div>
-      ${monthPicker}
     </div>
     ${(!hasRealData&&!c.semLeads)?`<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:14px 18px;margin-bottom:24px;font-size:12px;color:#92400E">📊 Nenhum resultado registrado ainda. Os dados mensais aparecerão aqui quando lançados.</div>`:''}
     ${(c.semLeads||!hasRealData)?'':`<div class="portal-card" style="margin-bottom:20px">
@@ -5172,6 +5171,10 @@ function rPortalDashboard(c){
       </div>
       <div style="font-size:11px;color:#64748B;margin-bottom:6px">📈 Leads por mês</div>
       <div style="height:200px;position:relative"><canvas id="portalOverviewChart"></canvas></div>
+    </div>`}
+    ${c.semLeads?'':`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:4px 0 12px">
+      <div style="font-size:15px;font-weight:700;color:#1E293B">Resultados por mês</div>
+      ${monthPicker}
     </div>`}
     ${c.semLeads?'':`<div class="portal-metrics">
       <div class="portal-metric">
@@ -5649,7 +5652,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063032; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063033; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
