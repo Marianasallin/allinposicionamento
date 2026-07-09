@@ -5528,41 +5528,56 @@ function rPortalReunioes(c){
 
 function rPortalRelatorios(c){
   const months=portalMonthlyResults(c);
-  function trend(cur,prv){
-    if(prv==null)return'';
-    const diff=Math.round(((cur-prv)/(prv||1))*100);
-    if(diff===0)return'<span style="font-size:10px;color:#64748B">= igual</span>';
-    return diff>0
-      ?'<span style="font-size:10px;color:#17B26A;font-weight:600">↑'+diff+'%</span>'
-      :'<span style="font-size:10px;color:#DC2626;font-weight:600">↓'+Math.abs(diff)+'%</span>';
-  }
+  const objetivos=(c.objetivos||'').trim();
+  const short=function(mk){var p=mk.split(' ');return p[0].slice(0,3)+'/'+(p[1]||'').slice(2);};
+  const mini=function(v,l,color,bg){return '<div style="text-align:center;padding:12px 8px;background:'+bg+';border-radius:10px"><div style="font-size:20px;font-weight:700;color:'+color+'">'+v+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">'+l+'</div></div>';};
+  // Tabela de métricas por mês (evolução)
+  const chrono=months.slice().reverse();
+  const evoDefs=[
+    {lbl:'Seguidores',get:function(r){var mm=(c.monthlyMetrics||{})[r.month]||{};return mm.followers!=null?Number(mm.followers).toLocaleString('pt-BR'):'—';}},
+    {lbl:'Mensagens',get:function(r){var p=_prospMetricsMonth(c,r.month);return p.mensagens?Number(p.mensagens).toLocaleString('pt-BR'):'—';}},
+    {lbl:'Leads',get:function(r){return r.prospects||0;}},
+    {lbl:'SSI',get:function(r){var p=_prospMetricsMonth(c,r.month);return p.ssi!=null?p.ssi:'—';}}
+  ];
+  const evoTable=chrono.length>1?'<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">Métricas por mês</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:6px 8px;color:#64748B;font-weight:600">Indicador</th>'+chrono.map(function(r){return '<th style="padding:6px 8px;color:#64748B;font-weight:600;white-space:nowrap">'+short(r.month)+'</th>';}).join('')+'</tr></thead><tbody>'+evoDefs.map(function(row){return '<tr style="border-top:1px solid #F1F5F9"><td style="padding:7px 8px;font-weight:600;color:#1E293B">'+row.lbl+'</td>'+chrono.map(function(r){return '<td style="text-align:center;padding:7px 8px;color:#334155">'+row.get(r)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>':'';
   const cards=months.map(function(r,i){
-    const prv=months[i+1];
-    const isMost=i===0;
-    const revStr=r.revenue>0?'<div style="margin-top:12px;text-align:center;padding:10px;background:#F0FDF4;border-radius:10px"><div style="font-size:18px;font-weight:700;color:#16A34A">R$ '+r.revenue.toLocaleString('pt-BR')+'</div><div style="font-size:10px;color:#64748B">💰 Receita</div></div>':'';
-    const _mr=(c.monthlyReports||{})[r.month]||{};
-    const _st=_clientMonthStats(c,r.month);
-    const anaStr=_mr.released?('<div style="margin-top:12px;border-top:1px solid #EEF2FB;padding-top:12px">'
-      +'<div style="display:flex;gap:8px;margin-bottom:'+((_mr.analysis||'').trim()?'10px':'0')+'">'
-      +'<div style="flex:1;text-align:center;padding:8px;background:#F8FAFF;border-radius:8px"><div style="font-size:16px;font-weight:700;color:#0D3D9B">'+(_st.respAvg!=null?_st.respAvg+'%':'—')+'</div><div style="font-size:10px;color:#64748B">Taxa de resposta média</div></div>'
-      +'<div style="flex:1;text-align:center;padding:8px;background:#F8FAFF;border-radius:8px"><div style="font-size:16px;font-weight:700;color:#0D3D9B">'+(_st.accAvg!=null?_st.accAvg+'%':'—')+'</div><div style="font-size:10px;color:#64748B">Taxa de aceitação média</div></div>'
-      +'</div>'
-      +((_mr.analysis||'').trim()?'<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px">📝 Análise do mês</div><div style="font-size:13px;color:#334155;line-height:1.5;background:#F8FAFF;border:1px solid #DBEAFE;border-radius:8px;padding:10px 12px;white-space:pre-wrap">'+(_mr.analysis||'').replace(/</g,'&lt;')+'</div>':'')
+    const prv=months[i+1];const isMost=i===0;const mk=r.month;
+    const mm=(c.monthlyMetrics||{})[mk]||{};
+    const pm=_prospMetricsMonth(c,mk);
+    const mr=(c.monthlyReports||{})[mk]||{};
+    const temConteudo=[mm.publicacoes,mm.impressoes,mm.alcance,mm.visualizacoes,mm.followers].some(function(v){return v!=null&&v!=='';});
+    const prospHtml='<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin:4px 0 8px">🎯 Prospecção</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px;margin-bottom:14px">'
+      +mini(r.prospects,'👥 Leads','#0D3D9B','#F8FAFF')
+      +mini(r.leads,'💬 Responderam','#7C3AED','#F5F3FF')
+      +mini(r.meetings,'🤝 Reuniões','#EA580C','#FFF7ED')
+      +mini(r.sales,'✅ Fechamentos','#16A34A','#F0FDF4')
+      +mini(pm.accAvg!=null?pm.accAvg+'%':'—','Taxa aceitação','#0D3D9B','#F8FAFF')
+      +mini(pm.respAvg!=null?pm.respAvg+'%':'—','Taxa resposta','#0D3D9B','#F8FAFF')
+      +(pm.mensagens?mini(Number(pm.mensagens).toLocaleString('pt-BR'),'Mensagens','#0D3D9B','#F8FAFF'):'')
+      +(pm.convites?mini(Number(pm.convites).toLocaleString('pt-BR'),'Convites','#0D3D9B','#F8FAFF'):'')
+      +(pm.ssi!=null?mini(pm.ssi,'SSI','#0D3D9B','#F8FAFF'):'')
+      +'</div>';
+    const contHtml=temConteudo?('<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin:4px 0 8px">✍️ Conteúdo e alcance</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px;margin-bottom:14px">'
+      +(mm.followers!=null&&mm.followers!==''?mini(Number(mm.followers).toLocaleString('pt-BR'),'Seguidores','#0077B5','#EFF6FF'):'')
+      +(mm.publicacoes!=null&&mm.publicacoes!==''?mini(mm.publicacoes,'Publicações','#0077B5','#EFF6FF'):'')
+      +(mm.impressoes!=null&&mm.impressoes!==''?mini(Number(mm.impressoes).toLocaleString('pt-BR'),'Impressões','#0077B5','#EFF6FF'):'')
+      +(mm.alcance!=null&&mm.alcance!==''?mini(Number(mm.alcance).toLocaleString('pt-BR'),'Alcance','#0077B5','#EFF6FF'):'')
+      +(mm.visualizacoes!=null&&mm.visualizacoes!==''?mini(Number(mm.visualizacoes).toLocaleString('pt-BR'),'Visualizações','#0077B5','#EFF6FF'):'')
       +'</div>'):'';
+    const revStr=r.revenue>0?'<div style="text-align:center;padding:10px;background:#F0FDF4;border-radius:10px;margin-bottom:14px"><div style="font-size:18px;font-weight:700;color:#16A34A">R$ '+r.revenue.toLocaleString('pt-BR')+'</div><div style="font-size:10px;color:#64748B">💰 Receita dos fechamentos</div></div>':'';
+    const anaStr=(mr.released&&(mr.analysis||'').trim())?('<div style="border-top:1px solid #EEF2FB;padding-top:12px"><div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px">📝 Análise do mês</div><div style="font-size:13px;color:#334155;line-height:1.5;background:#F8FAFF;border:1px solid #DBEAFE;border-radius:8px;padding:10px 12px;white-space:pre-wrap">'+(mr.analysis||'').replace(/</g,'&lt;')+'</div></div>'):'';
     return '<div class="portal-card" style="'+(isMost?'border-left:4px solid #0D3D9B;':'')+'">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
-      +'<div><div style="font-size:15px;font-weight:700;color:#1E293B">'+r.month+'</div>'
-      +(prv?'<div style="font-size:11px;color:#64748B;margin-top:2px">vs '+prv.month+'</div>':'<div style="font-size:11px;color:#94A3B8;margin-top:2px">primeiro mês</div>')
-      +'</div>'+(isMost?'<span style="font-size:11px;background:#EFF6FF;color:#0D3D9B;padding:4px 10px;border-radius:99px;font-weight:600">✨ Mais recente</span>':'')+'</div>'
-      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">'
-      +'<div style="text-align:center;padding:12px;background:#F8FAFF;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#0D3D9B">'+r.prospects+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">👥 Leads</div>'+trend(r.prospects,prv&&prv.prospects)+'</div>'
-      +'<div style="text-align:center;padding:12px;background:#F5F3FF;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#7C3AED">'+r.leads+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">💬 Responderam</div>'+trend(r.leads,prv&&prv.leads)+'</div>'
-      +'<div style="text-align:center;padding:12px;background:#FFF7ED;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#EA580C">'+r.meetings+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">🤝 Reuniões</div>'+trend(r.meetings,prv&&prv.meetings)+'</div>'
-      +'<div style="text-align:center;padding:12px;background:#F0FDF4;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#16A34A">'+r.sales+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">✅ Fechamentos</div>'+trend(r.sales,prv&&prv.sales)+'</div>'
-      +'</div>'+revStr+anaStr+'</div>';
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+      +'<div style="font-size:16px;font-weight:700;color:#1E293B">'+mk+'</div>'
+      +(isMost?'<span style="font-size:11px;background:#EFF6FF;color:#0D3D9B;padding:4px 10px;border-radius:99px;font-weight:600">✨ Mais recente</span>':'')+'</div>'
+      +prospHtml+contHtml+revStr+anaStr+'</div>';
   }).join('');
-  const empty='<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhum resultado ainda.<br><small>Os resultados aparecerão automaticamente conforme os prospects forem atualizados.</small></div>';
-  return '<div class="portal-hero" style="margin-bottom:24px"><div><h1>📈 Resultados</h1><p>Calculado automaticamente dos leads — '+months.length+' mês(es)</p></div></div>'
+  const empty='<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhum resultado ainda.<br><small>Os resultados aparecem automaticamente conforme a equipe atualiza.</small></div>';
+  return '<div class="portal-hero" style="margin-bottom:20px"><div><h1>📊 Relatório de Resultados</h1><p>'+c.name+' · atualizado automaticamente pelo nosso time</p></div></div>'
+    +(objetivos?'<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">🎯 Objetivos</div><div style="font-size:13px;color:#334155;line-height:1.6;white-space:pre-wrap">'+objetivos.replace(/</g,'&lt;')+'</div></div>':'')
+    +evoTable
     +'<div style="display:flex;flex-direction:column;gap:16px">'+(months.length?cards:empty)+'</div>';
 }
 
@@ -5575,10 +5590,10 @@ function rClientPortalAuth(){
     {id:'entregas',icon:'📦',label:'Entregas'},
     {id:'prospeccao',icon:'🎯',label:'Leads'},
     {id:'reunioes',icon:'🤝',label:'Reuniões'},
-    {id:'relatorios',icon:'📈',label:'Relatórios'},
+    {id:'relatorios',icon:'📊',label:'Resultados'},
   ].filter(n=>!(c.semLeads&&(n.id==='prospeccao'||n.id==='relatorios')));
   if(c.semLeads&&(pv==='prospeccao'||pv==='relatorios')){pv='dashboard';S.portalView='dashboard';}
-  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',reunioes:'Reuniões',relatorios:'Relatórios'};
+  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',reunioes:'Reuniões',relatorios:'Relatório de Resultados'};
   const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,prospeccao:rPortalProspeccao,reunioes:rPortalReunioes,relatorios:rPortalRelatorios};
   const mainContent=(contentMap[pv]||rPortalDashboard)(c);
   return`<div class="portal-wrapper">
@@ -5717,7 +5732,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063034; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063035; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
