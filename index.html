@@ -2216,6 +2216,9 @@ function rMinhaSemanaGestao(user){
     +'<div style="font-size:12px;color:var(--muted)">Sexta '+wkLabel+' · '+user.name.split(' ')[0]+'</div></div>'
     +monthFilterHtml+weekFilterHtml
 
+    // Botão: gerar relatório de leads do mês (Word)
+    +'<div style="margin-bottom:18px"><button class="btn btn-p" onclick="gerarRelatorioLeadsWord()" style="font-size:13px"><span style="margin-right:4px">📄</span> Gerar relatório de leads (Word) — '+S.gestaoFilterMonth+'</button></div>'
+
     // Stats rápidos
     +'<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">'
     +'<div class="stat-card"><div class="stat-val" style="color:var(--primary)">'+ativos.length+'</div><div class="stat-label">Clientes Ativos</div></div>'
@@ -2992,6 +2995,47 @@ function verComo(id){
   toast('👁 Vendo como '+m.name.split(' ')[0]);
 }
 function voltarMeuPerfil(){if(S._realUser){S.currentUser=S._realUser;S._realUser=null;S.view='dash';render();}}
+// Gera o relatório de leads do mês (Word), por vendedora — modelo igual ao relatório da Gisele
+function gerarRelatorioLeadsWord(){
+  try{
+    const mk=S.gestaoFilterMonth||currentTrackingMonthKey();
+    const _ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const _mkOf=function(d){try{const x=new Date(d+'T12:00:00');return _ptM[x.getMonth()]+' '+x.getFullYear();}catch(e){return'';}};
+    const esc=function(s){return (s==null?'':(''+s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+    const sellers=D.team.filter(function(m){return (m.role==='Social Seller'||m.role==='Assistente')&&_memberActive(m);});
+    let gLeads=0,gMeta=0,gBat=0,gResp=0,gReun=0,gFech=0,gSem=0,gMen=0,gCli=0,sections='';
+    sellers.forEach(function(m){
+      const cs=D.clients.filter(function(c){return c.assignees&&c.assignees.includes(m.name)&&(c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado')&&(c.products||[]).includes('Gestão de Perfil')&&!c.semLeads;}).sort(function(a,b){return a.name.localeCompare(b.name,'pt-BR');});
+      if(!cs.length)return;
+      let sLeads=0,sMeta=0,sBat=0,sResp=0,sReun=0,sFech=0,sSem=0,sMen=0,rows='';
+      cs.forEach(function(c){
+        const ps=(c.prospects||[]).filter(function(p){return p.date&&_mkOf(p.date)===mk;});
+        const leads=ps.length,resp=ps.filter(function(p){return p.replied;}).length,reun=ps.filter(function(p){return p.hadMeeting;}).length;
+        const fech=(c.prospects||[]).filter(function(p){return p.contractClosed&&_mkOf(p.closedDate||p.date)===mk;}).length;
+        const st=_clientMonthStats(c,mk);
+        const sem=Object.keys(c.weeklyReports||{}).filter(function(k){return c.weeklyReports[k]&&c.weeklyReports[k].done&&_mkOf(k)===mk;}).length;
+        const men=(c.monthlyReports&&c.monthlyReports[mk]&&c.monthlyReports[mk].done)?1:0;
+        const meta=c.monthlyLeadGoal||0,bat=meta&&leads>=meta?1:0;
+        sLeads+=leads;sMeta+=meta;sBat+=bat;sResp+=resp;sReun+=reun;sFech+=fech;sSem+=sem;sMen+=men;
+        rows+='<tr><td>'+esc(c.name)+'</td><td style="text-align:center">'+leads+' / '+meta+'</td><td style="text-align:center">'+(bat?'Sim':'Nao')+'</td><td style="text-align:center">'+resp+'</td><td style="text-align:center">'+reun+'</td><td style="text-align:center">'+fech+'</td><td style="text-align:center">'+(st.respAvg!=null?st.respAvg+'%':'-')+'</td><td style="text-align:center">'+(st.accAvg!=null?st.accAvg+'%':'-')+'</td><td style="text-align:center">'+sem+'</td><td style="text-align:center">'+(men?'Sim':'Nao')+'</td></tr>';
+      });
+      gLeads+=sLeads;gMeta+=sMeta;gBat+=sBat;gResp+=sResp;gReun+=sReun;gFech+=sFech;gSem+=sSem;gMen+=sMen;gCli+=cs.length;
+      const fn=m.name.split(' ')[0]+' '+(m.name.split(' ')[1]||'');
+      sections+='<h2>'+esc(fn)+' &mdash; '+cs.length+' clientes</h2><table><thead><tr><th>Cliente</th><th>Leads / Meta</th><th>Meta batida?</th><th>Responderam</th><th>Reunioes</th><th>Fechamentos</th><th>Taxa resp.</th><th>Taxa aceit.</th><th>Sem. entregues</th><th>Mensal</th></tr></thead><tbody>'+rows+'<tr class="tot"><td>TOTAL '+esc(m.name.split(' ')[0])+'</td><td style="text-align:center">'+sLeads+' / '+sMeta+'</td><td style="text-align:center">'+sBat+'/'+cs.length+'</td><td style="text-align:center">'+sResp+'</td><td style="text-align:center">'+sReun+'</td><td style="text-align:center">'+sFech+'</td><td style="text-align:center">-</td><td style="text-align:center">-</td><td style="text-align:center">'+sSem+'</td><td style="text-align:center">'+sMen+'/'+cs.length+'</td></tr></tbody></table>';
+    });
+    if(!sections){toast('Nenhuma vendedora ativa com clientes.');return;}
+    const style='<style>@page Section1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:1.2cm;} div.Section1{page:Section1;} body{font-family:Arial;font-size:11px;color:#1A1A2E} h1{font-size:18px;color:#0D3D9B;margin:0 0 2px} h2{font-size:13px;color:#0D3D9B;margin:16px 0 5px} table{border-collapse:collapse;width:100%;margin-bottom:6px} td,th{border:1px solid #B8B8B8;padding:4px 7px} th{background:#0D3D9B;color:#fff} tr.tot td{background:#E8EEF9;font-weight:bold}</style>';
+    const head='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">'+style+'</head><body><div class="Section1">';
+    const title='<h1>Relatorio de Desempenho &mdash; Leads</h1><div style="color:#555;font-size:12px">ALL IN Posicionamento &middot; '+esc(mk)+'</div><div style="color:#888;font-size:11px;margin-bottom:8px">Gerado em '+new Date().toLocaleDateString('pt-BR')+' &middot; '+gCli+' clientes &middot; '+sellers.length+' vendedoras</div>';
+    const resumo='<h2>Resumo geral &mdash; '+esc(mk)+'</h2><ul style="font-size:12px"><li>Leads no mes: <b>'+gLeads+'</b> (meta total '+gMeta+') &middot; metas batidas: <b>'+gBat+' de '+gCli+'</b></li><li>Responderam: '+gResp+' &middot; Reunioes: '+gReun+' &middot; Fechamentos: <b>'+gFech+'</b></li><li>Relatorios: '+gSem+' semanais entregues &middot; '+gMen+' de '+gCli+' mensais</li></ul>';
+    const html=head+title+sections+resumo+'</div></body></html>';
+    const blob=new Blob(['﻿'+html],{type:'application/msword'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='Relatorio-Leads-'+mk.replace(/\s+/g,'-')+'.doc';document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1500);
+    if(typeof toast==='function')toast('📄 Relatório gerado! Veja nos downloads.');
+  }catch(e){console.error(e);if(typeof toast==='function')toast('❌ Erro ao gerar: '+e.message);}
+}
 function rMemberLogin(){
   const m=D.team.find(x=>x.id===S.loginPickId);
   if(!m)return rProfileSelect();
@@ -5587,7 +5631,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063028; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063029; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
