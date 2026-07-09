@@ -1280,7 +1280,25 @@ function rDetailProspeccao(c){
     const rate=pros.length?Math.round(closed/pros.length*100):0;
     const cid=c.id;
     function ck(v){return v?'<span style="color:#16A34A">✅</span>':'<span style="color:#9CA3AF">—</span>';}
-    const rows=pros.map(function(p){
+    // ── Filtros de leads (Mês + Situação) ──
+    const _mk=function(d){try{return getMonthKey(new Date(d+'T12:00:00'));}catch(e){return'';}};
+    const _meses=[...new Set(pros.map(function(p){return p.date&&_mk(p.date);}).filter(Boolean))];
+    if(!S.leadFilterMonth||(S.leadFilterMonth!=='__todos'&&_meses.indexOf(S.leadFilterMonth)<0))S.leadFilterMonth='__todos';
+    if(!S.leadFilterStatus)S.leadFilterStatus='todos';
+    let filtered=pros.slice();
+    if(S.leadFilterMonth!=='__todos')filtered=filtered.filter(function(p){return p.date&&_mk(p.date)===S.leadFilterMonth;});
+    const _st=S.leadFilterStatus;
+    if(_st==='responderam')filtered=filtered.filter(function(p){return p.replied;});
+    else if(_st==='reunioes')filtered=filtered.filter(function(p){return p.hadMeeting;});
+    else if(_st==='fechados')filtered=filtered.filter(function(p){return p.contractClosed;});
+    else if(_st==='naofechados')filtered=filtered.filter(function(p){return !p.contractClosed;});
+    const _mesChips='<span class="fc '+(S.leadFilterMonth==='__todos'?'active':'')+'" onclick="S.leadFilterMonth=\'__todos\';render()" style="font-size:11px">Todos</span>'+_meses.map(function(m){return '<span class="fc '+(S.leadFilterMonth===m?'active':'')+'" onclick="S.leadFilterMonth=\''+m+'\';render()" style="font-size:11px">'+m+'</span>';}).join('');
+    const _stChips=[['todos','Todos'],['responderam','Responderam'],['reunioes','Reuniões'],['fechados','Fechados'],['naofechados','Não fechados']].map(function(o){return '<span class="fc '+(_st===o[0]?'active':'')+'" onclick="S.leadFilterStatus=\''+o[0]+'\';render()" style="font-size:11px">'+o[1]+'</span>';}).join('');
+    const _filterBar='<div style="padding:10px 12px;margin-bottom:10px;background:#FAFAFA;border:1px solid var(--border);border-radius:8px">'
+      +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Mês:</span>'+_mesChips+'</div>'
+      +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Situação:</span>'+_stChips+'</div>'
+      +'</div>';
+    const rows=filtered.map(function(p){
       const dt=p.date?new Date(p.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):'—';
       const emailHtml=p.email?'<br><span style="font-size:10px;color:var(--muted)">'+p.email+'</span>':'';
       const liHtml=p.linkedinUrl?'<a href="'+p.linkedinUrl+'" target="_blank" style="font-size:11px;color:var(--primary)">🔗</a>':'—';
@@ -1304,7 +1322,11 @@ function rDetailProspeccao(c){
     }).join('');
     const tableHtml=pros.length===0
       ?'<div style="text-align:center;padding:40px;color:var(--muted)">Nenhum lead ainda. Clique em "+ Adicionar Lead".</div>'
-      :'<div class="tw"><table><thead><tr><th>Data</th><th>Nome</th><th>Cargo</th><th>LinkedIn</th><th>Condutor</th><th>Msg</th><th>Resp.</th><th>Reunião</th><th>Fechou</th><th>Valor</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+      :_filterBar
+        +'<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Mostrando <strong>'+filtered.length+'</strong> de '+pros.length+' leads</div>'
+        +(filtered.length===0
+          ?'<div style="text-align:center;padding:32px;color:var(--muted)">Nenhum lead com esse filtro.</div>'
+          :'<div class="tw"><table><thead><tr><th>Data</th><th>Nome</th><th>Cargo</th><th>LinkedIn</th><th>Condutor</th><th>Msg</th><th>Resp.</th><th>Reunião</th><th>Fechou</th><th>Valor</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>');
     return '<div class="card">'
       +'<div class="ch"><h3>🎯 Leads</h3>'
       +'<div style="display:flex;gap:8px">'
@@ -5545,7 +5567,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063022; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063023; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
