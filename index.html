@@ -1213,15 +1213,22 @@ function calcResultados(c){
   const pros=c.prospects||[];
   const byMonth={};
   const ptMonths=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  function _ensure(k,d){if(!byMonth[k])byMonth[k]={month:k,year:d.getFullYear(),monthNum:d.getMonth(),prospects:0,leads:0,meetings:0,sales:0,revenue:0};}
   pros.forEach(function(p){
     if(!p.date)return;
     const d=new Date(p.date+'T12:00:00');
     const key=ptMonths[d.getMonth()]+' '+d.getFullYear();
-    if(!byMonth[key])byMonth[key]={month:key,year:d.getFullYear(),monthNum:d.getMonth(),prospects:0,leads:0,meetings:0,sales:0,revenue:0};
+    _ensure(key,d);
     byMonth[key].prospects++;
     if(p.replied)byMonth[key].leads++;
     if(p.hadMeeting)byMonth[key].meetings++;
-    if(p.contractClosed){byMonth[key].sales++;byMonth[key].revenue+=parseFloat(p.contractValue||0);}
+    // Fechamento conta no mês da DATA DE FECHAMENTO (não da entrada do lead)
+    if(p.contractClosed){
+      const cd=p.closedDate?new Date(p.closedDate+'T12:00:00'):d;
+      const ck=ptMonths[cd.getMonth()]+' '+cd.getFullYear();
+      _ensure(ck,cd);
+      byMonth[ck].sales++;byMonth[ck].revenue+=parseFloat(p.contractValue||0);
+    }
   });
   // Ordenar por data (mais recente primeiro)
   return Object.values(byMonth).sort(function(a,b){
@@ -1303,7 +1310,10 @@ function rDetailProspeccao(c){
       const emailHtml=p.email?'<br><span style="font-size:10px;color:var(--muted)">'+p.email+'</span>':'';
       const liHtml=p.linkedinUrl?'<a href="'+p.linkedinUrl+'" target="_blank" style="font-size:11px;color:var(--primary)">🔗</a>':'—';
       const valHtml=p.contractValue?'R$ '+p.contractValue:'—';
-      const closedHtml=p.contractClosed?'<span style="color:#16A34A;font-weight:700">✅</span>':'<span style="color:#9CA3AF">—</span>';
+      const _cd=p.closedDate?new Date(p.closedDate+'T12:00:00'):null;
+      const closedHtml=p.contractClosed
+        ?'<span style="color:#16A34A;font-weight:700">✅</span>'+(_cd&&!isNaN(_cd)?'<br><span style="font-size:9px;color:#16A34A">'+_cd.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})+'</span>':'')
+        :'<span style="color:#9CA3AF">—</span>';
       return '<tr>'
         +'<td style="font-size:11px;color:var(--muted)">'+dt+'</td>'
         +'<td><strong style="font-size:12px">'+(p.name||'—')+'</strong>'+emailHtml+'</td>'
@@ -5567,7 +5577,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063023; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063024; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
