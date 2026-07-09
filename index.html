@@ -395,6 +395,15 @@ function currentTrackingMonthKey(){
   if(d.getFullYear()<2026||(d.getFullYear()===2026&&d.getMonth()<5))return'Junho 2026';
   return thisMonthKey();
 }
+// Mês que a Mari valida no painel: do dia 1 ao 10, é o mês ANTERIOR (o que fechou); depois, o mês atual. (piso: Junho 2026)
+function _relMonthKey(){
+  const d=new Date();
+  const ref=new Date(d.getFullYear(),d.getMonth(),1);
+  if(d.getDate()<=10)ref.setMonth(ref.getMonth()-1);
+  if(ref.getFullYear()<2026||(ref.getFullYear()===2026&&ref.getMonth()<5))return'Junho 2026';
+  const ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  return ptM[ref.getMonth()]+' '+ref.getFullYear();
+}
 function getMonthlyAlertHtml(){
   // Returns alert HTML if today is day 8-10 (2 days before monthly report deadline)
   const day=new Date().getDate();
@@ -2081,6 +2090,12 @@ function rMinhaSemanaGestao(user){
   if(!S.gestaoFilterMonth||!monthKeys.includes(S.gestaoFilterMonth)){
     S.gestaoFilterMonth=monthKeys.includes(curMonthKey)?curMonthKey:(monthKeys[0]||curMonthKey);
   }
+  // Relatório Mensal (Mari): mês a validar — dia 1-10 = mês anterior; tem seletor próprio de mês
+  const _diaHoje=new Date().getDate();
+  const _janelaVal=_diaHoje<=10;
+  const relDefault=_relMonthKey();
+  const relMonths=[...new Set([relDefault,...monthKeys,curMonthKey])];
+  if(!S.gestaoRelMonth||relMonths.indexOf(S.gestaoRelMonth)<0)S.gestaoRelMonth=relDefault;
   const monthFriKeys=allFriKeys.filter(k=>getMonthKey(new Date(k+'T12:00:00'))===S.gestaoFilterMonth);
   const thisWk=thisWeekKey();
   if(!S.gestaoWk||!monthFriKeys.includes(S.gestaoWk)){
@@ -2229,18 +2244,19 @@ function rMinhaSemanaGestao(user){
     +_icCardHtml
 
     // Relatório Mensal — validação e liberação (Mari) (recolhível)
-    +'<details class="card" style="margin-bottom:20px" open>'
-    +'<summary class="ch" style="background:linear-gradient(135deg,#D97706,#F59E0B);border-radius:8px 8px 0 0;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px"><span class="acc-arrow" style="color:white;font-size:13px;transition:transform .2s">▶</span><div><h3 style="color:white;margin:0">📊 Relatório Mensal — '+S.gestaoFilterMonth+'</h3><span style="font-size:12px;color:rgba(255,255,255,.85)">Veja as médias e os insights, escreva a análise e libere para o cliente</span></div></summary>'
+    +'<details class="card" style="margin-bottom:20px" '+(_janelaVal?'open':'')+'>'
+    +'<summary class="ch" style="background:linear-gradient(135deg,#D97706,#F59E0B);border-radius:8px 8px 0 0;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px"><span class="acc-arrow" style="color:white;font-size:13px;transition:transform .2s">▶</span><div><h3 style="color:white;margin:0">📊 Relatório Mensal — '+S.gestaoRelMonth+'</h3><span style="font-size:12px;color:rgba(255,255,255,.85)">Veja as médias e os insights, escreva a análise e libere para o cliente</span></div>'+(_janelaVal?'<span style="margin-left:auto;background:#FFFBEB;color:#92400E;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;white-space:nowrap">⏰ Validar até dia 10'+((10-_diaHoje)>0?(' · faltam '+(10-_diaHoje)+' dia'+((10-_diaHoje)>1?'s':'')):' · último dia')+'</span>':'')+'</summary>'
+    +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--border);background:#FAFAFA"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Mês:</span>'+relMonths.map(function(m){return '<span class="fc '+(S.gestaoRelMonth===m?'active':'')+'" onclick="S.gestaoRelMonth=\''+m+'\';render()" style="font-size:11px">'+m+'</span>';}).join('')+'</div>'
     +'<div class="tw"><table><thead><tr><th>Cliente</th><th style="text-align:center">Leads</th><th style="text-align:center">Resp. méd.</th><th style="text-align:center">Aceit. méd.</th><th style="text-align:center">Status</th><th></th></tr></thead><tbody>'
     +ativos.filter(c=>(c.products||[]).includes('Gestão de Perfil')&&!c.semLeads).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')).map(function(c){
-        const st=_clientMonthStats(c,S.gestaoFilterMonth);const mr=(c.monthlyReports||{})[S.gestaoFilterMonth]||{};
+        const st=_clientMonthStats(c,S.gestaoRelMonth);const mr=(c.monthlyReports||{})[S.gestaoRelMonth]||{};
         return '<tr>'
           +'<td style="font-size:13px;font-weight:600">'+c.name.split(' ').slice(0,2).join(' ')+'</td>'
           +'<td style="text-align:center;font-weight:600;color:#0D3D9B">'+st.leads+'</td>'
           +'<td style="text-align:center">'+(st.respAvg!=null?st.respAvg+'%':'—')+'</td>'
           +'<td style="text-align:center">'+(st.accAvg!=null?st.accAvg+'%':'—')+'</td>'
           +'<td style="text-align:center">'+(mr.released?'<span style="font-size:11px;color:#16A34A">✅ Liberado</span>':((mr.analysis&&mr.analysis.trim())?'<span style="font-size:11px;color:#D97706">📝 Rascunho</span>':'<span style="font-size:11px;color:#9CA3AF">— pendente</span>'))+'</td>'
-          +'<td style="text-align:right"><button class="btn btn-p btn-s" style="font-size:11px;white-space:nowrap" onclick="openMonthReportModal(\''+c.id+'\',\''+S.gestaoFilterMonth+'\')">✍️ Abrir / validar</button></td>'
+          +'<td style="text-align:right"><button class="btn btn-p btn-s" style="font-size:11px;white-space:nowrap" onclick="openMonthReportModal(\''+c.id+'\',\''+S.gestaoRelMonth+'\')">✍️ Abrir / validar</button></td>'
         +'</tr>';
       }).join('')
     +'</tbody></table></div></details>'
@@ -5571,7 +5587,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063026; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063027; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
