@@ -1231,7 +1231,7 @@ function calcResultados(c){
     if(p.replied)byMonth[key].leads++;
     if(p.hadMeeting)byMonth[key].meetings++;
     // Interno (meta): conta pelo mês de ENTRADA do lead. Fechamento por data de fechamento fica no portal (comissão).
-    if(p.contractClosed){byMonth[key].sales++;byMonth[key].revenue+=parseFloat(p.contractValue||0);}
+    if(p.contractClosed){byMonth[key].sales++;byMonth[key].revenue+=_parseMoney(p.contractValue);}
   });
   // Ordenar por data (mais recente primeiro)
   return Object.values(byMonth).sort(function(a,b){
@@ -5083,35 +5083,40 @@ document.addEventListener('click',function(e){
   if(dd&&dd.style.display==='block'&&!e.target.closest('.portal-month-picker'))dd.style.display='none';
 });
 
-function rPortalDashboard(c){
-  // Lista completa de meses de 2026 (Janeiro → mês atual), mesclando os resultados já lançados
-  const _ptMdash=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  const _nowD=new Date();
-  const _curIdx=_nowD.getFullYear()===2026?_nowD.getMonth():(_nowD.getFullYear()>2026?11:0);
-  const _existing={};(c.results||[]).forEach(function(r){if(r&&r.month)_existing[r.month]=r;});
-  // Calcula os indicadores AUTOMATICAMENTE a partir dos leads cadastrados (atualiza em tempo real).
-  // Mantém resultados antigos lançados à mão nos meses que não têm leads (preserva histórico).
-  const _moIdx=function(d){if(!d)return -1;var dt=new Date(d+'T12:00:00');return dt.getFullYear()===2026?dt.getMonth():-1;};
-  const _parseVal=function(v){if(v==null)return 0;var s=(''+v).replace(/[^\d.,]/g,'');if(s.indexOf(',')>-1)s=s.replace(/\./g,'').replace(',','.');return parseFloat(s)||0;};
-  const _allP=c.prospects||[];
-  const res=[];
-  for(let _m=0;_m<=_curIdx;_m++){
-    const _key=_ptMdash[_m]+' 2026';
-    const _created=_allP.filter(function(p){return _moIdx(p.date)===_m;});
-    const _vendas=_allP.filter(function(p){return p.contractClosed&&_moIdx(p.closedDate||p.date)===_m;});
-    if(_created.length>0||_vendas.length>0){
-      res.push({month:_key,
-        prospects:_created.length,
-        leads:_created.filter(function(p){return p.replied;}).length,
-        meetings:_created.filter(function(p){return p.hadMeeting;}).length,
-        sales:_vendas.length,
-        revenue:_vendas.reduce(function(s,p){return s+_parseVal(p.contractValue);},0)});
-    }else{
-      res.push(_existing[_key]||{month:_key,prospects:0,leads:0,meetings:0,sales:0,revenue:0});
-    }
+// Parser de dinheiro: entende "R$ 1.497,00", "R$4997,00", "1800" -> número
+function _parseMoney(v){if(v==null)return 0;var s=(''+v).replace(/[^\d.,]/g,'');if(s.indexOf(',')>-1)s=s.replace(/\./g,'').replace(',','.');return parseFloat(s)||0;}
+// Resultados mensais do portal: ANO DINÂMICO (do 1º lead até hoje), fechamento pela data de fechamento, receita parseada.
+function portalMonthlyResults(c){
+  const ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const mkOf=function(d){if(!d)return'';var dt=new Date(d+'T12:00:00');if(isNaN(dt))return'';return ptM[dt.getMonth()]+' '+dt.getFullYear();};
+  const P=c.prospects||[];
+  const existing={};(c.results||[]).forEach(function(r){if(r&&r.month)existing[r.month]=r;});
+  const now=new Date();let minY=now.getFullYear(),minM=now.getMonth();
+  P.forEach(function(p){var d=p.date&&new Date(p.date+'T12:00:00');if(d&&!isNaN(d)){if(d.getFullYear()<minY||(d.getFullYear()===minY&&d.getMonth()<minM)){minY=d.getFullYear();minM=d.getMonth();}}});
+  const out=[];let y=minY,m=minM;
+  while(y<now.getFullYear()||(y===now.getFullYear()&&m<=now.getMonth())){
+    const key=ptM[m]+' '+y;
+    const created=P.filter(function(p){return mkOf(p.date)===key;});
+    const vendas=P.filter(function(p){return p.contractClosed&&mkOf(p.closedDate||p.date)===key;});
+    if(created.length||vendas.length){
+      out.push({month:key,prospects:created.length,leads:created.filter(function(p){return p.replied;}).length,meetings:created.filter(function(p){return p.hadMeeting;}).length,sales:vendas.length,revenue:vendas.reduce(function(s,p){return s+_parseMoney(p.contractValue);},0)});
+    }else{out.push(existing[key]||{month:key,prospects:0,leads:0,meetings:0,sales:0,revenue:0});}
+    m++;if(m>11){m=0;y++;}
   }
-  res.reverse();// mais recente primeiro
-  const hasRealData=(c.results||[]).length>0||_allP.length>0;
+  out.reverse();return out;
+}
+function rPortalDashboard(c){
+  const res=portalMonthlyResults(c);
+  const hasRealData=(c.results||[]).length>0||(c.prospects||[]).length>0;
+  // Totais desde a entrada (visão geral)
+  const totLeads=res.reduce(function(s,r){return s+(r.prospects||0);},0);
+  const totResp=res.reduce(function(s,r){return s+(r.leads||0);},0);
+  const totReun=res.reduce(function(s,r){return s+(r.meetings||0);},0);
+  const totFech=res.reduce(function(s,r){return s+(r.sales||0);},0);
+  const totRev=res.reduce(function(s,r){return s+(r.revenue||0);},0);
+  const convGeral=totLeads?Math.round(totFech/totLeads*100):0;
+  // gráfico de leads por mês (inicia após inserir no DOM)
+  setTimeout(function(){try{var el=document.getElementById('portalOverviewChart');if(!el||typeof Chart==='undefined')return;if(el._chart)el._chart.destroy();var chrono=res.slice().reverse();var lbl=chrono.map(function(r){var p=r.month.split(' ');return p[0].slice(0,3)+'/'+(p[1]||'').slice(2);});el._chart=new Chart(el,{type:'bar',data:{labels:lbl,datasets:[{label:'Leads',data:chrono.map(function(r){return r.prospects;}),backgroundColor:'#0D3D9B',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});}catch(e){}},120);
   const idx=Math.min(S.portalMonthIdx,Math.max(res.length-1,0));
   const sel=res.length?res[idx]:{prospects:0,leads:0,meetings:0,sales:0,month:''};
   const prev=res.length?res[idx+1]:null;
@@ -5155,6 +5160,19 @@ function rPortalDashboard(c){
       ${monthPicker}
     </div>
     ${(!hasRealData&&!c.semLeads)?`<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:14px 18px;margin-bottom:24px;font-size:12px;color:#92400E">📊 Nenhum resultado registrado ainda. Os dados mensais aparecerão aqui quando lançados.</div>`:''}
+    ${(c.semLeads||!hasRealData)?'':`<div class="portal-card" style="margin-bottom:20px">
+      <div class="portal-card-header">Visão geral — desde o início</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:10px;margin:6px 0 16px">
+        <div style="text-align:center;padding:10px;background:#F8FAFF;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#0D3D9B">${totLeads}</div><div style="font-size:10px;color:#64748B">Total de leads</div></div>
+        <div style="text-align:center;padding:10px;background:#F5F3FF;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#7C3AED">${totResp}</div><div style="font-size:10px;color:#64748B">Responderam</div></div>
+        <div style="text-align:center;padding:10px;background:#FFF7ED;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#EA580C">${totReun}</div><div style="font-size:10px;color:#64748B">Reuniões</div></div>
+        <div style="text-align:center;padding:10px;background:#F0FDF4;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#16A34A">${totFech}</div><div style="font-size:10px;color:#64748B">Fechamentos</div></div>
+        <div style="text-align:center;padding:10px;background:#EFF6FF;border-radius:10px"><div style="font-size:22px;font-weight:700;color:#0D3D9B">${convGeral}%</div><div style="font-size:10px;color:#64748B">Conversão</div></div>
+        ${totRev>0?`<div style="text-align:center;padding:10px;background:#F0FDF4;border-radius:10px"><div style="font-size:16px;font-weight:700;color:#16A34A">R$ ${totRev.toLocaleString('pt-BR')}</div><div style="font-size:10px;color:#64748B">Receita</div></div>`:''}
+      </div>
+      <div style="font-size:11px;color:#64748B;margin-bottom:6px">📈 Leads por mês</div>
+      <div style="height:200px;position:relative"><canvas id="portalOverviewChart"></canvas></div>
+    </div>`}
     ${c.semLeads?'':`<div class="portal-metrics">
       <div class="portal-metric">
         <div class="portal-metric-header"><div class="portal-metric-icon">👥</div>${trend(sel.prospects||0,prev&&prev.prospects)}</div>
@@ -5441,7 +5459,7 @@ function rPortalReunioes(c){
 }
 
 function rPortalRelatorios(c){
-  const months=calcResultados(c);
+  const months=portalMonthlyResults(c);
   function trend(cur,prv){
     if(prv==null)return'';
     const diff=Math.round(((cur-prv)/(prv||1))*100);
@@ -5631,7 +5649,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063031; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063032; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
