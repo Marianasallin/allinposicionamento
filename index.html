@@ -1047,7 +1047,7 @@ function rClients(){
       </div>`;
     }
     const member=D.team.find(m=>m.name===S.selectedTeamMember);
-    const myClients=D.clients.filter(c=>c.assignees.includes(S.selectedTeamMember)).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+    const myClients=D.clients.filter(c=>(c.assignees||[]).includes(S.selectedTeamMember)||(c.contentOwners||[]).includes(S.selectedTeamMember)).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
     const myActive=myClients.filter(c=>c.contractStatus==='ativo');
     const myExpired=myClients.filter(c=>c.contractStatus==='vencido');
     const allDels=myClients.flatMap(c=>c.deliverables);
@@ -5631,7 +5631,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063030; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063031; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
