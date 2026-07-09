@@ -1251,6 +1251,9 @@ function _prospMetricsMonth(c,mk){
   var avg=function(a){return a.length?Math.round(a.reduce(function(s,x){return s+x;},0)/a.length):null;};
   return {leads:getClientLeadsForMonth(c,mk),mensagens:msg,convites:conv,visitas:visit,seguir:seguir,ssi:ssiV.length?ssiV[ssiV.length-1]:null,respAvg:avg(rr),accAvg:avg(ar)};
 }
+// Texto padrão de objetivos (igual ao modelo) — usado quando a cliente ainda não tem um objetivo próprio
+var DEFAULT_OBJETIVOS='Posicionar você como referência e autoridade no LinkedIn, fortalecendo sua marca pessoal, ampliando o alcance e a visibilidade do seu perfil e gerando conexões qualificadas e novas oportunidades de negócio por meio de conteúdo estratégico e prospecção ativa.';
+function _objetivosText(c){return (c&&c.objetivos&&(''+c.objetivos).trim())?c.objetivos:DEFAULT_OBJETIVOS;}
 // Formulário do Relatório de Resultados (o que preenchem aqui sobe pro portal)
 function _relResultadosForm(c){
   const ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -1271,11 +1274,17 @@ function _relResultadosForm(c){
     +'<div class="cb">'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Mês:</span>'+chips+'</div>'
     +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">🎯 Objetivos <span style="font-weight:400;text-transform:none;color:var(--muted)">(texto fixo — aparece no topo do relatório)</span></div>'
-    +'<textarea id="rr-obj" style="width:100%;min-height:64px;margin-bottom:6px" placeholder="Ex.: Crescimento da marca pessoal no LinkedIn; prospecção qualificada; conteúdo semanal...">'+(c.objetivos||'').replace(/</g,'&lt;')+'</textarea>'
+    +'<textarea id="rr-obj" style="width:100%;min-height:64px;margin-bottom:6px" placeholder="Objetivos da cliente...">'+_objetivosText(c).replace(/</g,'&lt;')+'</textarea>'
     +'<button class="btn btn-o btn-s" onclick="saveObjetivos(\''+c.id+'\')" style="margin-bottom:18px">💾 Salvar objetivos</button>'
-    +'<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🎯 Prospecção — '+mk+' <span style="font-weight:400;text-transform:none">(automático, das campanhas)</span></div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🎯 Prospecção — '+mk+' <span style="font-weight:400;text-transform:none">(automático, dos leads)</span></div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px;margin-bottom:18px">'
-    +stat('Leads',pm.leads)+stat('Mensagens',pm.mensagens)+stat('Convites',pm.convites)+stat('SSI',pm.ssi!=null?pm.ssi:'—')+stat('Taxa resp.',pm.respAvg!=null?pm.respAvg+'%':'—')+stat('Taxa aceit.',pm.accAvg!=null?pm.accAvg+'%':'—')
+    +stat('Leads',pm.leads)+stat('Taxa resp. média',pm.respAvg!=null?pm.respAvg+'%':'—')+stat('Taxa aceit. média',pm.accAvg!=null?pm.accAvg+'%':'—')
+    +'</div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">📨 Prospecção — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Social Seller)</span></div>'
+    +'<div class="fgrid" style="margin-bottom:16px">'
+    +'<div class="fg"><label>Mensagens</label><input type="number" id="rr-msg" value="'+val(mm.mensagens)+'"></div>'
+    +'<div class="fg"><label>Convites</label><input type="number" id="rr-conv" value="'+val(mm.convites)+'"></div>'
+    +'<div class="fg"><label>SSI</label><input type="number" id="rr-ssi" value="'+val(mm.ssi)+'"></div>'
     +'</div>'
     +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">📈 Seguidores — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Social Seller)</span></div>'
     +'<div class="fg" style="max-width:240px;margin-bottom:16px"><label>Nº de seguidores no mês</label><input type="number" id="rr-followers" value="'+val(mm.followers)+'" placeholder="ex.: 16124"></div>'
@@ -1286,7 +1295,7 @@ function _relResultadosForm(c){
     +'<div class="fg"><label>Alcance</label><input type="number" id="rr-alc" value="'+val(mm.alcance)+'"></div>'
     +'<div class="fg"><label>Visualizações de perfil</label><input type="number" id="rr-vis" value="'+val(mm.visualizacoes)+'"></div>'
     +'</div>'
-    +'<button class="btn btn-p btn-s" onclick="saveMonthlyMetrics(\''+c.id+'\',\''+mk+'\')">💾 Salvar seguidores + conteúdo ('+mk+')</button>'
+    +'<button class="btn btn-p btn-s" onclick="saveMonthlyMetrics(\''+c.id+'\',\''+mk+'\')">💾 Salvar métricas de '+mk+'</button>'
     +'<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);font-size:12px;color:var(--muted)">📝 Análise do mês: '+(mr.analysis&&mr.analysis.trim()?(mr.released?'✅ liberada':'📝 rascunho'):'— pendente')+' <button class="btn btn-o btn-s" onclick="openMonthReportModal(\''+c.id+'\',\''+mk+'\')" style="font-size:11px;margin-left:6px">Escrever / validar análise</button></div>'
     +'</div></div>';
 }
@@ -1299,7 +1308,7 @@ function saveMonthlyMetrics(cid,mk){
   const c=D.clients.find(x=>x.id===cid);if(!c)return;
   if(!c.monthlyMetrics)c.monthlyMetrics={};
   const num=function(id){var el=$(id);if(!el)return null;var v=(el.value||'').trim();if(v==='')return null;v=v.replace(/\./g,'').replace(',','.');var n=parseFloat(v);return isNaN(n)?null:n;};
-  c.monthlyMetrics[mk]={followers:num('rr-followers'),publicacoes:num('rr-pub'),impressoes:num('rr-imp'),alcance:num('rr-alc'),visualizacoes:num('rr-vis')};
+  c.monthlyMetrics[mk]={mensagens:num('rr-msg'),convites:num('rr-conv'),ssi:num('rr-ssi'),followers:num('rr-followers'),publicacoes:num('rr-pub'),impressoes:num('rr-imp'),alcance:num('rr-alc'),visualizacoes:num('rr-vis')};
   save();if(typeof toast==='function')toast('💾 Métricas de '+mk+' salvas — já subiram pro portal!');render();
 }
 function rDetailResultados(c){
@@ -5528,16 +5537,18 @@ function rPortalReunioes(c){
 
 function rPortalRelatorios(c){
   const months=portalMonthlyResults(c);
-  const objetivos=(c.objetivos||'').trim();
+  const objetivos=_objetivosText(c);
   const short=function(mk){var p=mk.split(' ');return p[0].slice(0,3)+'/'+(p[1]||'').slice(2);};
   const mini=function(v,l,color,bg){return '<div style="text-align:center;padding:12px 8px;background:'+bg+';border-radius:10px"><div style="font-size:20px;font-weight:700;color:'+color+'">'+v+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">'+l+'</div></div>';};
+  const has=function(v){return v!=null&&v!=='';};
+  const mmOf=function(mk){return (c.monthlyMetrics||{})[mk]||{};};
   // Tabela de métricas por mês (evolução)
   const chrono=months.slice().reverse();
   const evoDefs=[
-    {lbl:'Seguidores',get:function(r){var mm=(c.monthlyMetrics||{})[r.month]||{};return mm.followers!=null?Number(mm.followers).toLocaleString('pt-BR'):'—';}},
-    {lbl:'Mensagens',get:function(r){var p=_prospMetricsMonth(c,r.month);return p.mensagens?Number(p.mensagens).toLocaleString('pt-BR'):'—';}},
+    {lbl:'Seguidores',get:function(r){var mm=mmOf(r.month);return has(mm.followers)?Number(mm.followers).toLocaleString('pt-BR'):'—';}},
+    {lbl:'Mensagens',get:function(r){var mm=mmOf(r.month);return has(mm.mensagens)?Number(mm.mensagens).toLocaleString('pt-BR'):'—';}},
     {lbl:'Leads',get:function(r){return r.prospects||0;}},
-    {lbl:'SSI',get:function(r){var p=_prospMetricsMonth(c,r.month);return p.ssi!=null?p.ssi:'—';}}
+    {lbl:'SSI',get:function(r){var mm=mmOf(r.month);return has(mm.ssi)?mm.ssi:'—';}}
   ];
   const evoTable=chrono.length>1?'<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">Métricas por mês</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:6px 8px;color:#64748B;font-weight:600">Indicador</th>'+chrono.map(function(r){return '<th style="padding:6px 8px;color:#64748B;font-weight:600;white-space:nowrap">'+short(r.month)+'</th>';}).join('')+'</tr></thead><tbody>'+evoDefs.map(function(row){return '<tr style="border-top:1px solid #F1F5F9"><td style="padding:7px 8px;font-weight:600;color:#1E293B">'+row.lbl+'</td>'+chrono.map(function(r){return '<td style="text-align:center;padding:7px 8px;color:#334155">'+row.get(r)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>':'';
   const cards=months.map(function(r,i){
@@ -5552,11 +5563,11 @@ function rPortalRelatorios(c){
       +mini(r.leads,'💬 Responderam','#7C3AED','#F5F3FF')
       +mini(r.meetings,'🤝 Reuniões','#EA580C','#FFF7ED')
       +mini(r.sales,'✅ Fechamentos','#16A34A','#F0FDF4')
-      +mini(pm.accAvg!=null?pm.accAvg+'%':'—','Taxa aceitação','#0D3D9B','#F8FAFF')
-      +mini(pm.respAvg!=null?pm.respAvg+'%':'—','Taxa resposta','#0D3D9B','#F8FAFF')
-      +(pm.mensagens?mini(Number(pm.mensagens).toLocaleString('pt-BR'),'Mensagens','#0D3D9B','#F8FAFF'):'')
-      +(pm.convites?mini(Number(pm.convites).toLocaleString('pt-BR'),'Convites','#0D3D9B','#F8FAFF'):'')
-      +(pm.ssi!=null?mini(pm.ssi,'SSI','#0D3D9B','#F8FAFF'):'')
+      +mini(pm.accAvg!=null?pm.accAvg+'%':'—','Taxa aceitação média','#0D3D9B','#F8FAFF')
+      +mini(pm.respAvg!=null?pm.respAvg+'%':'—','Taxa resposta média','#0D3D9B','#F8FAFF')
+      +(has(mm.mensagens)?mini(Number(mm.mensagens).toLocaleString('pt-BR'),'Mensagens','#0D3D9B','#F8FAFF'):'')
+      +(has(mm.convites)?mini(Number(mm.convites).toLocaleString('pt-BR'),'Convites','#0D3D9B','#F8FAFF'):'')
+      +(has(mm.ssi)?mini(mm.ssi,'SSI','#0D3D9B','#F8FAFF'):'')
       +'</div>';
     const contHtml=temConteudo?('<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin:4px 0 8px">✍️ Conteúdo e alcance</div>'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px;margin-bottom:14px">'
@@ -5590,7 +5601,7 @@ function rClientPortalAuth(){
     {id:'entregas',icon:'📦',label:'Entregas'},
     {id:'prospeccao',icon:'🎯',label:'Leads'},
     {id:'reunioes',icon:'🤝',label:'Reuniões'},
-    {id:'relatorios',icon:'📊',label:'Resultados'},
+    {id:'relatorios',icon:'📊',label:'Relatório de Resultados'},
   ].filter(n=>!(c.semLeads&&(n.id==='prospeccao'||n.id==='relatorios')));
   if(c.semLeads&&(pv==='prospeccao'||pv==='relatorios')){pv='dashboard';S.portalView='dashboard';}
   const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',reunioes:'Reuniões',relatorios:'Relatório de Resultados'};
@@ -5732,7 +5743,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063035; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063036; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
