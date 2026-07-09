@@ -1238,6 +1238,70 @@ function calcResultados(c){
     return b.year!==a.year?b.year-a.year:b.monthNum-a.monthNum;
   });
 }
+// Métricas de prospecção de um mês (somadas das medições de campanha)
+function _prospMetricsMonth(c,mk){
+  let msg=0,conv=0,visit=0,seguir=0;const ssiV=[],rr=[],ar=[];
+  (c.campaigns||[]).forEach(function(cp){_campHist(cp).forEach(function(m){
+    if(!m.date)return;var d=new Date(m.date+'T12:00:00');if(isNaN(d)||getMonthKey(d)!==mk)return;
+    msg+=parseFloat(m.mensagens)||0;conv+=parseFloat(m.convite)||0;visit+=parseFloat(m.visitar)||0;seguir+=parseFloat(m.seguir)||0;
+    var ss=parseFloat(m.ssi);if(!isNaN(ss))ssiV.push(ss);
+    var r=parseFloat(m.respRate);if(!isNaN(r))rr.push(r);
+    var a=parseFloat(m.accRate);if(!isNaN(a))ar.push(a);
+  });});
+  var avg=function(a){return a.length?Math.round(a.reduce(function(s,x){return s+x;},0)/a.length):null;};
+  return {leads:getClientLeadsForMonth(c,mk),mensagens:msg,convites:conv,visitas:visit,seguir:seguir,ssi:ssiV.length?ssiV[ssiV.length-1]:null,respAvg:avg(rr),accAvg:avg(ar)};
+}
+// Formulário do Relatório de Resultados (o que preenchem aqui sobe pro portal)
+function _relResultadosForm(c){
+  const ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const mkOf=function(d){try{var x=new Date(d+'T12:00:00');return isNaN(x)?'':ptM[x.getMonth()]+' '+x.getFullYear();}catch(e){return'';}};
+  const setM=new Set((c.prospects||[]).map(function(p){return p.date&&mkOf(p.date);}).filter(Boolean));
+  setM.add(currentTrackingMonthKey());setM.add(_relMonthKey());
+  const months=[...setM].sort(function(a,b){var A=a.split(' '),B=b.split(' ');return (parseInt(B[1])*12+ptM.indexOf(B[0]))-(parseInt(A[1])*12+ptM.indexOf(A[0]));});
+  if(!S.relMetricMonth||months.indexOf(S.relMetricMonth)<0)S.relMetricMonth=_relMonthKey();
+  const mk=S.relMetricMonth;
+  const mm=(c.monthlyMetrics&&c.monthlyMetrics[mk])||{};
+  const pm=_prospMetricsMonth(c,mk);
+  const mr=(c.monthlyReports||{})[mk]||{};
+  const chips=months.map(function(m){return '<span class="fc '+(mk===m?'active':'')+'" onclick="S.relMetricMonth=\''+m+'\';render()" style="font-size:11px">'+m+'</span>';}).join('');
+  const stat=function(l,v){return '<div style="text-align:center;padding:8px;background:#F8FAFF;border-radius:8px"><div style="font-size:16px;font-weight:700;color:#0D3D9B">'+v+'</div><div style="font-size:10px;color:var(--muted)">'+l+'</div></div>';};
+  const val=function(v){return v!=null&&v!==''?v:'';};
+  return '<div class="card" style="margin-bottom:16px;border:1px solid #DBEAFE">'
+    +'<div class="ch" style="background:linear-gradient(135deg,#0D3D9B,#0077B5)"><h3 style="color:white;margin:0">📊 Relatório de Resultados</h3><span style="font-size:11px;color:rgba(255,255,255,.85)">o que você preenche aqui sobe pro portal da cliente</span></div>'
+    +'<div class="cb">'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Mês:</span>'+chips+'</div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">🎯 Objetivos <span style="font-weight:400;text-transform:none;color:var(--muted)">(texto fixo — aparece no topo do relatório)</span></div>'
+    +'<textarea id="rr-obj" style="width:100%;min-height:64px;margin-bottom:6px" placeholder="Ex.: Crescimento da marca pessoal no LinkedIn; prospecção qualificada; conteúdo semanal...">'+(c.objetivos||'').replace(/</g,'&lt;')+'</textarea>'
+    +'<button class="btn btn-o btn-s" onclick="saveObjetivos(\''+c.id+'\')" style="margin-bottom:18px">💾 Salvar objetivos</button>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🎯 Prospecção — '+mk+' <span style="font-weight:400;text-transform:none">(automático, das campanhas)</span></div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px;margin-bottom:18px">'
+    +stat('Leads',pm.leads)+stat('Mensagens',pm.mensagens)+stat('Convites',pm.convites)+stat('SSI',pm.ssi!=null?pm.ssi:'—')+stat('Taxa resp.',pm.respAvg!=null?pm.respAvg+'%':'—')+stat('Taxa aceit.',pm.accAvg!=null?pm.accAvg+'%':'—')
+    +'</div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">📈 Seguidores — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Social Seller)</span></div>'
+    +'<div class="fg" style="max-width:240px;margin-bottom:16px"><label>Nº de seguidores no mês</label><input type="number" id="rr-followers" value="'+val(mm.followers)+'" placeholder="ex.: 16124"></div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">✍️ Conteúdo — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Conteúdo — Gabi/Naiara)</span></div>'
+    +'<div class="fgrid" style="margin-bottom:12px">'
+    +'<div class="fg"><label>Publicações</label><input type="number" id="rr-pub" value="'+val(mm.publicacoes)+'"></div>'
+    +'<div class="fg"><label>Impressões</label><input type="number" id="rr-imp" value="'+val(mm.impressoes)+'"></div>'
+    +'<div class="fg"><label>Alcance</label><input type="number" id="rr-alc" value="'+val(mm.alcance)+'"></div>'
+    +'<div class="fg"><label>Visualizações de perfil</label><input type="number" id="rr-vis" value="'+val(mm.visualizacoes)+'"></div>'
+    +'</div>'
+    +'<button class="btn btn-p btn-s" onclick="saveMonthlyMetrics(\''+c.id+'\',\''+mk+'\')">💾 Salvar seguidores + conteúdo ('+mk+')</button>'
+    +'<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);font-size:12px;color:var(--muted)">📝 Análise do mês: '+(mr.analysis&&mr.analysis.trim()?(mr.released?'✅ liberada':'📝 rascunho'):'— pendente')+' <button class="btn btn-o btn-s" onclick="openMonthReportModal(\''+c.id+'\',\''+mk+'\')" style="font-size:11px;margin-left:6px">Escrever / validar análise</button></div>'
+    +'</div></div>';
+}
+function saveObjetivos(cid){
+  const c=D.clients.find(x=>x.id===cid);if(!c)return;
+  c.objetivos=($('rr-obj')?$('rr-obj').value:'')||'';
+  save();if(typeof toast==='function')toast('💾 Objetivos salvos!');
+}
+function saveMonthlyMetrics(cid,mk){
+  const c=D.clients.find(x=>x.id===cid);if(!c)return;
+  if(!c.monthlyMetrics)c.monthlyMetrics={};
+  const num=function(id){var el=$(id);if(!el)return null;var v=(el.value||'').trim();if(v==='')return null;v=v.replace(/\./g,'').replace(',','.');var n=parseFloat(v);return isNaN(n)?null:n;};
+  c.monthlyMetrics[mk]={followers:num('rr-followers'),publicacoes:num('rr-pub'),impressoes:num('rr-imp'),alcance:num('rr-alc'),visualizacoes:num('rr-vis')};
+  save();if(typeof toast==='function')toast('💾 Métricas de '+mk+' salvas — já subiram pro portal!');render();
+}
 function rDetailResultados(c){
   try{
     const months=calcResultados(c);
@@ -1264,7 +1328,8 @@ function rDetailResultados(c){
     }).join('');
     const emptyMsg='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Nenhum lead cadastrado ainda.<br><small>Adicione leads na aba 🎯 Leads para ver os resultados aqui.</small></td></tr>';
     const revenueTotal=totR>0?'<div class="res-card"><div class="res-num" style="color:#057642">R$ '+totR.toLocaleString('pt-BR')+'</div><div class="res-lbl">Receita Total</div></div>':'';
-    return '<div class="stats-grid" style="grid-template-columns:repeat('+( totR>0?5:4)+',1fr);margin-bottom:20px">'
+    return _relResultadosForm(c)
+      +'<div class="stats-grid" style="grid-template-columns:repeat('+( totR>0?5:4)+',1fr);margin-bottom:20px">'
       +'<div class="res-card"><div class="res-num" style="color:#0077B5">'+totP+'</div><div class="res-lbl">Leads</div></div>'
       +'<div class="res-card"><div class="res-num" style="color:#7C3AED">'+totL+'</div><div class="res-lbl">Responderam</div></div>'
       +'<div class="res-card"><div class="res-num" style="color:#E8622A">'+totM+'</div><div class="res-lbl">Reuniões</div></div>'
@@ -5652,7 +5717,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063033; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063034; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
