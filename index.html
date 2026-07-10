@@ -1239,17 +1239,33 @@ function calcResultados(c){
   });
 }
 // Métricas de prospecção de um mês (somadas das medições de campanha)
+// Medições de prospecção — agora ÚNICAS por cliente (c.prospMeasurements), preenchidas 2x/mês com data.
+// Fallback (leitura): se ainda não existe, agrega as medições antigas que estavam dentro das campanhas.
+function _prospMeasHist(c){
+  var a;
+  if(Array.isArray(c.prospMeasurements))a=c.prospMeasurements.slice();
+  else{a=[];(c.campaigns||[]).forEach(function(cp){_campHist(cp).forEach(function(m){a.push(m);});});}
+  a.sort(function(x,y){return (''+(y.date||'')).localeCompare(''+(x.date||''));});
+  return a;
+}
+// Garante c.prospMeasurements[] (migra medições antigas das campanhas na primeira escrita)
+function _ensureProspMeas(c){
+  if(!Array.isArray(c.prospMeasurements)){
+    var a=[];(c.campaigns||[]).forEach(function(cp){_campHist(cp).forEach(function(m){a.push(Object.assign({},m));});});
+    a.sort(function(x,y){return (''+(y.date||'')).localeCompare(''+(x.date||''));});
+    c.prospMeasurements=a;
+  }
+  return c.prospMeasurements;
+}
 function _prospMetricsMonth(c,mk){
-  let msg=0,conv=0,visit=0,seguir=0;const ssiV=[],rr=[],ar=[];
-  (c.campaigns||[]).forEach(function(cp){_campHist(cp).forEach(function(m){
-    if(!m.date)return;var d=new Date(m.date+'T12:00:00');if(isNaN(d)||getMonthKey(d)!==mk)return;
-    msg+=parseFloat(m.mensagens)||0;conv+=parseFloat(m.convite)||0;visit+=parseFloat(m.visitar)||0;seguir+=parseFloat(m.seguir)||0;
-    var ss=parseFloat(m.ssi);if(!isNaN(ss))ssiV.push(ss);
-    var r=parseFloat(m.respRate);if(!isNaN(r))rr.push(r);
-    var a=parseFloat(m.accRate);if(!isNaN(a))ar.push(a);
-  });});
+  var hist=_prospMeasHist(c).filter(function(m){if(!m.date)return false;var d=new Date(m.date+'T12:00:00');return !isNaN(d)&&getMonthKey(d)===mk;});
+  // hist ordenado do mais recente pro mais antigo → pega, por campo, o último valor preenchido no mês
+  var num=function(v){if(v===''||v==null)return null;var n=parseFloat(v);return isNaN(n)?null:n;};
+  var pick=function(f){for(var i=0;i<hist.length;i++){var v=hist[i][f];if(v!==''&&v!=null&&!isNaN(parseFloat(v)))return parseFloat(v);}return null;};
+  var rr=[],ar=[];
+  hist.forEach(function(m){var r=parseFloat(m.respRate);if(!isNaN(r))rr.push(r);var a=parseFloat(m.accRate);if(!isNaN(a))ar.push(a);});
   var avg=function(a){return a.length?Math.round(a.reduce(function(s,x){return s+x;},0)/a.length):null;};
-  return {leads:getClientLeadsForMonth(c,mk),mensagens:msg,convites:conv,visitas:visit,seguir:seguir,ssi:ssiV.length?ssiV[ssiV.length-1]:null,respAvg:avg(rr),accAvg:avg(ar)};
+  return {leads:getClientLeadsForMonth(c,mk),mensagens:pick('mensagens'),convites:pick('convite'),seguir:pick('seguir'),visitas:pick('visitar'),ssi:pick('ssi'),respAvg:avg(rr),accAvg:avg(ar),measDate:hist[0]?hist[0].date:''};
 }
 // Texto padrão de objetivos (igual ao modelo) — usado quando a cliente ainda não tem um objetivo próprio
 var DEFAULT_OBJETIVOS='Posicionar você como referência e autoridade no LinkedIn, fortalecendo sua marca pessoal, ampliando o alcance e a visibilidade do seu perfil e gerando conexões qualificadas e novas oportunidades de negócio por meio de conteúdo estratégico e prospecção ativa.';
@@ -1273,18 +1289,16 @@ function _relResultadosForm(c){
     +'<div class="ch" style="background:linear-gradient(135deg,#0D3D9B,#0077B5)"><h3 style="color:white;margin:0">📊 Relatório de Resultados</h3><span style="font-size:11px;color:rgba(255,255,255,.85)">o que você preenche aqui sobe pro portal da cliente</span></div>'
     +'<div class="cb">'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Mês:</span>'+chips+'</div>'
-    +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">🎯 Objetivos <span style="font-weight:400;text-transform:none;color:var(--muted)">(texto fixo — aparece no topo do relatório)</span></div>'
-    +'<textarea id="rr-obj" style="width:100%;min-height:64px;margin-bottom:6px" placeholder="Objetivos da cliente...">'+_objetivosText(c).replace(/</g,'&lt;')+'</textarea>'
-    +'<button class="btn btn-o btn-s" onclick="saveObjetivos(\''+c.id+'\')" style="margin-bottom:18px">💾 Salvar objetivos</button>'
-    +'<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🎯 Prospecção — '+mk+' <span style="font-weight:400;text-transform:none">(automático, dos leads)</span></div>'
-    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px;margin-bottom:18px">'
-    +stat('Leads',pm.leads)+stat('Taxa resp. média',pm.respAvg!=null?pm.respAvg+'%':'—')+stat('Taxa aceit. média',pm.accAvg!=null?pm.accAvg+'%':'—')
-    +'</div>'
-    +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">📨 Prospecção — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Social Seller)</span></div>'
-    +'<div class="fgrid" style="margin-bottom:16px">'
-    +'<div class="fg"><label>Mensagens</label><input type="number" id="rr-msg" value="'+val(mm.mensagens)+'"></div>'
-    +'<div class="fg"><label>Convites</label><input type="number" id="rr-conv" value="'+val(mm.convites)+'"></div>'
-    +'<div class="fg"><label>SSI</label><input type="number" id="rr-ssi" value="'+val(mm.ssi)+'"></div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🎯 Prospecção — '+mk+' <span style="font-weight:400;text-transform:none">(automático — leads + medição da aba Campanhas'+(pm.measDate?', última em '+(function(d){var x=new Date(d+"T12:00:00");return isNaN(x)?d:x.toLocaleDateString("pt-BR");})(pm.measDate):'')+')</span></div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px;margin-bottom:18px">'
+    +stat('Leads',pm.leads)
+    +stat('Mensagens',pm.mensagens!=null?pm.mensagens:'—')
+    +stat('Convites',pm.convites!=null?pm.convites:'—')
+    +stat('Seguir',pm.seguir!=null?pm.seguir:'—')
+    +stat('Visitar',pm.visitas!=null?pm.visitas:'—')
+    +stat('SSI',pm.ssi!=null?pm.ssi:'—')
+    +stat('Taxa resp. média',pm.respAvg!=null?pm.respAvg+'%':'—')
+    +stat('Taxa aceit. média',pm.accAvg!=null?pm.accAvg+'%':'—')
     +'</div>'
     +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">📈 Seguidores — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Social Seller)</span></div>'
     +'<div class="fg" style="max-width:240px;margin-bottom:16px"><label>Nº de seguidores no mês</label><input type="number" id="rr-followers" value="'+val(mm.followers)+'" placeholder="ex.: 16124"></div>'
@@ -1308,7 +1322,7 @@ function saveMonthlyMetrics(cid,mk){
   const c=D.clients.find(x=>x.id===cid);if(!c)return;
   if(!c.monthlyMetrics)c.monthlyMetrics={};
   const num=function(id){var el=$(id);if(!el)return null;var v=(el.value||'').trim();if(v==='')return null;v=v.replace(/\./g,'').replace(',','.');var n=parseFloat(v);return isNaN(n)?null:n;};
-  c.monthlyMetrics[mk]={mensagens:num('rr-msg'),convites:num('rr-conv'),ssi:num('rr-ssi'),followers:num('rr-followers'),publicacoes:num('rr-pub'),impressoes:num('rr-imp'),alcance:num('rr-alc'),visualizacoes:num('rr-vis')};
+  c.monthlyMetrics[mk]={followers:num('rr-followers'),publicacoes:num('rr-pub'),impressoes:num('rr-imp'),alcance:num('rr-alc'),visualizacoes:num('rr-vis')};
   save();if(typeof toast==='function')toast('💾 Métricas de '+mk+' salvas — já subiram pro portal!');render();
 }
 function rDetailResultados(c){
@@ -3187,13 +3201,11 @@ function saveWeekMsg(cid,wk){
 // Agrega taxas (resposta/aceitação) e insights das CAMPANHAS do cliente, filtrando por data.
 function _campAgg(c,match){
   const rS=[],aS=[],ins=[];
-  (c.campaigns||[]).forEach(function(cp){
-    _campHist(cp).forEach(function(m){
-      if(!m.date||!match(m.date))return;
-      const r=parseFloat(m.respRate);if(!isNaN(r))rS.push(r);
-      const a=parseFloat(m.accRate);if(!isNaN(a))aS.push(a);
-      if(m.obs&&(''+m.obs).trim()){const d=new Date(m.date+'T12:00:00');ins.push({camp:cp.name||'Campanha',date:isNaN(d)?m.date:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),text:(''+m.obs).trim(),sort:m.date});}
-    });
+  _prospMeasHist(c).forEach(function(m){
+    if(!m.date||!match(m.date))return;
+    const r=parseFloat(m.respRate);if(!isNaN(r))rS.push(r);
+    const a=parseFloat(m.accRate);if(!isNaN(a))aS.push(a);
+    if(m.obs&&(''+m.obs).trim()){const d=new Date(m.date+'T12:00:00');ins.push({camp:m.camp||'Prospecção',date:isNaN(d)?m.date:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),text:(''+m.obs).trim(),sort:m.date});}
   });
   const avg=arr=>arr.length?Math.round(arr.reduce((s,x)=>s+x,0)/arr.length):null;
   ins.sort((a,b)=>(''+a.sort).localeCompare(''+b.sort));
@@ -4207,28 +4219,11 @@ function rDetailCampanhas(c){
   if(!camps.length)return header+`<div class="card"><div class="cb" style="text-align:center;color:var(--muted);padding:40px">Nenhuma campanha cadastrada.<br><small>Clique em "+ Nova Campanha" para começar.</small></div></div>`;
   const chip=(lbl,val)=>`<div style="font-size:11px;background:#F1F5F9;padding:5px 10px;border-radius:8px;color:#475569">${lbl}: <strong>${(val===''||val==null)?'—':val}</strong></div>`;
   const cards=camps.map(cp=>{
-    const hist=_campHist(cp);
-    const m=hist[0]||{};
-    const histRows=hist.length?hist.map(u=>`<tr>
-      <td style="white-space:nowrap">${fd(u.date)}</td>
-      <td style="text-align:center">${u.prospects||'—'}</td>
-      <td style="text-align:center">${u.convite||'—'}</td>
-      <td style="text-align:center">${u.mensagens||'—'}</td>
-      <td style="text-align:center">${u.seguir||'—'}</td>
-      <td style="text-align:center">${u.visitar||'—'}</td>
-      <td style="text-align:center;font-weight:700;color:var(--primary)">${u.ssi||'—'}</td>
-      <td style="text-align:center">${(u.respRate!=null&&u.respRate!=='')?u.respRate+'%':'—'}</td>
-      <td style="text-align:center">${(u.accRate!=null&&u.accRate!=='')?u.accRate+'%':'—'}</td>
-      <td style="font-size:11px;color:var(--muted);max-width:200px">${escH(u.obs||'')}</td>
-      <td style="white-space:nowrap"><button class="btn btn-o btn-s" style="font-size:10px" onclick="openCampMeasureModal('${c.id}','${cp.id}','${u.id}')">✏️</button> <button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="deleteCampMeasure('${c.id}','${cp.id}','${u.id}')">🗑</button></td>
-    </tr>`).join(''):`<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:14px">Nenhuma medição ainda. Clique em "+ Atualização".</td></tr>`;
     return`<div class="card" style="margin-bottom:16px">
       <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9);align-items:flex-start;flex-wrap:wrap;gap:8px">
         <div style="min-width:0"><h3 style="margin:0;color:white;font-size:14px">📣 ${escH(cp.name)}</h3>
         <span style="font-size:11px;color:rgba(255,255,255,.9)">Lançada: ${fd(cp.launchDate)}${cp.target?' · '+escH(cp.target):''}${cp.location?' · '+escH(cp.location):''}${cp.sector?' · '+escH(cp.sector):''}</span></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-          <button class="btn btn-s" style="background:white;color:#0891B2;font-weight:700;font-size:11px" onclick="openCampWeek('${c.id}','${cp.id}')">📅 Atualizar esta semana</button>
-          <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="openCampMeasureModal('${c.id}','${cp.id}',null)">+ Outra data</button>
           <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="openCampaignModal('${c.id}','${cp.id}')">✏️ Editar</button>
           <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="deleteCampaign('${c.id}','${cp.id}')">🗑</button>
         </div>
@@ -4236,16 +4231,40 @@ function rDetailCampanhas(c){
       <div class="cb">
         ${(cp.prospectsInseridos!==''&&cp.prospectsInseridos!=null)?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${chip('👥 Prospectos inseridos',cp.prospectsInseridos)}</div>`:''}
         ${cp.notes?`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">📝 ${escH(cp.notes)}</div>`:''}
-        ${hist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:10px;color:var(--muted);align-self:center">Atual:</span>${chip('Convite',m.convite)}${chip('Mensagens',m.mensagens)}${chip('Seguir',m.seguir)}${chip('Visitar',m.visitar)}${chip('SSI',m.ssi)}</div>`:''}
-        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 4px">📈 Histórico de medições</div>
-        <div class="tw"><table>
-          <thead><tr><th>Data</th><th style="text-align:center">Prospects</th><th style="text-align:center">Convite</th><th style="text-align:center">Mensagens</th><th style="text-align:center">Seguir</th><th style="text-align:center">Visitar</th><th style="text-align:center">SSI</th><th style="text-align:center">Resp.</th><th style="text-align:center">Aceit.</th><th>💡 Insight</th><th></th></tr></thead>
-          <tbody>${histRows}</tbody>
-        </table></div>
+        ${(cp.prospectsInseridos===''||cp.prospectsInseridos==null)&&!cp.notes?`<div style="font-size:12px;color:var(--muted)">Sem observações.</div>`:''}
       </div>
     </div>`;
   }).join('');
-  return header+cards;
+  // Painel ÚNICO de métricas de prospecção (não fica mais dentro de cada campanha)
+  const measHist=_prospMeasHist(c);
+  const lm=measHist[0]||{};
+  const measRows=measHist.length?measHist.map(u=>`<tr>
+      <td style="white-space:nowrap">${fd(u.date)}</td>
+      <td style="text-align:center">${u.convite||'—'}</td>
+      <td style="text-align:center">${u.mensagens||'—'}</td>
+      <td style="text-align:center">${u.seguir||'—'}</td>
+      <td style="text-align:center">${u.visitar||'—'}</td>
+      <td style="text-align:center;font-weight:700;color:var(--primary)">${u.ssi||'—'}</td>
+      <td style="text-align:center">${(u.respRate!=null&&u.respRate!=='')?u.respRate+'%':'—'}</td>
+      <td style="text-align:center">${(u.accRate!=null&&u.accRate!=='')?u.accRate+'%':'—'}</td>
+      <td style="white-space:nowrap"><button class="btn btn-o btn-s" style="font-size:10px" onclick="openProspMeasModal('${c.id}','${u.id}')">✏️</button> <button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="deleteProspMeas('${c.id}','${u.id}')">🗑</button></td>
+    </tr>`).join(''):`<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:14px">Nenhuma medição ainda. Clique em "+ Nova medição".</td></tr>`;
+  const prospPanel=`<div class="card" style="margin-bottom:16px;border:1px solid #DBEAFE">
+      <div class="ch" style="background:linear-gradient(135deg,#0D3D9B,#0077B5);align-items:flex-start;flex-wrap:wrap;gap:8px">
+        <div style="min-width:0"><h3 style="margin:0;color:white;font-size:14px">📊 Métricas de prospecção (LinkedIn)</h3>
+        <span style="font-size:11px;color:rgba(255,255,255,.9)">Preencha 2× no mês · a última medição sobe automaticamente para o Relatório de Resultados</span></div>
+        <button class="btn btn-s" style="background:white;color:#0D3D9B;font-weight:700;font-size:11px" onclick="openProspMeasModal('${c.id}',null)">+ Nova medição</button>
+      </div>
+      <div class="cb">
+        ${measHist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:10px;color:var(--muted);align-self:center">Atual (${fd(lm.date)}):</span>${chip('Convite',lm.convite)}${chip('Mensagens',lm.mensagens)}${chip('Seguir',lm.seguir)}${chip('Visitar',lm.visitar)}${chip('SSI',lm.ssi)}</div>`:''}
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 4px">📈 Histórico de medições</div>
+        <div class="tw"><table>
+          <thead><tr><th>Data</th><th style="text-align:center">Convite</th><th style="text-align:center">Mensagens</th><th style="text-align:center">Seguir</th><th style="text-align:center">Visitar</th><th style="text-align:center">SSI</th><th style="text-align:center">Resp.</th><th style="text-align:center">Aceit.</th><th></th></tr></thead>
+          <tbody>${measRows}</tbody>
+        </table></div>
+      </div>
+    </div>`;
+  return header+prospPanel+cards;
 }
 function openCampaignModal(cid,campId){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
@@ -4293,6 +4312,62 @@ function deleteCampaign(cid,campId){
   if(!confirm('Remover esta campanha?'))return;
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
   c.campaigns=(c.campaigns||[]).filter(x=>x.id!==campId);save();toast('🗑️ Campanha removida');render();
+}
+// Medição ÚNICA de prospecção (nível cliente) — preenchida 2x/mês, a última sobe pro relatório
+function openProspMeasModal(cid,measId){
+  const c=D.clients.find(x=>x.id===cid);if(!c)return;
+  const hist=_prospMeasHist(c);
+  const editing=measId?(hist.find(x=>x.id===measId)||null):null;
+  const m=editing||{date:new Date().toISOString().slice(0,10),convite:'',mensagens:'',seguir:'',visitar:'',ssi:'',respRate:'',accRate:''};
+  const ov=document.createElement('div');ov.id='prospmeas-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="background:linear-gradient(135deg,#0D3D9B,#0077B5);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center">
+      <div><h3 style="margin:0;color:white;font-size:15px">${editing?'✏️ Editar medição':'➕ Nova medição de prospecção'}</h3>
+      <span style="font-size:12px;color:rgba(255,255,255,.85)">${escH(c.name)}</span></div>
+      <button onclick="document.getElementById('prospmeas-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
+      <div class="fg"><label>Data da medição</label><input type="date" id="pms-date" value="${m.date||''}" style="max-width:220px"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid #E5E7EB;padding-bottom:4px">Números do LinkedIn</div>
+      <div class="fgrid">
+        <div class="fg"><label>Convite</label><input type="number" id="pms-convite" value="${escH(m.convite)}" placeholder="0"></div>
+        <div class="fg"><label>Mensagens</label><input type="number" id="pms-mensagens" value="${escH(m.mensagens)}" placeholder="0"></div>
+      </div>
+      <div class="fgrid">
+        <div class="fg"><label>Seguir</label><input type="number" id="pms-seguir" value="${escH(m.seguir)}" placeholder="0"></div>
+        <div class="fg"><label>Visitar</label><input type="number" id="pms-visitar" value="${escH(m.visitar)}" placeholder="0"></div>
+      </div>
+      <div class="fgrid">
+        <div class="fg"><label>Taxa de resposta (%)</label><input type="number" id="pms-resp" min="0" max="100" value="${escH(m.respRate)}" placeholder="0-100"></div>
+        <div class="fg"><label>Taxa de aceitação (%)</label><input type="number" id="pms-acc" min="0" max="100" value="${escH(m.accRate)}" placeholder="0-100"></div>
+      </div>
+      <div class="fg"><label>SSI (índice LinkedIn)</label><input type="number" id="pms-ssi" value="${escH(m.ssi)}" placeholder="0-100" style="max-width:160px"></div>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-o" onclick="document.getElementById('prospmeas-overlay').remove()">Cancelar</button>
+      <button class="btn btn-p" onclick="saveProspMeas('${cid}','${measId||''}')">💾 Salvar</button>
+    </div>
+  </div>`;
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+function saveProspMeas(cid,measId){
+  const c=D.clients.find(x=>x.id===cid);if(!c)return;
+  const arr=_ensureProspMeas(c);
+  const g=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
+  const data={date:g('pms-date'),convite:g('pms-convite'),mensagens:g('pms-mensagens'),seguir:g('pms-seguir'),visitar:g('pms-visitar'),ssi:g('pms-ssi'),respRate:g('pms-resp'),accRate:g('pms-acc')};
+  if(!data.date){toast('⚠️ Informe a data da medição');return;}
+  if(measId){const mm=arr.find(x=>x.id===measId);if(mm)Object.assign(mm,data);else arr.push(Object.assign({id:'pm'+Date.now()},data));}
+  else arr.push(Object.assign({id:'pm'+Date.now()},data));
+  save();const ov=document.getElementById('prospmeas-overlay');if(ov)ov.remove();toast('✅ Medição salva — subiu pro relatório!');render();
+}
+function deleteProspMeas(cid,measId){
+  if(!confirm('Remover esta medição?'))return;
+  const c=D.clients.find(x=>x.id===cid);if(!c)return;
+  const arr=_ensureProspMeas(c);
+  c.prospMeasurements=arr.filter(x=>x.id!==measId);
+  save();toast('🗑️ Medição removida');render();
 }
 // Modal de medição — "+ Atualização" (measId null = nova; com id = editar do histórico)
 function openCampWeek(cid,campId){
@@ -5546,9 +5621,9 @@ function rPortalRelatorios(c){
   const chrono=months.slice().reverse();
   const evoDefs=[
     {lbl:'Seguidores',get:function(r){var mm=mmOf(r.month);return has(mm.followers)?Number(mm.followers).toLocaleString('pt-BR'):'—';}},
-    {lbl:'Mensagens',get:function(r){var mm=mmOf(r.month);return has(mm.mensagens)?Number(mm.mensagens).toLocaleString('pt-BR'):'—';}},
+    {lbl:'Mensagens',get:function(r){var p=_prospMetricsMonth(c,r.month);return p.mensagens!=null?Number(p.mensagens).toLocaleString('pt-BR'):'—';}},
     {lbl:'Leads',get:function(r){return r.prospects||0;}},
-    {lbl:'SSI',get:function(r){var mm=mmOf(r.month);return has(mm.ssi)?mm.ssi:'—';}}
+    {lbl:'SSI',get:function(r){var p=_prospMetricsMonth(c,r.month);return p.ssi!=null?p.ssi:'—';}}
   ];
   const evoTable=chrono.length>1?'<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">Métricas por mês</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:6px 8px;color:#64748B;font-weight:600">Indicador</th>'+chrono.map(function(r){return '<th style="padding:6px 8px;color:#64748B;font-weight:600;white-space:nowrap">'+short(r.month)+'</th>';}).join('')+'</tr></thead><tbody>'+evoDefs.map(function(row){return '<tr style="border-top:1px solid #F1F5F9"><td style="padding:7px 8px;font-weight:600;color:#1E293B">'+row.lbl+'</td>'+chrono.map(function(r){return '<td style="text-align:center;padding:7px 8px;color:#334155">'+row.get(r)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>':'';
   const cards=months.map(function(r,i){
@@ -5565,9 +5640,11 @@ function rPortalRelatorios(c){
       +mini(r.sales,'✅ Fechamentos','#16A34A','#F0FDF4')
       +mini(pm.accAvg!=null?pm.accAvg+'%':'—','Taxa aceitação média','#0D3D9B','#F8FAFF')
       +mini(pm.respAvg!=null?pm.respAvg+'%':'—','Taxa resposta média','#0D3D9B','#F8FAFF')
-      +(has(mm.mensagens)?mini(Number(mm.mensagens).toLocaleString('pt-BR'),'Mensagens','#0D3D9B','#F8FAFF'):'')
-      +(has(mm.convites)?mini(Number(mm.convites).toLocaleString('pt-BR'),'Convites','#0D3D9B','#F8FAFF'):'')
-      +(has(mm.ssi)?mini(mm.ssi,'SSI','#0D3D9B','#F8FAFF'):'')
+      +(pm.mensagens!=null?mini(Number(pm.mensagens).toLocaleString('pt-BR'),'Mensagens','#0D3D9B','#F8FAFF'):'')
+      +(pm.convites!=null?mini(Number(pm.convites).toLocaleString('pt-BR'),'Convites','#0D3D9B','#F8FAFF'):'')
+      +(pm.seguir!=null?mini(Number(pm.seguir).toLocaleString('pt-BR'),'Seguir','#0D3D9B','#F8FAFF'):'')
+      +(pm.visitas!=null?mini(Number(pm.visitas).toLocaleString('pt-BR'),'Visitar','#0D3D9B','#F8FAFF'):'')
+      +(pm.ssi!=null?mini(pm.ssi,'SSI','#0D3D9B','#F8FAFF'):'')
       +'</div>';
     const contHtml=temConteudo?('<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin:4px 0 8px">✍️ Conteúdo e alcance</div>'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px;margin-bottom:14px">'
@@ -5587,7 +5664,6 @@ function rPortalRelatorios(c){
   }).join('');
   const empty='<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhum resultado ainda.<br><small>Os resultados aparecem automaticamente conforme a equipe atualiza.</small></div>';
   return '<div class="portal-hero" style="margin-bottom:20px"><div><h1>📊 Relatório de Resultados</h1><p>'+c.name+' · atualizado automaticamente pelo nosso time</p></div></div>'
-    +(objetivos?'<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">🎯 Objetivos</div><div style="font-size:13px;color:#334155;line-height:1.6;white-space:pre-wrap">'+objetivos.replace(/</g,'&lt;')+'</div></div>':'')
     +evoTable
     +'<div style="display:flex;flex-direction:column;gap:16px">'+(months.length?cards:empty)+'</div>';
 }
@@ -5743,7 +5819,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063036; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063037; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
