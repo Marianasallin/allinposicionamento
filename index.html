@@ -1258,12 +1258,16 @@ function _ensureProspMeas(c){
   return c.prospMeasurements;
 }
 function _prospMetricsMonth(c,mk){
+  // Volume (convite/mensagens/seguir/visitar/ssi) vem da medição ÚNICA — última preenchida no mês, por campo
   var hist=_prospMeasHist(c).filter(function(m){if(!m.date)return false;var d=new Date(m.date+'T12:00:00');return !isNaN(d)&&getMonthKey(d)===mk;});
-  // hist ordenado do mais recente pro mais antigo → pega, por campo, o último valor preenchido no mês
-  var num=function(v){if(v===''||v==null)return null;var n=parseFloat(v);return isNaN(n)?null:n;};
   var pick=function(f){for(var i=0;i<hist.length;i++){var v=hist[i][f];if(v!==''&&v!=null&&!isNaN(parseFloat(v)))return parseFloat(v);}return null;};
+  // Taxas (resposta/aceitação) vêm das ATUALIZAÇÕES das campanhas — média no mês
   var rr=[],ar=[];
-  hist.forEach(function(m){var r=parseFloat(m.respRate);if(!isNaN(r))rr.push(r);var a=parseFloat(m.accRate);if(!isNaN(a))ar.push(a);});
+  (c.campaigns||[]).forEach(function(cp){_campHist(cp).forEach(function(m){
+    if(!m.date)return;var d=new Date(m.date+'T12:00:00');if(isNaN(d)||getMonthKey(d)!==mk)return;
+    var r=parseFloat(m.respRate);if(!isNaN(r))rr.push(r);
+    var a=parseFloat(m.accRate);if(!isNaN(a))ar.push(a);
+  });});
   var avg=function(a){return a.length?Math.round(a.reduce(function(s,x){return s+x;},0)/a.length):null;};
   return {leads:getClientLeadsForMonth(c,mk),mensagens:pick('mensagens'),convites:pick('convite'),seguir:pick('seguir'),visitas:pick('visitar'),ssi:pick('ssi'),respAvg:avg(rr),accAvg:avg(ar),measDate:hist[0]?hist[0].date:''};
 }
@@ -3201,11 +3205,13 @@ function saveWeekMsg(cid,wk){
 // Agrega taxas (resposta/aceitação) e insights das CAMPANHAS do cliente, filtrando por data.
 function _campAgg(c,match){
   const rS=[],aS=[],ins=[];
-  _prospMeasHist(c).forEach(function(m){
-    if(!m.date||!match(m.date))return;
-    const r=parseFloat(m.respRate);if(!isNaN(r))rS.push(r);
-    const a=parseFloat(m.accRate);if(!isNaN(a))aS.push(a);
-    if(m.obs&&(''+m.obs).trim()){const d=new Date(m.date+'T12:00:00');ins.push({camp:m.camp||'Prospecção',date:isNaN(d)?m.date:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),text:(''+m.obs).trim(),sort:m.date});}
+  (c.campaigns||[]).forEach(function(cp){
+    _campHist(cp).forEach(function(m){
+      if(!m.date||!match(m.date))return;
+      const r=parseFloat(m.respRate);if(!isNaN(r))rS.push(r);
+      const a=parseFloat(m.accRate);if(!isNaN(a))aS.push(a);
+      if(m.obs&&(''+m.obs).trim()){const d=new Date(m.date+'T12:00:00');ins.push({camp:cp.name||'Campanha',date:isNaN(d)?m.date:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),text:(''+m.obs).trim(),sort:m.date});}
+    });
   });
   const avg=arr=>arr.length?Math.round(arr.reduce((s,x)=>s+x,0)/arr.length):null;
   ins.sort((a,b)=>(''+a.sort).localeCompare(''+b.sort));
@@ -4219,11 +4225,22 @@ function rDetailCampanhas(c){
   if(!camps.length)return header+`<div class="card"><div class="cb" style="text-align:center;color:var(--muted);padding:40px">Nenhuma campanha cadastrada.<br><small>Clique em "+ Nova Campanha" para começar.</small></div></div>`;
   const chip=(lbl,val)=>`<div style="font-size:11px;background:#F1F5F9;padding:5px 10px;border-radius:8px;color:#475569">${lbl}: <strong>${(val===''||val==null)?'—':val}</strong></div>`;
   const cards=camps.map(cp=>{
+    const hist=_campHist(cp);
+    const cm=hist[0]||{};
+    const histRows=hist.length?hist.map(u=>`<tr>
+      <td style="white-space:nowrap">${fd(u.date)}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:180px">${escH(u.publico||u.target||'')||'—'}</td>
+      <td style="text-align:center">${(u.respRate!=null&&u.respRate!=='')?u.respRate+'%':'—'}</td>
+      <td style="text-align:center">${(u.accRate!=null&&u.accRate!=='')?u.accRate+'%':'—'}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:200px">${escH(u.obs||'')||'—'}</td>
+      <td style="white-space:nowrap"><button class="btn btn-o btn-s" style="font-size:10px" onclick="openCampMeasureModal('${c.id}','${cp.id}','${u.id}')">✏️</button> <button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="deleteCampMeasure('${c.id}','${cp.id}','${u.id}')">🗑</button></td>
+    </tr>`).join(''):`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:14px">Nenhuma atualização ainda. Clique em "📊 Atualizar taxas".</td></tr>`;
     return`<div class="card" style="margin-bottom:16px">
       <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9);align-items:flex-start;flex-wrap:wrap;gap:8px">
         <div style="min-width:0"><h3 style="margin:0;color:white;font-size:14px">📣 ${escH(cp.name)}</h3>
         <span style="font-size:11px;color:rgba(255,255,255,.9)">Lançada: ${fd(cp.launchDate)}${cp.target?' · '+escH(cp.target):''}${cp.location?' · '+escH(cp.location):''}${cp.sector?' · '+escH(cp.sector):''}</span></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn btn-s" style="background:white;color:#0891B2;font-weight:700;font-size:11px" onclick="openCampMeasureModal('${c.id}','${cp.id}',null)">📊 Atualizar taxas</button>
           <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="openCampaignModal('${c.id}','${cp.id}')">✏️ Editar</button>
           <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="deleteCampaign('${c.id}','${cp.id}')">🗑</button>
         </div>
@@ -4231,7 +4248,12 @@ function rDetailCampanhas(c){
       <div class="cb">
         ${(cp.prospectsInseridos!==''&&cp.prospectsInseridos!=null)?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${chip('👥 Prospectos inseridos',cp.prospectsInseridos)}</div>`:''}
         ${cp.notes?`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">📝 ${escH(cp.notes)}</div>`:''}
-        ${(cp.prospectsInseridos===''||cp.prospectsInseridos==null)&&!cp.notes?`<div style="font-size:12px;color:var(--muted)">Sem observações.</div>`:''}
+        ${hist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:10px;color:var(--muted);align-self:center">Atual (${fd(cm.date)}):</span>${cm.publico||cm.target?chip('Público',cm.publico||cm.target):''}${chip('Taxa resposta',(cm.respRate!=null&&cm.respRate!=='')?cm.respRate+'%':'—')}${chip('Taxa aceitação',(cm.accRate!=null&&cm.accRate!=='')?cm.accRate+'%':'—')}</div>`:''}
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 4px">📊 Taxas por atualização (público, resposta, aceitação)</div>
+        <div class="tw"><table>
+          <thead><tr><th>Data</th><th>Público / Cargo</th><th style="text-align:center">Resp.</th><th style="text-align:center">Aceit.</th><th>💡 Insight</th><th></th></tr></thead>
+          <tbody>${histRows}</tbody>
+        </table></div>
       </div>
     </div>`;
   }).join('');
@@ -4246,16 +4268,13 @@ function rDetailCampanhas(c){
   const monthChips=measMonths.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:2px">Filtrar mês:</span><span class="fc ${selMonth===''?'active':''}" onclick="S.measMonthFilter='';render()" style="font-size:11px">Todos</span>${measMonths.map(mm=>`<span class="fc ${selMonth===mm?'active':''}" onclick="S.measMonthFilter='${mm}';render()" style="font-size:11px">${mm}</span>`).join('')}</div>`:'';
   const measRows=measHist.length?measHist.map(u=>`<tr>
       <td style="white-space:nowrap">${fd(u.date)}</td>
-      <td style="font-size:11px;color:var(--muted);max-width:160px">${escH(u.publico||'')||'—'}</td>
       <td style="text-align:center">${u.convite||'—'}</td>
       <td style="text-align:center">${u.mensagens||'—'}</td>
       <td style="text-align:center">${u.seguir||'—'}</td>
       <td style="text-align:center">${u.visitar||'—'}</td>
       <td style="text-align:center;font-weight:700;color:var(--primary)">${u.ssi||'—'}</td>
-      <td style="text-align:center">${(u.respRate!=null&&u.respRate!=='')?u.respRate+'%':'—'}</td>
-      <td style="text-align:center">${(u.accRate!=null&&u.accRate!=='')?u.accRate+'%':'—'}</td>
       <td style="white-space:nowrap"><button class="btn btn-o btn-s" style="font-size:10px" onclick="openProspMeasModal('${c.id}','${u.id}')">✏️</button> <button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="deleteProspMeas('${c.id}','${u.id}')">🗑</button></td>
-    </tr>`).join(''):`<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:14px">Nenhuma medição${selMonth?' em '+selMonth:''} ainda.</td></tr>`;
+    </tr>`).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px">Nenhuma medição${selMonth?' em '+selMonth:''} ainda.</td></tr>`;
   const prospPanel=`<div class="card" style="margin-bottom:16px;border:1px solid #DBEAFE">
       <div class="ch" style="background:linear-gradient(135deg,#0D3D9B,#0077B5);align-items:flex-start;flex-wrap:wrap;gap:8px">
         <div style="min-width:0"><h3 style="margin:0;color:white;font-size:14px">📊 Métricas de prospecção (LinkedIn)</h3>
@@ -4264,10 +4283,10 @@ function rDetailCampanhas(c){
       </div>
       <div class="cb">
         ${monthChips}
-        ${measHist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:10px;color:var(--muted);align-self:center">${selMonth?'Última de '+selMonth:'Atual'} (${fd(lm.date)}):</span>${lm.publico?chip('Público',lm.publico):''}${chip('Convite',lm.convite)}${chip('Mensagens',lm.mensagens)}${chip('Seguir',lm.seguir)}${chip('Visitar',lm.visitar)}${chip('SSI',lm.ssi)}</div>`:''}
+        ${measHist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:10px;color:var(--muted);align-self:center">${selMonth?'Última de '+selMonth:'Atual'} (${fd(lm.date)}):</span>${chip('Convite',lm.convite)}${chip('Mensagens',lm.mensagens)}${chip('Seguir',lm.seguir)}${chip('Visitar',lm.visitar)}${chip('SSI',lm.ssi)}</div>`:''}
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 4px">📈 Histórico de medições</div>
         <div class="tw"><table>
-          <thead><tr><th>Data</th><th>Público</th><th style="text-align:center">Convite</th><th style="text-align:center">Mensagens</th><th style="text-align:center">Seguir</th><th style="text-align:center">Visitar</th><th style="text-align:center">SSI</th><th style="text-align:center">Resp.</th><th style="text-align:center">Aceit.</th><th></th></tr></thead>
+          <thead><tr><th>Data</th><th style="text-align:center">Convite</th><th style="text-align:center">Mensagens</th><th style="text-align:center">Seguir</th><th style="text-align:center">Visitar</th><th style="text-align:center">SSI</th><th></th></tr></thead>
           <tbody>${measRows}</tbody>
         </table></div>
       </div>
@@ -4336,10 +4355,7 @@ function openProspMeasModal(cid,measId){
       <button onclick="document.getElementById('prospmeas-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
     </div>
     <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
-      <div class="fgrid">
-        <div class="fg"><label>Data da medição</label><input type="date" id="pms-date" value="${m.date||''}"></div>
-        <div class="fg"><label>Público / Cargo</label><input id="pms-publico" value="${escH(m.publico||'')}" placeholder="Ex: Coordenadores RH, Gestores..."></div>
-      </div>
+      <div class="fg"><label>Data da medição</label><input type="date" id="pms-date" value="${m.date||''}" style="max-width:220px"></div>
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid #E5E7EB;padding-bottom:4px">Números do LinkedIn</div>
       <div class="fgrid">
         <div class="fg"><label>Convite</label><input type="number" id="pms-convite" value="${escH(m.convite)}" placeholder="0"></div>
@@ -4348,10 +4364,6 @@ function openProspMeasModal(cid,measId){
       <div class="fgrid">
         <div class="fg"><label>Seguir</label><input type="number" id="pms-seguir" value="${escH(m.seguir)}" placeholder="0"></div>
         <div class="fg"><label>Visitar</label><input type="number" id="pms-visitar" value="${escH(m.visitar)}" placeholder="0"></div>
-      </div>
-      <div class="fgrid">
-        <div class="fg"><label>Taxa de resposta (%)</label><input type="number" id="pms-resp" min="0" max="100" value="${escH(m.respRate)}" placeholder="0-100"></div>
-        <div class="fg"><label>Taxa de aceitação (%)</label><input type="number" id="pms-acc" min="0" max="100" value="${escH(m.accRate)}" placeholder="0-100"></div>
       </div>
       <div class="fg"><label>SSI (índice LinkedIn)</label><input type="number" id="pms-ssi" value="${escH(m.ssi)}" placeholder="0-100" style="max-width:160px"></div>
     </div>
@@ -4367,7 +4379,7 @@ function saveProspMeas(cid,measId){
   const c=D.clients.find(x=>x.id===cid);if(!c)return;
   const arr=_ensureProspMeas(c);
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
-  const data={date:g('pms-date'),publico:g('pms-publico'),convite:g('pms-convite'),mensagens:g('pms-mensagens'),seguir:g('pms-seguir'),visitar:g('pms-visitar'),ssi:g('pms-ssi'),respRate:g('pms-resp'),accRate:g('pms-acc')};
+  const data={date:g('pms-date'),convite:g('pms-convite'),mensagens:g('pms-mensagens'),seguir:g('pms-seguir'),visitar:g('pms-visitar'),ssi:g('pms-ssi')};
   if(!data.date){toast('⚠️ Informe a data da medição');return;}
   if(measId){const mm=arr.find(x=>x.id===measId);if(mm)Object.assign(mm,data);else arr.push(Object.assign({id:'pm'+Date.now()},data));}
   else arr.push(Object.assign({id:'pm'+Date.now()},data));
@@ -4392,35 +4404,25 @@ function openCampMeasureModal(cid,campId,measId,defaultDate){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
   const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
   const editing=measId?(_campHist(cp).find(x=>x.id===measId)||null):null;
-  const m=editing||{date:defaultDate||new Date().toISOString().slice(0,10),prospects:'',convite:'',mensagens:'',seguir:'',visitar:'',ssi:'',respRate:'',accRate:'',obs:''};
+  const m=editing||{date:defaultDate||new Date().toISOString().slice(0,10),publico:'',respRate:'',accRate:'',obs:''};
   const ov=document.createElement('div');ov.id='campmeas-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="background:linear-gradient(135deg,#0891B2,#0EA5E9);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center">
-      <div><h3 style="margin:0;color:white;font-size:15px">${editing?'✏️ Editar medição':'➕ Nova medição'}</h3>
+      <div><h3 style="margin:0;color:white;font-size:15px">${editing?'✏️ Editar atualização':'📊 Atualizar taxas'}</h3>
       <span style="font-size:12px;color:rgba(255,255,255,.85)">${escH(cp.name)}</span></div>
       <button onclick="document.getElementById('campmeas-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
     </div>
     <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
       <div class="fgrid">
-        <div class="fg"><label>Data da medição</label><input type="date" id="cms-date" value="${m.date||''}"></div>
-        <div class="fg"><label>Número de prospects</label><input type="number" id="cms-prospects" value="${escH(m.prospects)}" placeholder="0"></div>
-      </div>
-      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid #E5E7EB;padding-bottom:4px">Definições da campanha</div>
-      <div class="fgrid">
-        <div class="fg"><label>Convite</label><input type="number" id="cms-convite" value="${escH(m.convite)}" placeholder="0"></div>
-        <div class="fg"><label>Mensagens</label><input type="number" id="cms-mensagens" value="${escH(m.mensagens)}" placeholder="0"></div>
-      </div>
-      <div class="fgrid">
-        <div class="fg"><label>Seguir</label><input type="number" id="cms-seguir" value="${escH(m.seguir)}" placeholder="0"></div>
-        <div class="fg"><label>Visitar</label><input type="number" id="cms-visitar" value="${escH(m.visitar)}" placeholder="0"></div>
+        <div class="fg"><label>Data da atualização</label><input type="date" id="cms-date" value="${m.date||''}"></div>
+        <div class="fg"><label>Público / Cargo</label><input id="cms-publico" value="${escH(m.publico||m.target||'')}" placeholder="Ex: Consultora de imagem, Gestor RH..."></div>
       </div>
       <div class="fgrid">
         <div class="fg"><label>Taxa de resposta (%)</label><input type="number" id="cms-resp" min="0" max="100" value="${escH(m.respRate)}" placeholder="0-100"></div>
         <div class="fg"><label>Taxa de aceitação (%)</label><input type="number" id="cms-acc" min="0" max="100" value="${escH(m.accRate)}" placeholder="0-100"></div>
       </div>
-      <div class="fg"><label>SSI (índice LinkedIn)</label><input type="number" id="cms-ssi" value="${escH(m.ssi)}" placeholder="0-100" style="max-width:160px"></div>
-      <div class="fg"><label>💡 Insight da semana</label><textarea id="cms-obs" rows="2" style="resize:vertical;width:100%" placeholder="Sua avaliação: o que funcionou, o que ajustar, perfis que respondem melhor...">${escH(m.obs)}</textarea></div>
+      <div class="fg"><label>💡 Insight</label><textarea id="cms-obs" rows="2" style="resize:vertical;width:100%" placeholder="O que funcionou, o que ajustar, perfis que respondem melhor...">${escH(m.obs)}</textarea></div>
     </div>
     <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-o" onclick="document.getElementById('campmeas-overlay').remove()">Cancelar</button>
@@ -4440,7 +4442,7 @@ function saveCampMeasure(cid,campId,measId){
   const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
   _campMigrate(cp);
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
-  const data={date:g('cms-date'),prospects:g('cms-prospects'),convite:g('cms-convite'),mensagens:g('cms-mensagens'),seguir:g('cms-seguir'),visitar:g('cms-visitar'),ssi:g('cms-ssi'),respRate:g('cms-resp'),accRate:g('cms-acc'),obs:g('cms-obs')};
+  const data={date:g('cms-date'),publico:g('cms-publico'),respRate:g('cms-resp'),accRate:g('cms-acc'),obs:g('cms-obs')};
   if(measId){const mm=cp.measurements.find(x=>x.id===measId);if(mm)Object.assign(mm,data);else cp.measurements.push(Object.assign({id:'m'+Date.now()},data));}
   else cp.measurements.push(Object.assign({id:'m'+Date.now()},data));
   save();const ov=document.getElementById('campmeas-overlay');if(ov)ov.remove();toast('✅ Medição salva');render();
@@ -5830,7 +5832,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063038; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063039; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
