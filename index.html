@@ -4229,12 +4229,13 @@ function rDetailCampanhas(c){
     const cm=hist[0]||{};
     const histRows=hist.length?hist.map(u=>`<tr>
       <td style="white-space:nowrap">${fd(u.date)}</td>
+      <td style="text-align:center">${(u.prospects===''||u.prospects==null)?'—':u.prospects}</td>
       <td style="font-size:11px;color:var(--muted);max-width:180px">${escH(u.publico||u.target||'')||'—'}</td>
       <td style="text-align:center">${(u.respRate!=null&&u.respRate!=='')?u.respRate+'%':'—'}</td>
       <td style="text-align:center">${(u.accRate!=null&&u.accRate!=='')?u.accRate+'%':'—'}</td>
       <td style="font-size:11px;color:var(--muted);max-width:200px">${escH(u.obs||'')||'—'}</td>
       <td style="white-space:nowrap"><button class="btn btn-o btn-s" style="font-size:10px" onclick="openCampMeasureModal('${c.id}','${cp.id}','${u.id}')">✏️</button> <button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="deleteCampMeasure('${c.id}','${cp.id}','${u.id}')">🗑</button></td>
-    </tr>`).join(''):`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:14px">Nenhuma atualização ainda. Clique em "📊 Atualizar taxas".</td></tr>`;
+    </tr>`).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px">Nenhuma atualização ainda. Clique em "📊 Atualizar taxas".</td></tr>`;
     return`<div class="card" style="margin-bottom:16px">
       <div class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9);align-items:flex-start;flex-wrap:wrap;gap:8px">
         <div style="min-width:0"><h3 style="margin:0;color:white;font-size:14px">📣 ${escH(cp.name)}</h3>
@@ -4251,7 +4252,7 @@ function rDetailCampanhas(c){
         ${hist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:10px;color:var(--muted);align-self:center">Atual (${fd(cm.date)}):</span>${cm.publico||cm.target?chip('Público',cm.publico||cm.target):''}${chip('Taxa resposta',(cm.respRate!=null&&cm.respRate!=='')?cm.respRate+'%':'—')}${chip('Taxa aceitação',(cm.accRate!=null&&cm.accRate!=='')?cm.accRate+'%':'—')}</div>`:''}
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 4px">📊 Taxas por atualização (público, resposta, aceitação)</div>
         <div class="tw"><table>
-          <thead><tr><th>Data</th><th>Público / Cargo</th><th style="text-align:center">Resp.</th><th style="text-align:center">Aceit.</th><th>💡 Insight</th><th></th></tr></thead>
+          <thead><tr><th>Data</th><th style="text-align:center">Prospectos</th><th>Público / Cargo</th><th style="text-align:center">Resp.</th><th style="text-align:center">Aceit.</th><th>💡 Insight</th><th></th></tr></thead>
           <tbody>${histRows}</tbody>
         </table></div>
       </div>
@@ -4404,7 +4405,7 @@ function openCampMeasureModal(cid,campId,measId,defaultDate){
   const c=D.clients.find(c=>c.id===cid);if(!c)return;
   const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
   const editing=measId?(_campHist(cp).find(x=>x.id===measId)||null):null;
-  const m=editing||{date:defaultDate||new Date().toISOString().slice(0,10),publico:'',respRate:'',accRate:'',obs:''};
+  const m=editing||{date:defaultDate||new Date().toISOString().slice(0,10),prospects:'',publico:'',respRate:'',accRate:'',obs:''};
   const ov=document.createElement('div');ov.id='campmeas-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
@@ -4416,8 +4417,9 @@ function openCampMeasureModal(cid,campId,measId,defaultDate){
     <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
       <div class="fgrid">
         <div class="fg"><label>Data da atualização</label><input type="date" id="cms-date" value="${m.date||''}"></div>
-        <div class="fg"><label>Público / Cargo</label><input id="cms-publico" value="${escH(m.publico||m.target||'')}" placeholder="Ex: Consultora de imagem, Gestor RH..."></div>
+        <div class="fg"><label>Prospectos inseridos</label><input type="number" id="cms-prospects" value="${escH(m.prospects)}" placeholder="0"></div>
       </div>
+      <div class="fg"><label>Público / Cargo</label><input id="cms-publico" value="${escH(m.publico||m.target||'')}" placeholder="Ex: Consultora de imagem, Gestor RH..."></div>
       <div class="fgrid">
         <div class="fg"><label>Taxa de resposta (%)</label><input type="number" id="cms-resp" min="0" max="100" value="${escH(m.respRate)}" placeholder="0-100"></div>
         <div class="fg"><label>Taxa de aceitação (%)</label><input type="number" id="cms-acc" min="0" max="100" value="${escH(m.accRate)}" placeholder="0-100"></div>
@@ -4442,7 +4444,7 @@ function saveCampMeasure(cid,campId,measId){
   const cp=(c.campaigns||[]).find(x=>x.id===campId);if(!cp)return;
   _campMigrate(cp);
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
-  const data={date:g('cms-date'),publico:g('cms-publico'),respRate:g('cms-resp'),accRate:g('cms-acc'),obs:g('cms-obs')};
+  const data={date:g('cms-date'),prospects:g('cms-prospects'),publico:g('cms-publico'),respRate:g('cms-resp'),accRate:g('cms-acc'),obs:g('cms-obs')};
   if(measId){const mm=cp.measurements.find(x=>x.id===measId);if(mm)Object.assign(mm,data);else cp.measurements.push(Object.assign({id:'m'+Date.now()},data));}
   else cp.measurements.push(Object.assign({id:'m'+Date.now()},data));
   save();const ov=document.getElementById('campmeas-overlay');if(ov)ov.remove();toast('✅ Medição salva');render();
@@ -5832,7 +5834,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063039; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063040; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
