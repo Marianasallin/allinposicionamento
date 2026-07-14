@@ -1391,11 +1391,12 @@ function rDetailProspeccao(c){
     if(S.leadFilterMonth!=='__todos')filtered=filtered.filter(function(p){return p.date&&_mk(p.date)===S.leadFilterMonth;});
     const _st=S.leadFilterStatus;
     if(_st==='responderam')filtered=filtered.filter(function(p){return p.replied;});
+    else if(_st==='semresposta')filtered=filtered.filter(function(p){return p.noReply&&!p.replied&&!p.hadMeeting&&!p.contractClosed;});
     else if(_st==='reunioes')filtered=filtered.filter(function(p){return p.hadMeeting;});
     else if(_st==='fechados')filtered=filtered.filter(function(p){return p.contractClosed;});
     else if(_st==='naofechados')filtered=filtered.filter(function(p){return !p.contractClosed;});
     const _mesChips='<span class="fc '+(S.leadFilterMonth==='__todos'?'active':'')+'" onclick="S.leadFilterMonth=\'__todos\';render()" style="font-size:11px">Todos</span>'+_meses.map(function(m){return '<span class="fc '+(S.leadFilterMonth===m?'active':'')+'" onclick="S.leadFilterMonth=\''+m+'\';render()" style="font-size:11px">'+m+'</span>';}).join('');
-    const _stChips=[['todos','Todos'],['responderam','Responderam'],['reunioes','Reuniões'],['fechados','Fechados'],['naofechados','Não fechados']].map(function(o){return '<span class="fc '+(_st===o[0]?'active':'')+'" onclick="S.leadFilterStatus=\''+o[0]+'\';render()" style="font-size:11px">'+o[1]+'</span>';}).join('');
+    const _stChips=[['todos','Todos'],['responderam','Responderam'],['semresposta','Sem resposta'],['reunioes','Reuniões'],['fechados','Fechados'],['naofechados','Não fechados']].map(function(o){return '<span class="fc '+(_st===o[0]?'active':'')+'" onclick="S.leadFilterStatus=\''+o[0]+'\';render()" style="font-size:11px">'+o[1]+'</span>';}).join('');
     const _filterBar='<div style="padding:10px 12px;margin-bottom:10px;background:#FAFAFA;border:1px solid var(--border);border-radius:8px">'
       +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Mês:</span>'+_mesChips+'</div>'
       +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Situação:</span>'+_stChips+'</div>'
@@ -4083,7 +4084,7 @@ function openProspectModal(cid, pid){
   if(!c)return;
   if(!c.prospects)c.prospects=[];
   const p=pid?c.prospects.find(p=>p.id===pid):null;
-  const v=p||{id:'p'+Date.now(),date:new Date().toISOString().substring(0,10),conductedBy:S.currentUser?S.currentUser.name:'',linkedinUrl:'',name:'',role:'',location:'',phone:'',email:'',sentMessage:false,replied:false,scheduledMeeting:false,hadMeeting:false,followUp1:'',followUp2:'',followUp3:'',contractClosed:false,contractValue:'',closedDate:'',reasonNotClosed:'',convoDetails:'',notes:''};
+  const v=p||{id:'p'+Date.now(),date:new Date().toISOString().substring(0,10),conductedBy:S.currentUser?S.currentUser.name:'',linkedinUrl:'',name:'',role:'',location:'',phone:'',email:'',sentMessage:false,replied:false,noReply:false,scheduledMeeting:false,hadMeeting:false,followUp1:'',followUp2:'',followUp3:'',contractClosed:false,contractValue:'',closedDate:'',reasonNotClosed:'',convoDetails:'',notes:''};
   const isEdit=!!p;
   const overlay=document.createElement('div');
   overlay.id='pm-overlay';
@@ -4110,8 +4111,12 @@ function openProspectModal(cid, pid){
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E5E7EB">🤝 Follow-up (Cliente preenche no portal)</div>
       <div class="fgrid3" style="margin-bottom:16px">
         <div class="fg" style="display:flex;align-items:center;gap:8px;padding-top:20px">
-          <input type="checkbox" id="pm-rep" ${v.replied?'checked':''} style="width:16px;height:16px">
+          <input type="checkbox" id="pm-rep" ${v.replied?'checked':''} onchange="if(this.checked){var o=document.getElementById('pm-norep');if(o)o.checked=false;}" style="width:16px;height:16px">
           <label for="pm-rep" style="margin:0;cursor:pointer">Respondeu?</label>
+        </div>
+        <div class="fg" style="display:flex;align-items:center;gap:8px;padding-top:20px">
+          <input type="checkbox" id="pm-norep" ${v.noReply?'checked':''} onchange="if(this.checked){var o=document.getElementById('pm-rep');if(o)o.checked=false;}" style="width:16px;height:16px">
+          <label for="pm-norep" style="margin:0;cursor:pointer">Não respondeu?</label>
         </div>
         <div class="fg" style="display:flex;align-items:center;gap:8px;padding-top:20px">
           <input type="checkbox" id="pm-sch" ${v.scheduledMeeting?'checked':''} style="width:16px;height:16px">
@@ -4157,6 +4162,7 @@ function saveProspect(cid,pid){
     email:$('pm-email').value,
     sentMessage:(idx>=0&&c.prospects[idx]?c.prospects[idx].sentMessage:false),
     replied:$('pm-rep').checked,
+    noReply:$('pm-norep')?($('pm-norep').checked&&!$('pm-rep').checked):(idx>=0&&c.prospects[idx]?c.prospects[idx].noReply:false),
     scheduledMeeting:$('pm-sch').checked,
     hadMeeting:$('pm-met').checked,
     followUp1:$('pm-f1').value,
@@ -5457,13 +5463,13 @@ function rPortalEntregas(c){
     ${c.deliverables.length===0?'<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhuma entrega registrada ainda.</div>':''}`;
 }
 
-function _plStageOf(p){return p.contractClosed?'fechados':p.hadMeeting?'reuniao':p.replied?'responderam':'aguardando';}
+function _plStageOf(p){return p.contractClosed?'fechados':p.hadMeeting?'reuniao':p.replied?'responderam':p.noReply?'semresposta':'aguardando';}
 function _plBadge(p){
-  var m={fechados:['✅ Fechado','#16A34A'],reuniao:['🤝 Reunião','#0D3D9B'],responderam:['💬 Respondeu','#7C3AED'],aguardando:['⏳ Aguardando','#64748B']};
+  var m={fechados:['✅ Fechado','#16A34A'],reuniao:['🤝 Reunião','#0D3D9B'],responderam:['💬 Respondeu','#7C3AED'],semresposta:['🚫 Sem resposta','#DC2626'],aguardando:['⏳ Aguardando','#64748B']};
   var b=m[_plStageOf(p)];
   return '<span style="font-size:11px;font-weight:600;color:'+b[1]+';background:'+b[1]+'18;padding:3px 10px;border-radius:99px;white-space:nowrap">'+b[0]+'</span>';
 }
-function _plCounts(c){var P=c.prospects||[];return{todos:P.length,aguardando:P.filter(function(p){return !p.replied&&!p.contractClosed;}).length,responderam:P.filter(function(p){return p.replied;}).length,reuniao:P.filter(function(p){return p.hadMeeting;}).length,fechados:P.filter(function(p){return p.contractClosed;}).length};}
+function _plCounts(c){var P=c.prospects||[];return{todos:P.length,aguardando:P.filter(function(p){return !p.replied&&!p.noReply&&!p.contractClosed&&!p.hadMeeting;}).length,semresposta:P.filter(function(p){return p.noReply&&!p.replied&&!p.contractClosed&&!p.hadMeeting;}).length,responderam:P.filter(function(p){return p.replied;}).length,reuniao:P.filter(function(p){return p.hadMeeting;}).length,fechados:P.filter(function(p){return p.contractClosed;}).length};}
 function _plChk(cid,pid,field,val,label){
   return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;border-radius:8px;background:'+(val?'#F0FDF4':'#F9FAFB')+';border:1px solid '+(val?'#86EFAC':'#E5E7EB')+'">'
     +'<input type="checkbox" '+(val?'checked':'')+' onchange="portalUpdateProspect(\''+cid+'\',\''+pid+'\',\''+field+'\',this.checked);this.closest(\'label\').style.background=this.checked?\'#F0FDF4\':\'#F9FAFB\';this.closest(\'label\').style.borderColor=this.checked?\'#86EFAC\':\'#E5E7EB\'" style="width:16px;height:16px;cursor:pointer">'
@@ -5488,6 +5494,7 @@ function _plDetail(cid,p){
     +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px">'
       +_plChk(cid,p.id,'sentMessage',p.sentMessage,'📩 Entrei em contato')
       +_plChk(cid,p.id,'replied',p.replied,'💬 Lead respondeu')
+      +_plChk(cid,p.id,'noReply',p.noReply,'🚫 Lead não respondeu')
       +_plChk(cid,p.id,'scheduledMeeting',p.scheduledMeeting,'📅 Agendou Reunião')
       +_plChk(cid,p.id,'hadMeeting',p.hadMeeting,'🤝 Fez Reunião')
       +_plChk(cid,p.id,'contractClosed',p.contractClosed,'✅ Fechou Contrato')
@@ -5516,11 +5523,11 @@ function rPortalProspeccao(c){
   const monthOpts=['<option value="">Todos os meses</option>'].concat(Object.keys(monthsSet).sort().reverse().map(function(ym){var pa=ym.split('-');return '<option value="'+ym+'">'+(_mn[(+pa[1])-1]||'')+' '+pa[0]+'</option>';})).join('');
   const cnt=_plCounts(c);
   function _chip(stage,label,n,active){return '<span class="pl-chip'+(active?' pl-chip-active':'')+'" data-stage="'+stage+'" onclick="portalSetLeadStage(\''+stage+'\',this)" style="cursor:pointer;font-size:12px;padding:5px 11px;border-radius:99px;background:'+(active?'#0D3D9B':'#F1F5F9')+';color:'+(active?'#fff':'#475569')+'">'+label+' <span id="plcnt-'+stage+'">'+n+'</span></span>';}
-  const chips=_chip('todos','Todos',cnt.todos,true)+_chip('aguardando','Aguardando',cnt.aguardando,false)+_chip('responderam','Responderam',cnt.responderam,false)+_chip('reuniao','Reunião',cnt.reuniao,false)+_chip('fechados','Fechados',cnt.fechados,false);
+  const chips=_chip('todos','Todos',cnt.todos,true)+_chip('aguardando','Aguardando',cnt.aguardando,false)+_chip('semresposta','Sem resposta',cnt.semresposta,false)+_chip('responderam','Responderam',cnt.responderam,false)+_chip('reuniao','Reunião',cnt.reuniao,false)+_chip('fechados','Fechados',cnt.fechados,false);
   const rows=pros.map(function(p){
     var dateStr=p.date?new Date(p.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}):'';
     var ini=(p.name||'?').split(' ').filter(function(x){return x;}).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();
-    return '<div class="pl-row-wrap" id="plw-'+p.id+'" data-name="'+escH((p.name||'').toLowerCase())+'" data-month="'+(p.date?p.date.slice(0,7):'')+'" data-replied="'+(p.replied?1:0)+'" data-meeting="'+(p.hadMeeting?1:0)+'" data-closed="'+(p.contractClosed?1:0)+'" style="border-bottom:1px solid #F1F5F9">'
+    return '<div class="pl-row-wrap" id="plw-'+p.id+'" data-name="'+escH((p.name||'').toLowerCase())+'" data-month="'+(p.date?p.date.slice(0,7):'')+'" data-replied="'+(p.replied?1:0)+'" data-noreply="'+(p.noReply?1:0)+'" data-meeting="'+(p.hadMeeting?1:0)+'" data-closed="'+(p.contractClosed?1:0)+'" style="border-bottom:1px solid #F1F5F9">'
       +'<div onclick="portalToggleLead(\''+p.id+'\')" style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer">'
         +'<div style="width:34px;height:34px;border-radius:50%;background:#EEF2FF;color:#0D3D9B;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">'+ini+'</div>'
         +'<div style="flex:1;min-width:0">'
@@ -5565,7 +5572,7 @@ function portalApplyLeadFilters(){
   var rows=document.querySelectorAll('.pl-row-wrap');var vis=0;
   for(var i=0;i<rows.length;i++){
     var w=rows[i];
-    var okS = stage==='todos'?true:stage==='aguardando'?(w.dataset.replied==='0'&&w.dataset.closed==='0'):stage==='responderam'?(w.dataset.replied==='1'):stage==='reuniao'?(w.dataset.meeting==='1'):stage==='fechados'?(w.dataset.closed==='1'):true;
+    var okS = stage==='todos'?true:stage==='aguardando'?(w.dataset.replied==='0'&&w.dataset.noreply==='0'&&w.dataset.closed==='0'&&w.dataset.meeting==='0'):stage==='semresposta'?(w.dataset.noreply==='1'&&w.dataset.replied==='0'&&w.dataset.closed==='0'&&w.dataset.meeting==='0'):stage==='responderam'?(w.dataset.replied==='1'):stage==='reuniao'?(w.dataset.meeting==='1'):stage==='fechados'?(w.dataset.closed==='1'):true;
     var okM = !month||w.dataset.month===month;
     var okQ = !q||(w.dataset.name||'').indexOf(q)>-1;
     var show=okS&&okM&&okQ;w.style.display=show?'':'none';if(show)vis++;
@@ -5582,15 +5589,20 @@ function portalUpdateProspect(cid,pid,field,value){
   const p=c.prospects.find(p=>p.id===pid);
   if(!p)return;
   p[field]=value;
+  // "respondeu" e "não respondeu" são excludentes: marcar um desmarca o outro
+  if(field==='replied'&&value)p.noReply=false;
+  if(field==='noReply'&&value)p.replied=false;
   save();
   toast('✅ Salvo!');
   // Atualização localizada (preserva filtro, busca e expansão) ao mudar status
-  if(field==='contractClosed'||field==='replied'||field==='hadMeeting'||field==='scheduledMeeting'||field==='sentMessage'){
+  if(field==='contractClosed'||field==='replied'||field==='noReply'||field==='hadMeeting'||field==='scheduledMeeting'||field==='sentMessage'){
     var w=document.getElementById('plw-'+pid);
-    if(w){w.dataset.replied=p.replied?1:0;w.dataset.meeting=p.hadMeeting?1:0;w.dataset.closed=p.contractClosed?1:0;}
+    if(w){w.dataset.replied=p.replied?1:0;w.dataset.noreply=p.noReply?1:0;w.dataset.meeting=p.hadMeeting?1:0;w.dataset.closed=p.contractClosed?1:0;}
     var b=document.getElementById('plb-'+pid);if(b)b.innerHTML=_plBadge(p);
-    var cs=document.getElementById('plc-'+pid);if(cs)cs.innerHTML=_plContract(cid,p);
-    var cnt=_plCounts(c);['todos','aguardando','responderam','reuniao','fechados'].forEach(function(k){var el=document.getElementById('plcnt-'+k);if(el)el.textContent=cnt[k];});
+    // ao mudar o par respondeu/não respondeu, redesenha o detalhe pra o outro checkbox refletir
+    if(field==='replied'||field==='noReply'){var dd=document.getElementById('pld-'+pid);if(dd)dd.innerHTML=_plDetail(cid,p);}
+    else {var cs=document.getElementById('plc-'+pid);if(cs)cs.innerHTML=_plContract(cid,p);}
+    var cnt=_plCounts(c);['todos','aguardando','semresposta','responderam','reuniao','fechados'].forEach(function(k){var el=document.getElementById('plcnt-'+k);if(el)el.textContent=cnt[k];});
     if(typeof portalApplyLeadFilters==='function')portalApplyLeadFilters();
   }
 }
@@ -5834,7 +5846,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063040; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063041; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
