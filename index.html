@@ -2268,7 +2268,7 @@ function rMinhaSemanaGestao(user){
     }).join('')
     +'</div>';
 
-  // === Encontros IC (remuneração da Nayara) — com filtro de mês próprio ===
+  // === Encontros IC — conta para QUEM PARTICIPOU (Nayara, Mari, etc.), com filtro de mês e de pessoa ===
   const _icClients=D.clients.filter(c=>(c.products||[]).includes('Implementação Comercial'));
   const _ptMo=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const _icMonthsSet=new Set();
@@ -2277,11 +2277,28 @@ function rMinhaSemanaGestao(user){
   const _icMonths=[..._icMonthsSet].sort((a,b)=>{const[ma,ya]=a.split(' ');const[mb,yb]=b.split(' ');return(parseInt(yb)*12+_ptMo.indexOf(mb))-(parseInt(ya)*12+_ptMo.indexOf(ma));});
   if(!S.icMonth||!_icMonths.includes(S.icMonth))S.icMonth=_icMonths.includes(getMonthKey(new Date()))?getMonthKey(new Date()):_icMonths[0];
   const _icMonth=S.icMonth;
+  // Pessoas que já participaram de encontros de IC (qualquer mês)
+  const _icPeopleSet=new Set();
+  _icClients.forEach(c=>((c.encounters&&c.encounters.list)||[]).forEach(e=>{if(_encCountsIC(c,e))(e.attendees||[]).forEach(a=>{if(a)_icPeopleSet.add(a);});}));
+  const _icPeople=[..._icPeopleSet].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  if(S.icPerson&&_icPeople.indexOf(S.icPerson)<0)S.icPerson='';
+  const _icPerson=S.icPerson||'';
+  const _icMatch=(c,e)=>_encCountsIC(c,e)&&(!_icPerson||(e.attendees||[]).includes(_icPerson));
+  // Quebra por pessoa no mês — cada um conta o encontro que participou
+  const _icByPerson={};
+  _icClients.forEach(c=>((c.encounters&&c.encounters.list)||[]).forEach(e=>{
+    if(!e.date||getMonthKey(new Date(e.date+'T12:00:00'))!==_icMonth)return;
+    if(!_encCountsIC(c,e))return;
+    const att=(e.attendees||[]).filter(Boolean);
+    if(!att.length){_icByPerson['⚠️ sem participante']=(_icByPerson['⚠️ sem participante']||0)+1;return;}
+    att.forEach(a=>{_icByPerson[a]=(_icByPerson[a]||0)+1;});
+  }));
+  const _icByPersonRows=Object.entries(_icByPerson).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'pt-BR'));
   let _icTotal=0,_icDualUnmarked=0;
   const _icRows=_icClients.map(function(c){
     const encs=(c.encounters&&c.encounters.list)||[];
     const inMonth=encs.filter(e=>e.date&&getMonthKey(new Date(e.date+'T12:00:00'))===_icMonth);
-    const n=inMonth.filter(e=>_encCountsIC(c,e)).length;
+    const n=inMonth.filter(e=>_icMatch(c,e)).length;
     _icTotal+=n;
     const isGP=(c.products||[]).includes('Gestão de Perfil');
     const unmarked=isGP?inMonth.filter(e=>!e.tipo).length:0;
@@ -2289,14 +2306,20 @@ function rMinhaSemanaGestao(user){
     return{id:c.id,name:c.name,n:n,unmarked:unmarked,isGP:isGP};
   }).sort((a,b)=>b.n-a.n||a.name.localeCompare(b.name,'pt-BR'));
   const _icMonthChips=_icMonths.map(m=>'<span class="fc '+(_icMonth===m?'active':'')+'" onclick="S.icMonth=\''+m+'\';render()" style="font-size:11px">'+m+'</span>').join('');
+  const _icPersonChips=_icPeople.length?('<span class="fc '+(_icPerson===''?'active':'')+'" onclick="S.icPerson=\'\';render()" style="font-size:11px">Todos</span>'+_icPeople.map(p=>'<span class="fc '+(_icPerson===p?'active':'')+'" onclick="S.icPerson=\''+p.replace(/'/g,"\\'")+'\';render()" style="font-size:11px">'+p.split(' ')[0]+'</span>').join('')):'';
   const _icCardHtml='<div class="card" style="margin-bottom:20px">'
     +'<div class="ch" style="background:linear-gradient(135deg,#0D9488,#14B8A6)">'
     +'<h3 style="color:white;margin:0">🤝 Encontros — Implementação Comercial</h3>'
     +'<span style="font-size:12px;color:rgba(255,255,255,.85)">'+_icMonth+'</span></div>'
     +'<div class="cb">'
     +(_icClients.length
-      ?('<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Mês:</span>'+_icMonthChips+'</div>'
-        +'<div style="text-align:center;padding:4px 0 14px"><div style="font-size:34px;font-weight:900;color:#0D9488">'+_icTotal+'</div><div style="font-size:12px;color:var(--muted)">encontro'+(_icTotal===1?'':'s')+' em '+_icMonth+'</div></div>'
+      ?('<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px"><span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Mês:</span>'+_icMonthChips+'</div>'
+        +(_icPersonChips?'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px">Pessoa:</span>'+_icPersonChips+'</div>':'')
+        +'<div style="text-align:center;padding:4px 0 14px"><div style="font-size:34px;font-weight:900;color:#0D9488">'+_icTotal+'</div><div style="font-size:12px;color:var(--muted)">encontro'+(_icTotal===1?'':'s')+' em '+_icMonth+(_icPerson?' · '+_icPerson.split(' ')[0]:'')+'</div></div>'
+        +(_icByPersonRows.length?('<details open><summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border);font-size:12px;font-weight:700;color:var(--muted)"><span class="acc-arrow" style="transition:transform .2s">▶</span>Por pessoa — abrir/fechar</summary>'
+        +'<div class="tw"><table><thead><tr><th>Pessoa</th><th style="text-align:center">Encontros IC</th></tr></thead><tbody>'
+        +_icByPersonRows.map(r=>'<tr><td style="font-size:13px;font-weight:600">'+r[0].split(' ')[0]+'</td><td style="text-align:center;font-weight:700;color:#0D9488">'+r[1]+'</td></tr>').join('')
+        +'</tbody></table></div></details>'):'')
         +'<details open><summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border);font-size:12px;font-weight:700;color:var(--muted)"><span class="acc-arrow" style="transition:transform .2s">▶</span>Por cliente — abrir/fechar</summary>'
         +'<div class="tw"><table><thead><tr><th>Cliente</th><th style="text-align:center">Encontros</th></tr></thead><tbody>'
         +_icRows.map(r=>'<tr><td style="font-size:13px;font-weight:600">'+r.name.split(' ').slice(0,2).join(' ')+(r.isGP?' <span style="font-size:9px;color:#9CA3AF;font-weight:500">(IC+GP)</span>':'')+'</td><td style="text-align:center"><span onclick="nav(\'clients\',{clientId:\''+r.id+'\',tab:\'encontros\'})" title="Abrir os encontros deste cliente" style="cursor:pointer;font-weight:700;color:#0D9488;text-decoration:underline">'+r.n+'</span>'+(r.unmarked?' <span title="'+r.unmarked+' encontro(s) antigo(s) sem tipo definido" style="color:#D97706;font-size:11px">⚠️'+r.unmarked+'</span>':'')+'</td></tr>').join('')
@@ -3968,7 +3991,7 @@ function openEncounterModal(cid,encIdx){
         ${_hasIC?`<div class="fg" style="grid-column:1/-1"><label>Tipo de encontro${_isDual?' *':''}</label>
           <select id="em-tipo" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px">
             ${_isDual?`<option value="" ${_defTipo===''?'selected':''}>— Selecione —</option>`:''}
-            <option value="IC" ${_defTipo==='IC'?'selected':''}>🤝 Implementação Comercial (conta para a Nayara)</option>
+            <option value="IC" ${_defTipo==='IC'?'selected':''}>🤝 Implementação Comercial</option>
             <option value="GP" ${_defTipo==='GP'?'selected':''}>👤 Gestão de Perfil</option>
           </select>
         </div>`:''}
@@ -5846,7 +5869,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063041; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063042; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
