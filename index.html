@@ -5660,6 +5660,62 @@ function rPortalReunioes(c){
     </div>`}`;
 }
 
+// === MINHAS MÉTRICAS (portal) — só clientes de Implementação Comercial ===
+// Na IC o próprio cliente faz a prospecção; ele lança aqui os números (Waalaxy + campanhas),
+// que caem nos MESMOS campos que o time preenche → alimentam o Relatório de Resultados.
+function rPortalMetricas(c){
+  const cid=c.id;
+  const fd=d=>{if(!d)return'—';const x=new Date(d+'T12:00:00');return isNaN(x)?d:x.toLocaleDateString('pt-BR');};
+  const bP='background:#0D3D9B;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer';
+  const bS='background:#F1F5F9;color:#475569;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;margin-left:4px';
+  const thC='style="text-align:center;padding:7px 8px;color:#64748B;font-weight:600;font-size:11px"';
+  const thL='style="text-align:left;padding:7px 8px;color:#64748B;font-weight:600;font-size:11px"';
+  const wrapCard=(title,sub,btnHtml,body)=>'<div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;margin-bottom:16px">'
+    +'<div style="padding:14px 16px;border-bottom:1px solid #F1F5F9;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'
+    +'<div style="min-width:0"><div style="font-size:14px;font-weight:700;color:#1E293B">'+title+'</div><div style="font-size:11px;color:#64748B">'+sub+'</div></div>'
+    +btnHtml+'</div><div style="padding:14px 16px;overflow-x:auto">'+body+'</div></div>';
+  // 1) Métricas do Waalaxy
+  const hist=_prospMeasHist(c);
+  const wRows=hist.length?hist.map(u=>'<tr style="border-top:1px solid #F1F5F9">'
+      +'<td style="white-space:nowrap;padding:7px 8px;font-size:12px">'+fd(u.date)+'</td>'
+      +'<td style="text-align:center;padding:7px 8px;font-size:12px">'+(u.convite||'—')+'</td>'
+      +'<td style="text-align:center;padding:7px 8px;font-size:12px">'+(u.mensagens||'—')+'</td>'
+      +'<td style="text-align:center;padding:7px 8px;font-size:12px">'+(u.seguir||'—')+'</td>'
+      +'<td style="text-align:center;padding:7px 8px;font-size:12px">'+(u.visitar||'—')+'</td>'
+      +'<td style="text-align:center;padding:7px 8px;font-size:12px;font-weight:700;color:#0D3D9B">'+(u.ssi||'—')+'</td>'
+      +'<td style="white-space:nowrap;padding:7px 8px"><button onclick="openProspMeasModal(\''+cid+'\',\''+u.id+'\')" style="'+bS+'">✏️</button><button onclick="deleteProspMeas(\''+cid+'\',\''+u.id+'\')" style="'+bS+'">🗑</button></td>'
+    +'</tr>').join(''):'<tr><td colspan="7" style="text-align:center;color:#94A3B8;padding:18px;font-size:12px">Nenhuma medição ainda. Clique em <strong>+ Nova medição</strong>.</td></tr>';
+  const waalaxy=wrapCard('📈 Métricas do Waalaxy','Lance quando quiser — cada medição com a sua data',
+    '<button onclick="openProspMeasModal(\''+cid+'\',null)" style="'+bP+'">+ Nova medição</button>',
+    '<table style="width:100%;border-collapse:collapse"><thead><tr><th '+thL+'>Data</th><th '+thC+'>Convite</th><th '+thC+'>Mensagens</th><th '+thC+'>Seguir</th><th '+thC+'>Visitar</th><th '+thC+'>SSI</th><th></th></tr></thead><tbody>'+wRows+'</tbody></table>');
+  // 2) Campanhas (o cliente cadastra e atualiza)
+  const camps=c.campaigns||[];
+  const campHtml=camps.length?camps.map(function(cp){
+    const h=_campHist(cp);
+    const rows=h.length?h.map(u=>'<tr style="border-top:1px solid #F1F5F9">'
+        +'<td style="white-space:nowrap;padding:6px 8px;font-size:12px">'+fd(u.date)+'</td>'
+        +'<td style="text-align:center;padding:6px 8px;font-size:12px">'+((u.prospects===''||u.prospects==null)?'—':u.prospects)+'</td>'
+        +'<td style="padding:6px 8px;font-size:11px;color:#64748B">'+(escH(u.publico||u.target||'')||'—')+'</td>'
+        +'<td style="text-align:center;padding:6px 8px;font-size:12px">'+((u.respRate!=null&&u.respRate!=='')?u.respRate+'%':'—')+'</td>'
+        +'<td style="text-align:center;padding:6px 8px;font-size:12px">'+((u.accRate!=null&&u.accRate!=='')?u.accRate+'%':'—')+'</td>'
+        +'<td style="white-space:nowrap;padding:6px 8px"><button onclick="openCampMeasureModal(\''+cid+'\',\''+cp.id+'\',\''+u.id+'\')" style="'+bS+'">✏️</button><button onclick="deleteCampMeasure(\''+cid+'\',\''+cp.id+'\',\''+u.id+'\')" style="'+bS+'">🗑</button></td>'
+      +'</tr>').join(''):'<tr><td colspan="6" style="text-align:center;color:#94A3B8;padding:14px;font-size:12px">Nenhuma atualização ainda.</td></tr>';
+    return '<div style="border:1px solid #E5E7EB;border-radius:10px;padding:12px;margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+      +'<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:#1E293B">📣 '+escH(cp.name)+'</div>'
+      +'<div style="font-size:11px;color:#64748B">Lançada: '+fd(cp.launchDate)+(cp.target?' · '+escH(cp.target):'')+'</div></div>'
+      +'<div style="white-space:nowrap"><button onclick="openCampMeasureModal(\''+cid+'\',\''+cp.id+'\',null)" style="'+bP+'">📊 Atualizar</button>'
+      +'<button onclick="openCampaignModal(\''+cid+'\',\''+cp.id+'\')" style="'+bS+'">✏️</button>'
+      +'<button onclick="deleteCampaign(\''+cid+'\',\''+cp.id+'\')" style="'+bS+'">🗑</button></div></div>'
+      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th '+thL+'>Data</th><th '+thC+'>Prospectos</th><th '+thL+'>Público / Cargo</th><th '+thC+'>Resp.</th><th '+thC+'>Aceit.</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'</div>';
+  }).join(''):'<div style="text-align:center;color:#94A3B8;padding:18px;font-size:12px">Nenhuma campanha cadastrada. Clique em <strong>+ Nova campanha</strong>.</div>';
+  const campanhas=wrapCard('📣 Minhas campanhas','Cadastre suas campanhas e atualize os resultados de cada uma',
+    '<button onclick="openCampaignModal(\''+cid+'\',null)" style="'+bP+'">+ Nova campanha</button>',campHtml);
+  return '<div class="portal-hero" style="margin-bottom:20px"><div><h1>📈 Minhas métricas</h1><p>Registre aqui os números da sua prospecção — eles alimentam o seu Relatório de Resultados</p></div></div>'
+    +waalaxy+campanhas;
+}
+
 function rPortalRelatorios(c){
   const months=portalMonthlyResults(c);
   const objetivos=_objetivosText(c);
@@ -5722,16 +5778,20 @@ function rClientPortalAuth(){
   const c=D.clients.find(c=>c.id===S.authenticatedClientId);
   if(!c){logoutClientPortal();return'';}
   let pv=S.portalView||'dashboard';
+  // Na Implementação Comercial quem prospecta é o próprio cliente → ele lança as métricas dele
+  const _isICPortal=(c.products||[]).includes('Implementação Comercial');
   const navItems=[
     {id:'dashboard',icon:'📊',label:'Dashboard'},
     {id:'entregas',icon:'📦',label:'Entregas'},
     {id:'prospeccao',icon:'🎯',label:'Leads'},
     {id:'reunioes',icon:'🤝',label:'Reuniões'},
+    ...(_isICPortal?[{id:'metricas',icon:'📈',label:'Minhas métricas'}]:[]),
     {id:'relatorios',icon:'📊',label:'Relatório de Resultados'},
   ].filter(n=>!(c.semLeads&&(n.id==='prospeccao'||n.id==='relatorios')));
   if(c.semLeads&&(pv==='prospeccao'||pv==='relatorios')){pv='dashboard';S.portalView='dashboard';}
-  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',reunioes:'Reuniões',relatorios:'Relatório de Resultados'};
-  const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,prospeccao:rPortalProspeccao,reunioes:rPortalReunioes,relatorios:rPortalRelatorios};
+  if(!_isICPortal&&pv==='metricas'){pv='dashboard';S.portalView='dashboard';}
+  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',reunioes:'Reuniões',metricas:'Minhas métricas',relatorios:'Relatório de Resultados'};
+  const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,prospeccao:rPortalProspeccao,reunioes:rPortalReunioes,metricas:rPortalMetricas,relatorios:rPortalRelatorios};
   const mainContent=(contentMap[pv]||rPortalDashboard)(c);
   return`<div class="portal-wrapper">
     <div class="portal-sidebar">
@@ -5869,7 +5929,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063042; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063043; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
