@@ -268,6 +268,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
     <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Visão da Equipe</span></div>
     <div class="ni" onclick="nav('minhasamana')"><span class="ni-icon">⚡</span><span>Minha Semana</span></div>
     <div class="ni" onclick="nav('team')"><span class="ni-icon">👩‍💼</span><span>Equipe</span></div>
+    <div class="ni" id="ni-financeiro" onclick="nav('financeiro')" style="display:none"><span class="ni-icon">💰</span><span>Financeiro</span></div>
     <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
       <div class="ni" onclick="window.open(window.location.origin+window.location.pathname+'#portal','_blank')" style="background:rgba(0,160,220,.15);border:1px solid rgba(0,160,220,.3)"><span class="ni-icon">🌐</span><span>Portal do Cliente</span></div>
       <div class="ni" onclick="forcarAtualizacao()" title="Recarrega os dados mais recentes do servidor (resolve tela desatualizada)"><span class="ni-icon">🔄</span><span>Atualizar dados</span></div>
@@ -839,8 +840,8 @@ save();
 function nav(view,extra={}){
   if(S.view==='team')S.teamAuth=false;
   Object.assign(S,{view},extra);
-  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dash','clients','semana','minhasamana','team'][i]===view));
-  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',semana:'Visão da Equipe',minhasamana:'Minha Semana',func:'Equipe',team:'Equipe'};
+  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dash','clients','semana','minhasamana','team','financeiro'][i]===view));
+  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',semana:'Visão da Equipe',minhasamana:'Minha Semana',func:'Equipe',team:'Equipe',financeiro:'Financeiro'};
   $('ttitle').textContent=titles[view]||view;
   render();
 }
@@ -865,12 +866,15 @@ function render(){
   // Update sidebar footer with current user
   const sbFooter=$('sb-user-info');
   if(sbFooter) sbFooter.innerHTML=`${S.currentUser.name}<br><span style="font-size:10px;opacity:.7">${S.currentUser.role||'ALL IN'}</span>`;
+  // Aba Financeiro: só a Gestão vê (e acessa)
+  var _finNi=document.getElementById('ni-financeiro');if(_finNi)_finNi.style.display=_isGestao(S.currentUser)?'':'none';
+  if(S.view==='financeiro'&&!_isGestao(S.currentUser)){S.view='dash';}
   // Banner "Vendo como" (impersonação da Gestão)
   var _vb=document.getElementById('veras-banner');if(_vb)_vb.remove();
   if(S._realUser){document.body.insertAdjacentHTML('beforeend','<div id="veras-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#7C3AED,#9333EA);color:#fff;padding:9px 14px;text-align:center;font-size:13px;font-weight:600;box-shadow:0 -2px 10px rgba(0,0,0,.2)">👁 Você está vendo como <strong>'+(S.currentUser.name||'').split(' ')[0]+'</strong> (só visualização) <button onclick="voltarMeuPerfil()" style="margin-left:12px;background:#fff;color:#7C3AED;border:none;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer">Voltar ao meu perfil</button></div>');}
   // Normal admin views
   try{
-    const _viewFns={dash:rDash,clients:rClients,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rTeam,team:rTeam,clientView:rClientView};
+    const _viewFns={dash:rDash,clients:rClients,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rTeam,team:rTeam,clientView:rClientView,financeiro:rFinanceiro};
     const _fn=_viewFns[S.view];
     if(!_fn){
       $('view').innerHTML='<div style="padding:20px;color:var(--muted)">Vista desconhecida: <code>'+S.view+'</code></div>';
@@ -930,6 +934,72 @@ function rDashProspeccao(){
       +'<tbody>'+tbody+'</tbody></table></div></div>';
   }catch(e){return'';}
 }
+// ================= FINANCEIRO (Gestão) + Termômetro de meta corporativa =================
+var DEFAULT_METAS=[{target:60000,bonus:1500},{target:80000,bonus:2000},{target:100000,bonus:2400}];
+var DEFAULT_REGRAS=['Preencher o Sistema','Participar da Integração de Clientes','Participar das reuniões de time','Entregas dentro do Prazo','Bater a meta Individual (lead/conteúdo)'];
+function _finance(){
+  if(!D.finance)D.finance={};
+  if(!Array.isArray(D.finance.metas)||D.finance.metas.length!==3)D.finance.metas=DEFAULT_METAS.map(function(m){return{target:m.target,bonus:m.bonus};});
+  if(!D.finance.revenue)D.finance.revenue={};
+  if(!Array.isArray(D.finance.regras))D.finance.regras=DEFAULT_REGRAS.slice();
+  return D.finance;
+}
+function _metaMonthKey(){return getMonthKey(new Date());}
+function _finRev(mk){var f=_finance();var v=f.revenue[mk];return (v==null||v==='')?null:_parseMoney(v);}
+function _finStatus(mk){
+  var f=_finance();var rev=_finRev(mk)||0;
+  var metas=f.metas.map(function(m){return{target:_parseMoney(m.target),bonus:_parseMoney(m.bonus)};});
+  var idx=metas.findIndex(function(m){return rev<m.target;});
+  var allDone=idx<0;if(idx<0)idx=metas.length-1;
+  var meta=metas[idx];var pct=meta.target>0?Math.min(100,Math.round(rev/meta.target*100)):0;
+  var reached=-1;for(var i=metas.length-1;i>=0;i--){if(rev>=metas[i].target){reached=i;break;}}
+  return {rev:_finRev(mk),metaNum:idx+1,pct:allDone?100:pct,allDone:allDone,target:meta.target,bonusReached:reached>=0?metas[reached].bonus:0,reachedNum:reached+1,metas:metas};
+}
+// Termômetro — só % (sem valor). Aparece no Dashboard de TODO o time.
+function _metaThermometerCard(){
+  var mk=_metaMonthKey();var st=_finStatus(mk);var pct=st.pct;
+  var color=pct>=100?'#16A34A':pct>=60?'#0D9488':'#EA580C';
+  return '<div class="card" style="margin-bottom:18px;overflow:hidden">'
+    +'<div class="ch" style="background:linear-gradient(135deg,#0D3D9B,#0891B2)"><h3 style="color:white;margin:0">🎯 Meta corporativa — '+mk+'</h3><span style="font-size:11px;color:rgba(255,255,255,.85)">'+(st.allDone?'🎉 Meta máxima batida!':'Rumo à Meta '+st.metaNum)+'</span></div>'
+    +'<div class="cb"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+    +'<div style="font-size:38px;font-weight:900;color:'+color+';min-width:84px;text-align:center">'+pct+'%</div>'
+    +'<div style="flex:1;min-width:180px"><div style="height:22px;background:#F1F5F9;border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:99px;transition:width .4s"></div></div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(st.allDone?'Todas as metas do mês foram batidas! 🚀':pct+'% da Meta '+st.metaNum+' concluída')+'</div>'
+    +'</div></div></div></div>';
+}
+function rFinanceiro(){
+  if(!_isGestao(S.currentUser))return '<div class="card"><div class="cb" style="padding:30px;text-align:center;color:var(--muted)">🔒 Acesso restrito à Gestão.</div></div>';
+  var f=_finance();
+  var now=new Date();var months=[];for(var i=0;i<6;i++){months.push(getMonthKey(new Date(now.getFullYear(),now.getMonth()-i,1)));}
+  Object.keys(f.revenue).forEach(function(k){if(months.indexOf(k)<0)months.push(k);});
+  if(!S.finMonth||months.indexOf(S.finMonth)<0)S.finMonth=_metaMonthKey();
+  var mk=S.finMonth;var st=_finStatus(mk);
+  var brl=function(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var chips=months.map(function(m){return '<span class="fc '+(mk===m?'active':'')+'" onclick="S.finMonth=\''+m+'\';render()" style="font-size:11px">'+m+'</span>';}).join('');
+  var metaRows=f.metas.map(function(m,i){return '<tr><td style="padding:6px 8px;font-weight:700;color:#0D3D9B">Meta '+(i+1)+'</td>'
+    +'<td style="padding:6px 8px"><input type="text" id="fin-t'+i+'" value="'+(m.target||'')+'" style="width:130px" placeholder="60000"></td>'
+    +'<td style="padding:6px 8px"><input type="text" id="fin-b'+i+'" value="'+(m.bonus||'')+'" style="width:120px" placeholder="1500"></td></tr>';}).join('');
+  var pctColor=st.pct>=100?'#16A34A':st.pct>=60?'#0D9488':'#EA580C';
+  var regras=f.regras.map(function(r){return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;color:#334155"><span style="color:#16A34A">✔</span> '+escH(r)+'</div>';}).join('');
+  return '<div style="margin-bottom:8px"><h2 style="font-size:18px;margin:0">💰 Financeiro</h2><div style="font-size:12px;color:var(--muted)">Metas & bonificação corporativa · visível só para a Gestão</div></div>'
+    +'<div class="card" style="margin-bottom:16px"><div class="ch"><h3>📈 Faturamento do mês</h3></div><div class="cb">'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px;align-self:center">Mês:</span>'+chips+'</div>'
+    +'<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div class="fg" style="max-width:220px;margin:0"><label>Faturamento em '+mk+' (R$)</label><input type="text" id="fin-rev" value="'+(f.revenue[mk]||'')+'" placeholder="Ex: 72.000,00"></div>'
+    +'<button class="btn btn-p btn-s" onclick="saveFinanceRevenue(\''+mk+'\')">💾 Salvar faturamento</button></div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:8px">💡 Enquanto o site financeiro não é integrado, lance aqui o total vendido no mês. O termômetro do time atualiza sozinho (só a %, sem o valor).</div></div></div>'
+    +'<div class="card" style="margin-bottom:16px"><div class="ch" style="background:linear-gradient(135deg,#0D3D9B,#0891B2)"><h3 style="color:white;margin:0">🎯 Termômetro — '+mk+'</h3><span style="font-size:11px;color:rgba(255,255,255,.85)">'+(st.allDone?'Meta máxima batida 🎉':'Rumo à Meta '+st.metaNum)+'</span></div><div class="cb">'
+    +'<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="font-size:38px;font-weight:900;color:'+pctColor+';min-width:84px;text-align:center">'+st.pct+'%</div>'
+    +'<div style="flex:1;min-width:200px"><div style="height:22px;background:#F1F5F9;border-radius:99px;overflow:hidden"><div style="height:100%;width:'+st.pct+'%;background:'+pctColor+';border-radius:99px"></div></div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-top:6px">Faturamento: <strong>'+brl(st.rev||0)+'</strong> · Meta '+st.metaNum+': '+brl(st.target)+'</div></div></div>'
+    +'<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px">🏆 Bônus a distribuir: <strong style="color:#16A34A">'+(st.bonusReached?brl(st.bonusReached)+' (Meta '+st.reachedNum+' batida)':'—')+'</strong></div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:4px">A bonificação corporativa será distribuída entre os ativos no mês (sem ausências superiores a 1 dia).</div></div></div>'
+    +'<div class="card" style="margin-bottom:16px"><div class="ch"><h3>🎚️ Metas corporativas</h3></div><div class="cb"><div class="tw"><table><thead><tr><th></th><th style="text-align:left">Faturamento / mês (R$)</th><th style="text-align:left">Valor a distribuir (R$)</th></tr></thead><tbody>'+metaRows+'</tbody></table></div>'
+    +'<button class="btn btn-o btn-s" style="margin-top:10px" onclick="saveFinanceMetas()">💾 Salvar metas</button></div></div>'
+    +'<div class="card"><div class="ch" style="background:#111827"><h3 style="color:#FDE047;margin:0">📋 Regras Gerais</h3></div><div class="cb">'+regras+'</div></div>';
+}
+function saveFinanceRevenue(mk){var f=_finance();var el=$('fin-rev');f.revenue[mk]=el?el.value.trim():'';save();if(typeof toast==='function')toast('💾 Faturamento salvo!');render();}
+function saveFinanceMetas(){var f=_finance();for(var i=0;i<3;i++){var t=$('fin-t'+i),b=$('fin-b'+i);f.metas[i]={target:t?_parseMoney(t.value):f.metas[i].target,bonus:b?_parseMoney(b.value):f.metas[i].bonus};}save();if(typeof toast==='function')toast('💾 Metas salvas!');render();}
+
 function rDash(){
   const ativos=D.clients.filter(c=>c.contractStatus==='ativo');
   const vencidos=D.clients.filter(c=>c.contractStatus==='vencido');
@@ -981,6 +1051,7 @@ function rDash(){
     <div class="stat" onclick="nav('clients',{statusFilter:'ativo'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--primary)">${ativos.length}</div><div class="stat-lbl">Clientes Ativos</div></div>
     <div class="stat" onclick="nav('clients',{statusFilter:'vencido'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--red)">${vencidos.length}</div><div class="stat-lbl">Contratos Vencidos</div></div>
   </div>
+  ${_metaThermometerCard()}
   <div class="card" style="margin-bottom:18px;overflow:hidden;border:none;box-shadow:0 4px 20px rgba(232,98,42,.15)">
     <div style="background:linear-gradient(135deg,#FF6B6B,#FF8E53,#FFD93D);padding:14px 20px;position:relative;overflow:hidden">
       <div style="position:absolute;top:-10px;right:-10px;font-size:60px;opacity:.18;transform:rotate(15deg)">🎂</div>
@@ -6048,7 +6119,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063045; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063046; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -6057,7 +6128,8 @@ window.addEventListener('hashchange',handleNavigation);
         // Snapshot por CAMPO de cada cliente — permite gravar só o campo que mudou (multiusuário seguro no mesmo cliente)
         clients:D.clients.map(c=>{var o={};for(var k in c){if(Object.prototype.hasOwnProperty.call(c,k)&&c[k]!==undefined)o[k]=JSON.stringify(c[k]);}return o;}),
         team:JSON.stringify(D.team||[]),
-        assignedTasks:JSON.stringify(D.assignedTasks||[])
+        assignedTasks:JSON.stringify(D.assignedTasks||[]),
+        finance:JSON.stringify(D.finance||null)
       };
     }
 
@@ -6111,6 +6183,7 @@ window.addEventListener('hashchange',handleNavigation);
           });
           const tj=JSON.stringify(D.team||[]);if(_fbSnap.team!==tj)updates['team']=JSON.parse(tj);
           const aj=JSON.stringify(D.assignedTasks||[]);if(_fbSnap.assignedTasks!==aj)updates['assignedTasks']=JSON.parse(aj);
+          const fj=JSON.stringify(D.finance||null);if(_fbSnap.finance!==fj)updates['finance']=D.finance?JSON.parse(fj):null;
           if(!Object.keys(updates).length){done();return;}
           updates['_rev']=_nr; // carimba a gravação granular
           _db.ref('allin').update(updates).then(done).catch(fail);
