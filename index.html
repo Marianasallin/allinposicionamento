@@ -5299,6 +5299,8 @@ function portalMonthlyResults(c){
   out.reverse();return out;
 }
 function rPortalDashboard(c){
+  const _pd=c.products||[];
+  if(_pd.includes('Implementação Comercial')&&!_pd.includes('Gestão de Perfil'))return rPortalDashboardIC(c);
   const res=portalMonthlyResults(c);
   const hasRealData=(c.results||[]).length>0||(c.prospects||[]).length>0;
   // Totais desde a entrada (visão geral)
@@ -5716,6 +5718,48 @@ function rPortalMetricas(c){
     +waalaxy+campanhas;
 }
 
+// === DASHBOARD — versão IMPLEMENTAÇÃO COMERCIAL (resumo das principais métricas) ===
+function rPortalDashboardIC(c){
+  const ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const mkOf=function(d){if(!d)return'';var x=new Date(d+'T12:00:00');return isNaN(x)?'':ptM[x.getMonth()]+' '+x.getFullYear();};
+  const encList=(c.encounters&&c.encounters.list)||[];
+  const hist=_prospMeasHist(c);
+  const latest=hist[0]||{};
+  const latMonth=mkOf(latest.date)||(ptM[new Date().getMonth()]+' '+new Date().getFullYear());
+  const pm=_prospMetricsMonth(c,latMonth);
+  const nCamp=(c.campaigns||[]).length;
+  // meses (medições + reuniões) para o gráfico de reuniões/mês
+  const monthsSet=new Set();
+  hist.forEach(function(m){var k=mkOf(m.date);if(k)monthsSet.add(k);});
+  (c.campaigns||[]).forEach(function(cp){_campHist(cp).forEach(function(m){var k=mkOf(m.date);if(k)monthsSet.add(k);});});
+  encList.forEach(function(e){var k=mkOf(e.date);if(k)monthsSet.add(k);});
+  const months=[...monthsSet].sort(function(a,b){var A=a.split(' '),B=b.split(' ');return (parseInt(A[1])*12+ptM.indexOf(A[0]))-(parseInt(B[1])*12+ptM.indexOf(B[0]));});
+  const encCount=function(mk){return encList.filter(function(e){return mkOf(e.date)===mk;}).length;};
+  const stat=function(v,l,color,bg){return '<div style="text-align:center;padding:14px 8px;background:'+bg+';border-radius:12px"><div style="font-size:24px;font-weight:800;color:'+color+'">'+v+'</div><div style="font-size:11px;color:#64748B;margin-top:2px">'+l+'</div></div>';};
+  const val=function(v){return v!=null&&v!==''?Number(v).toLocaleString('pt-BR'):'—';};
+  const hasData=hist.length||encList.length||nCamp;
+  setTimeout(function(){try{var el=document.getElementById('icOverviewChart');if(!el||typeof Chart==='undefined')return;if(el._chart)el._chart.destroy();var lbl=months.map(function(mk){var p=mk.split(' ');return p[0].slice(0,3)+'/'+(p[1]||'').slice(2);});el._chart=new Chart(el,{type:'bar',data:{labels:lbl,datasets:[{label:'Reuniões',data:months.map(function(mk){return encCount(mk);}),backgroundColor:'#EA580C',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});}catch(e){}},120);
+  return '<div class="portal-hero"><div><h1>Olá, '+c.name.split(' ')[0]+'! 👋</h1><p>Resumo da sua prospecção — atualize seus números em <strong>Minhas métricas</strong></p></div></div>'
+    +(hasData?(
+      '<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">Principais resultados'+(latest.date?' · última medição '+ (function(d){var x=new Date(d+"T12:00:00");return isNaN(x)?d:x.toLocaleDateString("pt-BR");})(latest.date):'')+'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px">'
+      +stat(encList.length,'🤝 Reuniões (total)','#EA580C','#FFF7ED')
+      +stat(val(pm.convites),'Convites','#0D3D9B','#F8FAFF')
+      +stat(val(pm.mensagens),'Mensagens','#0D3D9B','#F8FAFF')
+      +stat(val(pm.seguir),'Seguir','#0D3D9B','#F8FAFF')
+      +stat(val(pm.visitas),'Visitar','#0D3D9B','#F8FAFF')
+      +stat(pm.ssi!=null?pm.ssi:'—','SSI','#7C3AED','#F5F3FF')
+      +stat(pm.accAvg!=null?pm.accAvg+'%':'—','Taxa aceitação média','#0D3D9B','#F8FAFF')
+      +stat(pm.respAvg!=null?pm.respAvg+'%':'—','Taxa resposta média','#0D3D9B','#F8FAFF')
+      +stat(nCamp,'📣 Campanhas','#0D9488','#F0FDFA')
+      +'</div></div>'
+      +(months.length>1?'<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">Reuniões por mês</div><div style="position:relative;height:220px"><canvas id="icOverviewChart"></canvas></div></div>':'')
+      +'<div class="portal-card" style="text-align:center;padding:20px"><div style="font-size:13px;color:#475569;margin-bottom:10px">Veja o detalhamento completo mês a mês</div><button onclick="S.portalView=\'relatorios\';render()" style="background:#0D3D9B;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer">📊 Abrir Relatório de Resultados</button></div>'
+    ):(
+      '<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Ainda não há métricas lançadas.<br><small>Comece lançando seus números na aba <strong>Minhas métricas</strong>.</small><br><br><button onclick="S.portalView=\'metricas\';render()" style="background:#0D3D9B;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer">📈 Ir para Minhas métricas</button></div>'
+    ));
+}
+
 // === RELATÓRIO DE RESULTADOS — versão IMPLEMENTAÇÃO COMERCIAL ===
 // Na IC quem prospecta é o próprio cliente: mostra as métricas dele (Waalaxy + campanhas) e as
 // reuniões de implementação. NÃO entra lead/fechamento/receita nem conteúdo/seguidores (isso é de GP).
@@ -5855,7 +5899,7 @@ function rClientPortalAuth(){
   const _isICPortal=_prodsPortal.includes('Implementação Comercial');
   const _icOnly=_isICPortal&&!_prodsPortal.includes('Gestão de Perfil');
   const navItems=[
-    ...(_icOnly?[]:[{id:'dashboard',icon:'📊',label:'Dashboard'}]),
+    {id:'dashboard',icon:'📊',label:'Dashboard'},
     {id:'entregas',icon:'📦',label:'Entregas'},
     ...(_icOnly?[]:[{id:'prospeccao',icon:'🎯',label:'Leads'}]),
     {id:'reunioes',icon:'🤝',label:'Reuniões'},
@@ -5864,7 +5908,7 @@ function rClientPortalAuth(){
   ].filter(n=>!(c.semLeads&&(n.id==='prospeccao'||n.id==='relatorios')));
   if(c.semLeads&&(pv==='prospeccao'||pv==='relatorios')){pv='dashboard';S.portalView='dashboard';}
   if(!_isICPortal&&pv==='metricas'){pv='dashboard';S.portalView='dashboard';}
-  if(_icOnly&&(pv==='dashboard'||pv==='prospeccao')){pv='entregas';S.portalView='entregas';}
+  if(_icOnly&&pv==='prospeccao'){pv='dashboard';S.portalView='dashboard';}
   const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',reunioes:'Reuniões',metricas:'Minhas métricas',relatorios:'Relatório de Resultados'};
   const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,prospeccao:rPortalProspeccao,reunioes:rPortalReunioes,metricas:rPortalMetricas,relatorios:rPortalRelatorios};
   const mainContent=(contentMap[pv]||rPortalDashboard)(c);
@@ -6004,7 +6048,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063044; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063045; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
