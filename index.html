@@ -937,14 +937,25 @@ function rDashProspeccao(){
 // ================= FINANCEIRO (Gestão) + Termômetro de meta corporativa =================
 var DEFAULT_METAS=[{target:60000,bonus:1500},{target:80000,bonus:2000},{target:100000,bonus:2400}];
 var DEFAULT_REGRAS=['Preencher o Sistema','Participar da Integração de Clientes','Participar das reuniões de time','Entregas dentro do Prazo','Bater a meta Individual (lead/conteúdo)'];
+var DEFAULT_REPORT_URL='https://app.meudinheiroweb.com.br/u/667577/relatorios/totais/contato';
 function _finance(){
   if(!D.finance)D.finance={};
   if(!Array.isArray(D.finance.metas)||D.finance.metas.length!==3)D.finance.metas=DEFAULT_METAS.map(function(m){return{target:m.target,bonus:m.bonus};});
   if(!D.finance.revenue)D.finance.revenue={};
   if(!Array.isArray(D.finance.regras))D.finance.regras=DEFAULT_REGRAS.slice();
+  if(!D.finance.reportUrl)D.finance.reportUrl=DEFAULT_REPORT_URL;
   return D.finance;
 }
 function _metaMonthKey(){return getMonthKey(new Date());}
+// Monta o link do relatório do Meu Dinheiro já com as datas do mês escolhido
+function _finReportLink(mk){
+  var ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var p=(mk||'').split(' ');var m=ptM.indexOf(p[0]);var y=parseInt(p[1]);
+  var base=_finance().reportUrl||DEFAULT_REPORT_URL;
+  if(m<0||isNaN(y))return base;
+  var f=function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+  return base+'?inicio='+f(new Date(y,m,1))+'&fim='+f(new Date(y,m+1,0))+'&i=m';
+}
 function _finRev(mk){var f=_finance();var v=f.revenue[mk];return (v==null||v==='')?null:_parseMoney(v);}
 function _finStatus(mk){
   var f=_finance();var rev=_finRev(mk)||0;
@@ -1007,8 +1018,10 @@ function rFinanceiro(){
     +'<div class="card" style="margin-bottom:16px"><div class="ch"><h3>📈 Faturamento do mês</h3></div><div class="cb">'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px;align-self:center">Mês:</span>'+chips+'</div>'
     +'<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div class="fg" style="max-width:220px;margin:0"><label>Faturamento em '+mk+' (R$)</label><input type="text" id="fin-rev" value="'+(f.revenue[mk]||'')+'" placeholder="Ex: 72.000,00"></div>'
-    +'<button class="btn btn-p btn-s" onclick="saveFinanceRevenue(\''+mk+'\')">💾 Salvar faturamento</button></div>'
-    +'<div style="font-size:11px;color:var(--muted);margin-top:8px">💡 Enquanto o site financeiro não é integrado, lance aqui o total vendido no mês. O termômetro do time atualiza sozinho (só a %, sem o valor).</div></div></div>'
+    +'<button class="btn btn-p btn-s" onclick="saveFinanceRevenue(\''+mk+'\')">💾 Salvar faturamento</button>'
+    +'<a href="'+_finReportLink(mk)+'" target="_blank" rel="noopener" class="btn btn-o btn-s" style="text-decoration:none">🔗 Abrir relatório de '+mk+'</a></div>'
+    +(f.revenue[mk]?'':'<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:9px 12px;margin-top:10px;font-size:12px;color:#92400E">⚠️ O faturamento de <strong>'+mk+'</strong> ainda não foi lançado — o termômetro do time está em 0%.</div>')
+    +'<div style="font-size:11px;color:var(--muted);margin-top:8px">💡 Clique em <strong>Abrir relatório de '+mk+'</strong> (abre no Meu Dinheiro já com as datas deste mês), copie o total e cole aqui. O termômetro do time atualiza sozinho (só a %, sem o valor).</div></div></div>'
     +'<div class="card" style="margin-bottom:16px"><div class="ch" style="background:linear-gradient(135deg,#0D3D9B,#0891B2)"><h3 style="color:white;margin:0">🎯 Termômetro — '+mk+'</h3><span style="font-size:11px;color:rgba(255,255,255,.85)">'+(st.allDone?'Meta máxima batida 🎉':'Rumo à Meta '+st.metaNum)+'</span></div><div class="cb">'
     +'<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="font-size:38px;font-weight:900;color:'+pctColor+';min-width:84px;text-align:center">'+st.pct+'%</div>'
     +'<div style="flex:1;min-width:200px"><div style="height:22px;background:#F1F5F9;border-radius:99px;overflow:hidden"><div style="height:100%;width:'+st.pct+'%;background:'+pctColor+';border-radius:99px"></div></div>'
@@ -6139,7 +6152,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063048; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063049; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
