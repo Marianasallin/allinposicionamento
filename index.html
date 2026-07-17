@@ -955,17 +955,39 @@ function _finStatus(mk){
   var reached=-1;for(var i=metas.length-1;i>=0;i--){if(rev>=metas[i].target){reached=i;break;}}
   return {rev:_finRev(mk),metaNum:idx+1,pct:allDone?100:pct,allDone:allDone,target:meta.target,bonusReached:reached>=0?metas[reached].bonus:0,reachedNum:reached+1,metas:metas};
 }
-// Termômetro — só % (sem valor). Aparece no Dashboard de TODO o time.
+// Termômetro (Dashboard de TODO o time): mostra o VALOR da meta (que a equipe conhece) e a % rumo a ela.
+// O faturamento (quanto já foi vendido) NÃO aparece — só a Gestão vê isso na aba Financeiro.
 function _metaThermometerCard(){
   var mk=_metaMonthKey();var st=_finStatus(mk);var pct=st.pct;
   var color=pct>=100?'#16A34A':pct>=60?'#0D9488':'#EA580C';
+  var brl=function(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  // Alerta de meta atingida — avisa que bateu e que já está indo pra próxima
+  var alerta=st.reachedNum>0
+    ?('<div style="background:#F0FDF4;border:1px solid #86EFAC;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#166534">🎉 <strong>Meta '+st.reachedNum+' atingida!</strong>'
+      +(st.allDone?' Todas as metas do mês foram batidas — parabéns a todas! 🚀':' Agora seguimos rumo à <strong>Meta '+st.metaNum+'</strong> ('+brl(st.target)+').')+'</div>')
+    :'';
+  // Trilha das 3 metas com os valores (atingida / atual / a seguir)
+  var steps=st.metas.map(function(m,i){
+    var done=st.reachedNum>=(i+1);
+    var atual=!st.allDone&&st.metaNum===(i+1);
+    var bg=done?'#DCFCE7':atual?'#EFF6FF':'#F8FAFC';
+    var bd=done?'#86EFAC':atual?'#93C5FD':'#E5E7EB';
+    var ic=done?'✅':atual?'🎯':'⏳';
+    var cl=done?'#166534':atual?'#0D3D9B':'#64748B';
+    return '<div style="flex:1;min-width:128px;background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:8px 10px;text-align:center">'
+      +'<div style="font-size:11px;font-weight:700;color:'+cl+'">'+ic+' Meta '+(i+1)+(atual?' · atual':done?' · atingida':'')+'</div>'
+      +'<div style="font-size:13px;font-weight:800;color:'+cl+';margin-top:2px">'+brl(m.target)+'</div></div>';
+  }).join('');
   return '<div class="card" style="margin-bottom:18px;overflow:hidden">'
-    +'<div class="ch" style="background:linear-gradient(135deg,#0D3D9B,#0891B2)"><h3 style="color:white;margin:0">🎯 Meta corporativa — '+mk+'</h3><span style="font-size:11px;color:rgba(255,255,255,.85)">'+(st.allDone?'🎉 Meta máxima batida!':'Rumo à Meta '+st.metaNum)+'</span></div>'
-    +'<div class="cb"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+    +'<div class="ch" style="background:linear-gradient(135deg,#0D3D9B,#0891B2)"><h3 style="color:white;margin:0">🎯 Meta corporativa — '+mk+'</h3><span style="font-size:11px;color:rgba(255,255,255,.85)">'+(st.allDone?'Todas as metas batidas 🎉':'Rumo à Meta '+st.metaNum+' · '+brl(st.target))+'</span></div>'
+    +'<div class="cb">'+alerta
+    +'<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
     +'<div style="font-size:38px;font-weight:900;color:'+color+';min-width:84px;text-align:center">'+pct+'%</div>'
     +'<div style="flex:1;min-width:180px"><div style="height:22px;background:#F1F5F9;border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:99px;transition:width .4s"></div></div>'
-    +'<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(st.allDone?'Todas as metas do mês foram batidas! 🚀':pct+'% da Meta '+st.metaNum+' concluída')+'</div>'
-    +'</div></div></div></div>';
+    +'<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(st.allDone?'Todas as metas do mês foram batidas! 🚀':pct+'% da <strong>Meta '+st.metaNum+'</strong> — '+brl(st.target))+'</div>'
+    +'</div></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'+steps+'</div>'
+    +'</div></div>';
 }
 function rFinanceiro(){
   if(!_isGestao(S.currentUser))return '<div class="card"><div class="cb" style="padding:30px;text-align:center;color:var(--muted)">🔒 Acesso restrito à Gestão.</div></div>';
@@ -6117,7 +6139,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063047; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063048; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
