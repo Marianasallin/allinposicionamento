@@ -3445,7 +3445,7 @@ function openTaskModal(){
   const members=D.team.filter(m=>m.id!==user.id);
   document.getElementById('task-modal').style.display='flex';
   document.getElementById('task-due').value='';
-  document.getElementById('task-to').innerHTML=members.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  document.getElementById('task-to').innerHTML='<option value="__all">👥 Toda a equipe</option>'+members.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
   document.getElementById('task-desc').value='';
   document.getElementById('task-comment').value='';
 }
@@ -3455,10 +3455,19 @@ function saveTask(){
   const desc=document.getElementById('task-desc').value.trim();
   if(!desc)return alert('Descreva a tarefa.');
   const toId=document.getElementById('task-to').value;
-  const toMember=D.team.find(m=>m.id===toId);if(!toMember)return;
   const due=document.getElementById('task-due').value||'';
   const comment=document.getElementById('task-comment').value.trim();
-  D.assignedTasks.push({id:'t'+Date.now(),description:desc,dueDate:due,assignedTo:toMember.name,assignedToId:toId,createdBy:user.name,createdById:user.id,done:false,createdAt:new Date().toISOString(),comment});
+  const base={description:desc,dueDate:due,createdBy:user.name,createdById:user.id,done:false,createdAt:new Date().toISOString(),comment};
+  if(toId==='__all'){
+    // Mesma tarefa pra toda a equipe: uma cópia por pessoa ativa (cada uma marca a sua na Minha Semana)
+    const alvo=D.team.filter(m=>m&&m.id!==user.id&&_memberActive(m));
+    if(!alvo.length){alert('Nenhuma pessoa ativa na equipe.');return;}
+    const gid='g'+Date.now();
+    alvo.forEach((m,i)=>D.assignedTasks.push(Object.assign({},base,{id:'t'+Date.now()+'-'+i,assignedTo:m.name,assignedToId:m.id,groupId:gid})));
+  }else{
+    const toMember=D.team.find(m=>m.id===toId);if(!toMember)return;
+    D.assignedTasks.push(Object.assign({},base,{id:'t'+Date.now(),assignedTo:toMember.name,assignedToId:toId}));
+  }
   save();closeTaskModal();render();
 }
 function toggleTaskDone(taskId){
@@ -6152,7 +6161,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063049; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063050; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
