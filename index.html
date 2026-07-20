@@ -1555,10 +1555,120 @@ function rDetailProspeccao(c){
       +'</div>'+tableHtml+'</div></div>';
   }catch(e){return '<div class="card"><div class="cb"><p style="color:red">Erro ao carregar prospecção: '+e.message+'</p></div></div>';}
 }
+// ================= PLANO DE AÇÃO (cliente + ALL IN) — portal e sistema, dados sincronizados =================
+var PLANO_ST=[['todo','A fazer','#475569','#F1F5F9','#CBD5E1'],['doing','Em andamento','#B45309','#FFF7ED','#FED7AA'],['done','Concluído','#15803D','#F0FDF4','#86EFAC']];
+function _planoStMeta(s){for(var i=0;i<PLANO_ST.length;i++)if(PLANO_ST[i][0]===s)return PLANO_ST[i];return PLANO_ST[0];}
+function _planoOwner(o){return o==='allin'?['🔵 ALL IN','#0D3D9B','#EFF6FF']:['🟢 Cliente','#0D9488','#F0FDFA'];}
+function _actionPlan(c){if(!Array.isArray(c.actionPlan))c.actionPlan=[];return c.actionPlan;}
+function _planoCard(c,t,isPortal){
+  var admin=!isPortal;
+  var canEdit=admin||t.owner==='client'; // no portal, a cliente só mexe no status das tarefas DELA
+  var st=_planoStMeta(t.status);var ow=_planoOwner(t.owner);
+  var stCtrl=canEdit
+    ? PLANO_ST.map(function(s){var on=s[0]===t.status;return '<span onclick="planoSetStatus(\''+c.id+'\',\''+t.id+'\',\''+s[0]+'\')" style="cursor:pointer;font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:'+(on?s[3]:'#fff')+';color:'+(on?s[2]:'#94A3B8')+';border:1px solid '+(on?s[4]:'#E5E7EB')+'">'+s[1]+'</span>';}).join(' ')
+    : '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:'+st[3]+';color:'+st[2]+';border:1px solid '+st[4]+'">'+st[1]+'</span>';
+  return '<div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px;margin-bottom:8px">'
+    +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">'
+    +'<div style="font-size:13px;color:#1E293B;font-weight:500;line-height:1.4;flex:1;'+(t.status==='done'?'text-decoration:line-through;color:#94A3B8':'')+'">'+escH(t.text)+'</div>'
+    +(admin?'<div style="display:flex;gap:4px;flex-shrink:0"><button class="btn btn-o btn-s" style="font-size:10px" onclick="planoEditOpen(\''+c.id+'\',\''+t.id+'\')">✏️</button><button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="planoDelete(\''+c.id+'\',\''+t.id+'\')">🗑</button></div>':'')
+    +'</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">'
+    +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:'+ow[2]+';color:'+ow[1]+'">'+ow[0]+'</span>'
+    +(t.dueDate?'<span style="font-size:10px;color:#64748B">📅 '+fmtDate(t.dueDate)+'</span>':'')
+    +(t.encounterDate?'<span style="font-size:10px;color:#64748B">🤝 '+fmtDate(t.encounterDate)+'</span>':'')
+    +'</div>'
+    +'<div style="margin-top:8px">'+stCtrl+'</div>'
+    +'</div>';
+}
+function _planoBody(c,isPortal){
+  var plan=_actionPlan(c).slice();
+  var view=S.planoView==='quadro'?'quadro':'lista';
+  var ownerF=S.planoOwnerFilter||'todos';
+  var admin=!isPortal;var rank={todo:0,doing:1,done:2};
+  var toggle='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'
+    +'<div style="display:inline-flex;background:#F1F5F9;border-radius:8px;padding:3px">'
+    +['lista','quadro'].map(function(v){var on=view===v;return '<span onclick="planoSetView(\''+v+'\')" style="cursor:pointer;font-size:12px;font-weight:600;padding:5px 12px;border-radius:6px;background:'+(on?'#fff':'transparent')+';color:'+(on?'#0D3D9B':'#64748B')+'">'+(v==='lista'?'☰ Lista':'▦ Quadro')+'</span>';}).join('')
+    +'</div>'
+    +(admin?'<button class="btn btn-p btn-s" style="margin-left:auto" onclick="planoOpenAdd(\''+c.id+'\',\'\')">+ Nova tarefa</button>':'')
+    +'</div>';
+  if(!plan.length)return toggle+'<div style="text-align:center;padding:36px;color:#94A3B8;font-size:13px">Nenhuma tarefa no plano de ação ainda.'+(admin?'<br><small>Clique em <strong>+ Nova tarefa</strong> ou gere a partir de um encontro.</small>':'')+'</div>';
+  var body;
+  if(view==='quadro'){
+    var fchips='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;align-self:center;margin-right:2px">Ver:</span>'
+      +[['todos','Todos'],['client','🟢 Cliente'],['allin','🔵 ALL IN']].map(function(o){var on=ownerF===o[0];return '<span onclick="planoSetOwnerFilter(\''+o[0]+'\')" class="fc '+(on?'active':'')+'" style="font-size:11px">'+o[1]+'</span>';}).join('')+'</div>';
+    var cols=PLANO_ST.map(function(s){
+      var items=plan.filter(function(t){return t.status===s[0]&&(ownerF==='todos'||t.owner===ownerF);});
+      return '<div style="flex:1;min-width:190px;background:#F8FAFC;border-radius:10px;padding:10px">'
+        +'<div style="font-size:12px;font-weight:700;color:'+s[2]+';margin-bottom:8px">'+s[1]+' <span style="color:#94A3B8">('+items.length+')</span></div>'
+        +(items.length?items.map(function(t){return _planoCard(c,t,isPortal);}).join(''):'<div style="font-size:11px;color:#CBD5E1;text-align:center;padding:10px">—</div>')+'</div>';
+    }).join('');
+    body=fchips+'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">'+cols+'</div>';
+  }else{
+    var grp=function(owner,title){
+      var items=plan.filter(function(t){return t.owner===owner;}).sort(function(a,b){return (rank[a.status]||0)-(rank[b.status]||0);});
+      return '<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:8px">'+title+' <span style="color:#94A3B8">('+items.length+')</span></div>'
+        +(items.length?items.map(function(t){return _planoCard(c,t,isPortal);}).join(''):'<div style="font-size:12px;color:#94A3B8;padding:8px">Nenhuma tarefa.</div>')+'</div>';
+    };
+    body=grp('client','🟢 Tarefas do Cliente')+grp('allin','🔵 Tarefas da ALL IN');
+  }
+  return toggle+body;
+}
+function rDetailPlano(c){
+  return '<div class="card"><div class="ch"><div><h3>📋 Plano de Ação</h3><span style="font-size:11px;color:var(--muted)">O que a cliente marca no portal aparece aqui — em tempo real</span></div></div><div class="cb">'+_planoBody(c,false)+'</div></div>';
+}
+function rPortalPlano(c){
+  return '<div class="portal-hero" style="margin-bottom:20px"><div><h1>📋 Plano de Ação</h1><p>O que combinamos: a sua parte e a nossa. Marque o que já concluiu — assim o nosso trabalho anda junto 💙</p></div></div>'
+    +'<div class="portal-card">'+_planoBody(c,true)+'</div>';
+}
+function planoSetView(v){S.planoView=v;render();}
+function planoSetOwnerFilter(f){S.planoOwnerFilter=f;render();}
+function planoSetStatus(cid,id,status){
+  var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;
+  var t=_actionPlan(c).find(function(x){return x.id===id;});if(!t)return;
+  if(S.isClientPortal&&t.owner!=='client')return; // portal: cliente só muda as dela
+  t.status=status;save();if(typeof toast==='function')toast('✅ Atualizado!');render();
+}
+function planoDelete(cid,id){
+  if(S.isClientPortal)return;
+  if(!confirm('Remover esta tarefa do plano de ação?'))return;
+  var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;
+  c.actionPlan=_actionPlan(c).filter(function(x){return x.id!==id;});save();render();
+}
+function planoEditOpen(cid,id){planoOpenAdd(cid,'',id);}
+function planoOpenAdd(cid,encDate,editId){
+  var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;
+  var t=editId?_actionPlan(c).find(function(x){return x.id===editId;}):null;
+  var enc=encDate||(t&&t.encounterDate)||'';
+  var ov=document.createElement('div');ov.id='plano-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">'+(t?'✏️ Editar tarefa':'➕ Nova tarefa')+'</h3><button onclick="document.getElementById(\'plano-overlay\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:20px;display:flex;flex-direction:column;gap:12px">'
+    +(enc?'<div style="font-size:11px;color:#0D3D9B;background:#EFF6FF;border-radius:8px;padding:6px 10px">🤝 Vinculada ao encontro de '+fmtDate(enc)+'</div>':'')
+    +'<div class="fg"><label>Tarefa *</label><textarea id="plano-text" rows="3" style="width:100%;resize:vertical" placeholder="Ex: Enviar os textos das artes até sexta">'+(t?escH(t.text):'')+'</textarea></div>'
+    +'<div class="fgrid"><div class="fg"><label>Responsável</label><select id="plano-owner"><option value="client" '+((!t||t.owner==='client')?'selected':'')+'>🟢 Cliente</option><option value="allin" '+((t&&t.owner==='allin')?'selected':'')+'>🔵 ALL IN</option></select></div>'
+    +'<div class="fg"><label>Status</label><select id="plano-status">'+PLANO_ST.map(function(s){return '<option value="'+s[0]+'" '+(((t&&t.status===s[0])||(!t&&s[0]==='todo'))?'selected':'')+'>'+s[1]+'</option>';}).join('')+'</select></div></div>'
+    +'<div class="fg" style="max-width:220px"><label>Prazo (opcional)</label><input type="date" id="plano-due" value="'+(t?(t.dueDate||''):'')+'"></div>'
+    +'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'plano-overlay\').remove()">Cancelar</button><button class="btn btn-p" onclick="planoSaveAdd(\''+cid+'\',\''+(editId||'')+'\',\''+enc+'\')">💾 Salvar</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+function planoSaveAdd(cid,editId,encDate){
+  var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;
+  var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
+  var text=g('plano-text');if(!text){if(typeof toast==='function')toast('⚠️ Escreva a tarefa');return;}
+  var data={text:text,owner:g('plano-owner')||'client',status:g('plano-status')||'todo',dueDate:g('plano-due'),encounterDate:encDate||''};
+  var plan=_actionPlan(c);
+  if(editId){var t=plan.find(function(x){return x.id===editId;});if(t)Object.assign(t,data);else plan.push(Object.assign({id:'pa'+Date.now(),createdAt:new Date().toISOString()},data));}
+  else plan.push(Object.assign({id:'pa'+Date.now(),createdAt:new Date().toISOString()},data));
+  save();var ov=document.getElementById('plano-overlay');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Plano de ação atualizado!');render();
+}
 function rDetail(){
   const c=getC();if(!c)return'';
   const p=prog(c);
-  const tabs={entregas:'📦 Entregas',prospeccao:'🎯 Leads',campanhas:'📣 Campanhas',encontros:'🤝 Encontros',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
+  const tabs={entregas:'📦 Entregas',prospeccao:'🎯 Leads',campanhas:'📣 Campanhas',encontros:'🤝 Encontros',plano:'📋 Plano de Ação',resultados:'📈 Resultados',contrato:'📋 Contrato',pessoal:'👤 Dados',notas:'📝 Notas'};
   if(c.semLeads){delete tabs.prospeccao;delete tabs.resultados;}
   if(!tabs[S.tab])S.tab='entregas';
   const tabHtml=Object.entries(tabs).map(([k,v])=>`<div class="tab ${S.tab===k?'active':''}" onclick="S.tab='${k}';render()">${v}</div>`).join('');
@@ -1570,6 +1680,9 @@ function rDetail(){
   }
   else if(S.tab==='campanhas'){
     body=rDetailCampanhas(c);
+  }
+  else if(S.tab==='plano'){
+    body=rDetailPlano(c);
   }
   else if(S.tab==='entregas'){
     const hasGP=c.products.includes('Gestão de Perfil');
@@ -1735,6 +1848,7 @@ function rDetail(){
                   <div style="font-size:12px;color:#16A34A;font-weight:600;margin-top:2px">✅ Realizado</div>
                 </div>
                 <div style="display:flex;gap:4px">
+                  <button class="btn btn-o btn-s" onclick="planoOpenAdd('${c.id}','${enc.date}')" title="Adicionar ao Plano de Ação">📋</button>
                   <button class="btn btn-o btn-s" onclick="openEncounterModal('${c.id}','${i}')" title="Editar">✏️</button>
                   <button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="deleteEncounter('${c.id}',${i})" title="Remover">🗑️</button>
                 </div>
@@ -1767,7 +1881,7 @@ function rDetail(){
       ${encsSorted.length?encsSorted.map((enc,i)=>`<div class="card" style="margin-bottom:12px">
         <div class="ch">
           <div><h4 style="margin:0">${fmtDate(enc.date)}${enc.time?' · 🕐 '+enc.time:''}</h4><p style="margin:4px 0 0;font-size:12px;color:var(--muted)">👥 ${(enc.attendees||[]).join(', ')||'Sem participantes'}</p></div>
-          <div style="display:flex;gap:4px"><button class="btn btn-o btn-s" onclick="openEncounterModal('${c.id}','${i}')">✏️ Editar</button><button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="deleteEncounter('${c.id}',${i})">🗑️</button></div>
+          <div style="display:flex;gap:4px"><button class="btn btn-o btn-s" onclick="planoOpenAdd('${c.id}','${enc.date}')" title="Adicionar ao Plano de Ação">📋 Plano</button><button class="btn btn-o btn-s" onclick="openEncounterModal('${c.id}','${i}')">✏️ Editar</button><button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="deleteEncounter('${c.id}',${i})">🗑️</button></div>
         </div>
         <div class="cb">
           <p style="margin:0;color:var(--text)">${enc.description||'Sem descrição'}</p>
@@ -6021,14 +6135,15 @@ function rClientPortalAuth(){
     {id:'entregas',icon:'📦',label:'Entregas'},
     ...(_icOnly?[]:[{id:'prospeccao',icon:'🎯',label:'Leads'}]),
     {id:'reunioes',icon:'🤝',label:'Reuniões'},
+    {id:'plano',icon:'📋',label:'Plano de Ação'},
     ...(_isICPortal?[{id:'metricas',icon:'📈',label:'Minhas métricas'}]:[]),
     {id:'relatorios',icon:'📊',label:'Relatório de Resultados'},
   ].filter(n=>!(c.semLeads&&(n.id==='prospeccao'||n.id==='relatorios')));
   if(c.semLeads&&(pv==='prospeccao'||pv==='relatorios')){pv='dashboard';S.portalView='dashboard';}
   if(!_isICPortal&&pv==='metricas'){pv='dashboard';S.portalView='dashboard';}
   if(_icOnly&&pv==='prospeccao'){pv='dashboard';S.portalView='dashboard';}
-  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',reunioes:'Reuniões',metricas:'Minhas métricas',relatorios:'Relatório de Resultados'};
-  const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,prospeccao:rPortalProspeccao,reunioes:rPortalReunioes,metricas:rPortalMetricas,relatorios:rPortalRelatorios};
+  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',reunioes:'Reuniões',plano:'Plano de Ação',metricas:'Minhas métricas',relatorios:'Relatório de Resultados'};
+  const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,prospeccao:rPortalProspeccao,reunioes:rPortalReunioes,plano:rPortalPlano,metricas:rPortalMetricas,relatorios:rPortalRelatorios};
   const mainContent=(contentMap[pv]||rPortalDashboard)(c);
   return`<div class="portal-wrapper">
     <div class="portal-sidebar">
@@ -6166,7 +6281,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063052; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063053; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
