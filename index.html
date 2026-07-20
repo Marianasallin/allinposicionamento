@@ -1144,7 +1144,7 @@ function rClients(){
           <p style="color:var(--muted);margin-bottom:24px">Selecione sua funcionária para visualizar seus clientes:</p>
           <select onchange="S.selectedTeamMember=this.value;render()" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px">
             <option value="">— Selecionar —</option>
-            ${D.team.map(m=>`<option value="${m.name}">${m.name}</option>`).join('')}
+            ${D.team.filter(_memberActive).map(m=>`<option value="${m.name}">${m.name}</option>`).join('')}
           </select>
           <button class="btn btn-o" style="margin-top:20px;width:100%" onclick="S.viewMode='normal';render()">← Voltar</button>
         </div>
@@ -1282,7 +1282,7 @@ function rClients(){
     <strong style="font-size:11px;color:var(--muted);align-self:center;margin-left:8px">Carreira:</strong>
     <select class="mini" onchange="S.assigneeFilter=this.value;render()">
       <option value="todos">Todas</option>
-      ${D.team.map(m=>`<option value="${m.name}" ${S.assigneeFilter===m.name?'selected':''}>${m.name.split(' ')[0]}</option>`).join('')}
+      ${D.team.filter(_memberActive).map(m=>`<option value="${m.name}" ${S.assigneeFilter===m.name?'selected':''}>${m.name.split(' ')[0]}</option>`).join('')}
     </select>
   </div>
   <div class="sh"><h2>${list.length} cliente${list.length!==1?'s':''}</h2><button class="btn btn-p btn-s" onclick="addClient()">+ Novo</button></div>
@@ -1345,17 +1345,21 @@ function calcResultados(c){
 // Métricas de prospecção de um mês (somadas das medições de campanha)
 // Medições de prospecção — agora ÚNICAS por cliente (c.prospMeasurements), preenchidas 2x/mês com data.
 // Fallback (leitura): se ainda não existe, agrega as medições antigas que estavam dentro das campanhas.
+// Medição TEM volume de Waalaxy? (convite/mensagens/seguir/visitar/ssi preenchido)
+function _measHasVol(m){return [m.convite,m.mensagens,m.seguir,m.visitar,m.ssi].some(function(v){return v!==''&&v!=null;});}
 function _prospMeasHist(c){
   var a;
   if(Array.isArray(c.prospMeasurements))a=c.prospMeasurements.slice();
-  else{a=[];(c.campaigns||[]).forEach(function(cp){_campHist(cp).forEach(function(m){a.push(m);});});}
+  // Fallback (cliente sem medições próprias): só entram medições de campanha COM volume.
+  // Atualização só de taxa (resposta/aceitação) fica na campanha e NÃO vaza pro painel de Waalaxy.
+  else{a=[];(c.campaigns||[]).forEach(function(cp){_campHist(cp).forEach(function(m){if(_measHasVol(m))a.push(m);});});}
   a.sort(function(x,y){return (''+(y.date||'')).localeCompare(''+(x.date||''));});
   return a;
 }
-// Garante c.prospMeasurements[] (migra medições antigas das campanhas na primeira escrita)
+// Garante c.prospMeasurements[] (migra só as medições COM volume das campanhas na primeira escrita)
 function _ensureProspMeas(c){
   if(!Array.isArray(c.prospMeasurements)){
-    var a=[];(c.campaigns||[]).forEach(function(cp){_campHist(cp).forEach(function(m){a.push(Object.assign({},m));});});
+    var a=[];(c.campaigns||[]).forEach(function(cp){_campHist(cp).forEach(function(m){if(_measHasVol(m))a.push(Object.assign({},m));});});
     a.sort(function(x,y){return (''+(y.date||'')).localeCompare(''+(x.date||''));});
     c.prospMeasurements=a;
   }
@@ -3442,7 +3446,7 @@ function updateWeeklyLeads(cid,wk,v){const c=D.clients.find(c=>c.id===cid);if(!c
 // ── TAREFAS ATRIBUÍDAS ──────────────────────────────────────
 function openTaskModal(){
   const user=S.currentUser;if(!user)return;
-  const members=D.team.filter(m=>m.id!==user.id);
+  const members=D.team.filter(m=>m.id!==user.id&&_memberActive(m));
   document.getElementById('task-modal').style.display='flex';
   document.getElementById('task-due').value='';
   document.getElementById('task-to').innerHTML='<option value="__all">👥 Toda a equipe</option>'+members.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
@@ -6162,7 +6166,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063051; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063052; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
