@@ -6342,7 +6342,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063059; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063060; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -6481,6 +6481,34 @@ window.addEventListener('hashchange',handleNavigation);
           bar.innerHTML='🔄 Nova versão pronta. <strong>Pode terminar o que está fazendo</strong> — o sistema salva o seu trabalho e atualiza sozinho. <button onclick="_doUpdateReload()" style="background:#fff;color:#B45309;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer">Atualizar agora</button>';
           document.body.appendChild(bar);
         }
+        // ── VIGIA DE GRAVAÇÃO ──────────────────────────────────────────
+        // Se algo ficar sem subir pro servidor, avisa NA TELA (antes ficava em silêncio e o trabalho se perdia)
+        function _unsavedBanner(show){
+          var el=document.getElementById('unsaved-banner');
+          if(!show){if(el)el.remove();return;}
+          if(el)return;
+          var b=document.createElement('div');b.id='unsaved-banner';
+          b.style.cssText='position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#DC2626;color:#fff;padding:11px 16px;display:flex;align-items:center;justify-content:center;gap:14px;font-size:13px;font-weight:700;box-shadow:0 -2px 12px rgba(0,0,0,.3);flex-wrap:wrap;text-align:center';
+          b.innerHTML='⚠️ ATENÇÃO: suas últimas alterações <u>ainda não foram salvas no servidor</u>. NÃO feche esta página. <button onclick="_tentarSalvarAgora()" style="background:#fff;color:#DC2626;border:none;border-radius:6px;padding:6px 14px;font-weight:800;cursor:pointer">Tentar salvar agora</button>';
+          document.body.appendChild(b);
+        }
+        window._tentarSalvarAgora=function(){
+          _fbBlocked=false; // libera esta aba para uma tentativa
+          if(_fbTimer)clearTimeout(_fbTimer);
+          _fbWriting=true;
+          _fbFlush(function(){
+            if(!_localDirty){_unsavedBanner(false);if(typeof toast==='function')toast('✅ Salvo no servidor!');}
+            else if(typeof toast==='function')toast('❌ Ainda não foi. Verifique a internet e tente de novo.');
+          });
+        };
+        setInterval(function(){
+          if(!_fbReady)return;
+          _unsavedBanner(_localDirty&&!_fbWriting);
+        },6000);
+        // Se tentar fechar/recarregar com trabalho pendente, o navegador pergunta antes
+        window.addEventListener('beforeunload',function(e){
+          if(_localDirty&&!_fbWriting){e.preventDefault();e.returnValue='';return '';}
+        });
         function _maybeReload(b){
           if(!(b>APP_BUILD))return;
           const ae=document.activeElement;
