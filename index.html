@@ -5756,7 +5756,7 @@ function _plBadge(p){
   var b=m[_plStageOf(p)];
   return '<span style="font-size:11px;font-weight:600;color:'+b[1]+';background:'+b[1]+'18;padding:3px 10px;border-radius:99px;white-space:nowrap">'+b[0]+'</span>';
 }
-function _plCounts(c){var P=c.prospects||[];return{todos:P.length,aguardando:P.filter(function(p){return !p.replied&&!p.noReply&&!p.contractClosed&&!p.hadMeeting;}).length,semresposta:P.filter(function(p){return p.noReply&&!p.replied&&!p.contractClosed&&!p.hadMeeting;}).length,responderam:P.filter(function(p){return p.replied;}).length,reuniao:P.filter(function(p){return p.hadMeeting;}).length,fechados:P.filter(function(p){return p.contractClosed;}).length};}
+function _plCounts(c){var P=c.prospects||[];return{todos:P.length,aguardando:P.filter(function(p){return !p.replied&&!p.noReply&&!p.contractClosed&&!p.hadMeeting;}).length,semresposta:P.filter(function(p){return p.noReply&&!p.replied&&!p.contractClosed&&!p.hadMeeting;}).length,responderam:P.filter(function(p){return p.replied;}).length,fup1:P.filter(function(p){return !!p.followUp1;}).length,fup2:P.filter(function(p){return !!p.followUp2;}).length,reuniao:P.filter(function(p){return p.hadMeeting;}).length,fechados:P.filter(function(p){return p.contractClosed;}).length};}
 function _plChk(cid,pid,field,val,label){
   return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;border-radius:8px;background:'+(val?'#F0FDF4':'#F9FAFB')+';border:1px solid '+(val?'#86EFAC':'#E5E7EB')+'">'
     +'<input type="checkbox" '+(val?'checked':'')+' onchange="portalUpdateProspect(\''+cid+'\',\''+pid+'\',\''+field+'\',this.checked);this.closest(\'label\').style.background=this.checked?\'#F0FDF4\':\'#F9FAFB\';this.closest(\'label\').style.borderColor=this.checked?\'#86EFAC\':\'#E5E7EB\'" style="width:16px;height:16px;cursor:pointer">'
@@ -5810,11 +5810,11 @@ function rPortalProspeccao(c){
   const monthOpts=['<option value="">Todos os meses</option>'].concat(Object.keys(monthsSet).sort().reverse().map(function(ym){var pa=ym.split('-');return '<option value="'+ym+'">'+(_mn[(+pa[1])-1]||'')+' '+pa[0]+'</option>';})).join('');
   const cnt=_plCounts(c);
   function _chip(stage,label,n,active){return '<span class="pl-chip'+(active?' pl-chip-active':'')+'" data-stage="'+stage+'" onclick="portalSetLeadStage(\''+stage+'\',this)" style="cursor:pointer;font-size:12px;padding:5px 11px;border-radius:99px;background:'+(active?'#0D3D9B':'#F1F5F9')+';color:'+(active?'#fff':'#475569')+'">'+label+' <span id="plcnt-'+stage+'">'+n+'</span></span>';}
-  const chips=_chip('todos','Todos',cnt.todos,true)+_chip('aguardando','Aguardando',cnt.aguardando,false)+_chip('semresposta','Sem resposta',cnt.semresposta,false)+_chip('responderam','Responderam',cnt.responderam,false)+_chip('reuniao','Reunião',cnt.reuniao,false)+_chip('fechados','Fechados',cnt.fechados,false);
+  const chips=_chip('todos','Todos',cnt.todos,true)+_chip('aguardando','Aguardando',cnt.aguardando,false)+_chip('semresposta','Sem resposta',cnt.semresposta,false)+_chip('responderam','Responderam',cnt.responderam,false)+_chip('fup1','📌 Follow-up 1',cnt.fup1,false)+_chip('fup2','📌 Follow-up 2',cnt.fup2,false)+_chip('reuniao','Reunião',cnt.reuniao,false)+_chip('fechados','Fechados',cnt.fechados,false);
   const rows=pros.map(function(p){
     var dateStr=p.date?new Date(p.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}):'';
     var ini=(p.name||'?').split(' ').filter(function(x){return x;}).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();
-    return '<div class="pl-row-wrap" id="plw-'+p.id+'" data-name="'+escH((p.name||'').toLowerCase())+'" data-month="'+(p.date?p.date.slice(0,7):'')+'" data-replied="'+(p.replied?1:0)+'" data-noreply="'+(p.noReply?1:0)+'" data-meeting="'+(p.hadMeeting?1:0)+'" data-closed="'+(p.contractClosed?1:0)+'" style="border-bottom:1px solid #F1F5F9">'
+    return '<div class="pl-row-wrap" id="plw-'+p.id+'" data-name="'+escH((p.name||'').toLowerCase())+'" data-month="'+(p.date?p.date.slice(0,7):'')+'" data-replied="'+(p.replied?1:0)+'" data-noreply="'+(p.noReply?1:0)+'" data-fu1="'+(p.followUp1?1:0)+'" data-fu2="'+(p.followUp2?1:0)+'" data-meeting="'+(p.hadMeeting?1:0)+'" data-closed="'+(p.contractClosed?1:0)+'" style="border-bottom:1px solid #F1F5F9">'
       +'<div onclick="portalToggleLead(\''+p.id+'\')" style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer">'
         +'<div style="width:34px;height:34px;border-radius:50%;background:#EEF2FF;color:#0D3D9B;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">'+ini+'</div>'
         +'<div style="flex:1;min-width:0">'
@@ -5859,7 +5859,7 @@ function portalApplyLeadFilters(){
   var rows=document.querySelectorAll('.pl-row-wrap');var vis=0;
   for(var i=0;i<rows.length;i++){
     var w=rows[i];
-    var okS = stage==='todos'?true:stage==='aguardando'?(w.dataset.replied==='0'&&w.dataset.noreply==='0'&&w.dataset.closed==='0'&&w.dataset.meeting==='0'):stage==='semresposta'?(w.dataset.noreply==='1'&&w.dataset.replied==='0'&&w.dataset.closed==='0'&&w.dataset.meeting==='0'):stage==='responderam'?(w.dataset.replied==='1'):stage==='reuniao'?(w.dataset.meeting==='1'):stage==='fechados'?(w.dataset.closed==='1'):true;
+    var okS = stage==='todos'?true:stage==='aguardando'?(w.dataset.replied==='0'&&w.dataset.noreply==='0'&&w.dataset.closed==='0'&&w.dataset.meeting==='0'):stage==='semresposta'?(w.dataset.noreply==='1'&&w.dataset.replied==='0'&&w.dataset.closed==='0'&&w.dataset.meeting==='0'):stage==='responderam'?(w.dataset.replied==='1'):stage==='fup1'?(w.dataset.fu1==='1'):stage==='fup2'?(w.dataset.fu2==='1'):stage==='reuniao'?(w.dataset.meeting==='1'):stage==='fechados'?(w.dataset.closed==='1'):true;
     var okM = !month||w.dataset.month===month;
     var okQ = !q||(w.dataset.name||'').indexOf(q)>-1;
     var show=okS&&okM&&okQ;w.style.display=show?'':'none';if(show)vis++;
@@ -5882,14 +5882,14 @@ function portalUpdateProspect(cid,pid,field,value){
   save();
   toast('✅ Salvo!');
   // Atualização localizada (preserva filtro, busca e expansão) ao mudar status
-  if(field==='contractClosed'||field==='replied'||field==='noReply'||field==='hadMeeting'||field==='scheduledMeeting'||field==='sentMessage'){
+  if(field==='contractClosed'||field==='replied'||field==='noReply'||field==='hadMeeting'||field==='scheduledMeeting'||field==='sentMessage'||field==='followUp1'||field==='followUp2'){
     var w=document.getElementById('plw-'+pid);
-    if(w){w.dataset.replied=p.replied?1:0;w.dataset.noreply=p.noReply?1:0;w.dataset.meeting=p.hadMeeting?1:0;w.dataset.closed=p.contractClosed?1:0;}
+    if(w){w.dataset.replied=p.replied?1:0;w.dataset.noreply=p.noReply?1:0;w.dataset.fu1=p.followUp1?1:0;w.dataset.fu2=p.followUp2?1:0;w.dataset.meeting=p.hadMeeting?1:0;w.dataset.closed=p.contractClosed?1:0;}
     var b=document.getElementById('plb-'+pid);if(b)b.innerHTML=_plBadge(p);
     // ao mudar o par respondeu/não respondeu, redesenha o detalhe pra o outro checkbox refletir
     if(field==='replied'||field==='noReply'){var dd=document.getElementById('pld-'+pid);if(dd)dd.innerHTML=_plDetail(cid,p);}
     else {var cs=document.getElementById('plc-'+pid);if(cs)cs.innerHTML=_plContract(cid,p);}
-    var cnt=_plCounts(c);['todos','aguardando','semresposta','responderam','reuniao','fechados'].forEach(function(k){var el=document.getElementById('plcnt-'+k);if(el)el.textContent=cnt[k];});
+    var cnt=_plCounts(c);['todos','aguardando','semresposta','responderam','fup1','fup2','reuniao','fechados'].forEach(function(k){var el=document.getElementById('plcnt-'+k);if(el)el.textContent=cnt[k];});
     if(typeof portalApplyLeadFilters==='function')portalApplyLeadFilters();
   }
 }
@@ -6311,7 +6311,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063056; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063057; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
