@@ -6287,7 +6287,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063054; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026063055; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -6310,9 +6310,13 @@ window.addEventListener('hashchange',handleNavigation);
       if(_fbBlocked)return; // aba desatualizada: não grava no Firebase (evita sobrescrever dados novos de quem está atualizado)
       if(_fbTimer)clearTimeout(_fbTimer);
       _fbWriting=true;
-      _fbTimer=setTimeout(()=>{
-        const done=()=>{_resnap();_localDirty=false;setTimeout(()=>{_fbWriting=false;},1000);};
-        const fail=()=>{_fbWriting=false;};
+      _fbTimer=setTimeout(function(){_fbFlush();},800);
+    };
+    // Gravação de fato — usada pelo save normal E pelo "salvar antes de atualizar a versão"
+    function _fbFlush(cb){
+      {
+        const done=()=>{_resnap();_localDirty=false;setTimeout(()=>{_fbWriting=false;},1000);if(cb)cb();};
+        const fail=()=>{_fbWriting=false;if(cb)cb();};
         const _nr=(_dataRev=(_dataRev||0)+1); // novo carimbo de versão para esta gravação
         try{
           const ids=D.clients.map(c=>c.id);
@@ -6360,8 +6364,8 @@ window.addEventListener('hashchange',handleNavigation);
           const _p=JSON.parse(JSON.stringify(D));_p._rev=_nr;
           _db.ref('allin').set(_p).then(done).catch(fail);
         }
-      },800);
-    };
+      }
+    }
 
     // Garante que todos os clientes têm os campos obrigatórios
     function sanitizeD(data){
@@ -6419,16 +6423,25 @@ window.addEventListener('hashchange',handleNavigation);
           const bar=document.createElement('div');
           bar.id='update-banner';
           bar.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(135deg,#D97706,#F59E0B);color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:14px;font-size:13px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.25);flex-wrap:wrap;text-align:center';
-          bar.innerHTML='🔄 Uma nova versão do sistema está pronta. <strong>Salve o que está digitando</strong> — vai atualizar sozinho quando você terminar. <button onclick="_doUpdateReload()" style="background:#fff;color:#B45309;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer">Atualizar agora</button>';
+          bar.innerHTML='🔄 Nova versão pronta. <strong>Pode terminar o que está fazendo</strong> — o sistema salva o seu trabalho e atualiza sozinho. <button onclick="_doUpdateReload()" style="background:#fff;color:#B45309;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer">Atualizar agora</button>';
           document.body.appendChild(bar);
         }
         function _maybeReload(b){
           if(!(b>APP_BUILD))return;
-          _fbBlocked=true; // descobriu que há versão mais nova → esta aba para de gravar JÁ (mesmo antes de recarregar)
           const ae=document.activeElement;
           const digitando=ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable);
-          if(digitando){_showUpdateBanner();setTimeout(function(){_maybeReload(b);},4000);return;} // avisa e espera terminar de digitar
-          _doUpdateReload(); // ninguém digitando → atualiza sozinho, na hora
+          // Enquanto a pessoa digita, a aba CONTINUA salvando normalmente (não bloqueia) —
+          // bloquear antes de subir o trabalho fazia o que ela digitou se perder no reload.
+          if(digitando){_showUpdateBanner();setTimeout(function(){_maybeReload(b);},4000);return;}
+          // Antes de bloquear e recarregar: sobe o que ainda não foi salvo.
+          if(_fbReady&&_localDirty&&!_fbBlocked){
+            if(_fbTimer)clearTimeout(_fbTimer);
+            _fbWriting=true;
+            _fbFlush(function(){_fbBlocked=true;_doUpdateReload();});
+            return;
+          }
+          _fbBlocked=true; // nada pendente → agora sim para de gravar e atualiza
+          _doUpdateReload();
         }
         try{
           _db.ref('allin/_build').once('value').then(function(s){
