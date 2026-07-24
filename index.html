@@ -1714,7 +1714,6 @@ function _contCard(c,card){
   var link=_validUrl(card.link);
   var footer=[];
   if(meta.length)footer.push('<span style="display:flex;flex-wrap:wrap;gap:8px">'+meta.map(function(m){return '<span>'+m+'</span>';}).join('')+'</span>');
-  if(card.owner)footer.push(_contOwnerAv(card.owner,true));
   return '<div draggable="true" ondragstart="contDragStart(event,\''+c.id+'\',\''+card.id+'\')" title="Arraste para mover de etapa" '
     +'style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.04)">'
     +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">'
@@ -1753,38 +1752,13 @@ function _contCol(s,cards,cid){
 }
 function _findClient(cid){return D.clients.find(function(x){return x.id===cid;});}
 
-// responsáveis distintos presentes nos cards de um cliente
-function _contOwners(c){
-  var set=[];_conteudos(c).cards.forEach(function(t){var o=(t.owner||'').trim();if(o&&set.indexOf(o)<0)set.push(o);});
-  return set.sort(function(a,b){return a.localeCompare(b);});
-}
-// responsáveis de conteúdo = quem já aparece nos cards + equipe de conteúdo (Gestão / Head de Conteúdo)
-// assim o filtro aparece desde o começo, mesmo com o quadro vazio.
-function _contResponsaveis(c){
-  var set=_contOwners(c);
-  (D.team||[]).forEach(function(m){
-    var r=(m.role||'');
-    if((r==='Gestão'||/conte[úu]do/i.test(r))&&m.name&&set.indexOf(m.name)<0)set.push(m.name);
-  });
-  return set.sort(function(a,b){return a.localeCompare(b);});
-}
-// ── Quadro de um cliente (respeita o filtro de responsável) ──
+// responsável de conteúdo de um cliente = vem da carteira (aba Contrato → contentOwners)
+function _clientResp(c){return (c.contentOwners||[]).filter(Boolean);}
+// ── Quadro de um cliente ──
 function _contBoard(c){
-  var of=S.contOwnerFilter||'todos';
-  var cards=_conteudos(c).cards.filter(function(t){return of==='todos'||(t.owner||'')===of;});
+  var cards=_conteudos(c).cards;
   var cols=CONT_ST.map(function(s){return _contCol(s,cards.filter(function(t){return (t.status||'ideias')===s[0];}),c.id);}).join('');
   return '<div style="display:flex;gap:12px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start;padding-bottom:6px">'+cols+'</div>';
-}
-// barra de filtro por responsável
-function _contOwnerFilterBar(c){
-  var owners=_contResponsaveis(c);if(!owners.length)return '';
-  var of=S.contOwnerFilter||'todos';
-  var chip=function(val,inner,on){return '<span onclick="contSetOwnerFilter(\''+val.replace(/'/g,"\\'")+'\')" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:5px 11px;border-radius:99px;border:1px solid '+(on?'#0D3D9B':'#E2E8F0')+';background:'+(on?'#EFF3FF':'#fff')+';color:'+(on?'#0D3D9B':'#475569')+'">'+inner+'</span>';};
-  return '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'
-    +'<span style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;margin-right:2px">Responsável:</span>'
-    +chip('todos','Todos',of==='todos')
-    +owners.map(function(o){return chip(o,_contOwnerAv(o,true),of===o);}).join('')
-    +'</div>';
 }
 
 // ── Ficha do cliente (fixa no topo) ──
@@ -1819,20 +1793,42 @@ function rConteudos(){
   var head='<div style="margin-bottom:16px"><h2 style="font-size:19px;margin:0">🎬 Conteúdos</h2><div style="font-size:12px;color:var(--muted)">Planejamento editorial dos clientes de Gestão de Perfil</div></div>';
   if(!gp.length)return head+'<div style="text-align:center;padding:50px;color:#94A3B8">Nenhum cliente de Gestão de Perfil cadastrado ainda.</div>';
 
-  if(!S.contClientId||!gp.some(function(c){return c.id===S.contClientId;}))S.contClientId=gp[0].id;
+  // Responsáveis vêm da carteira (aba Contrato → contentOwners). Filtro mostra os clientes de cada uma.
+  var respCount={},semResp=0;
+  gp.forEach(function(c){var o=_clientResp(c);if(!o.length)semResp++;o.forEach(function(n){respCount[n]=(respCount[n]||0)+1;});});
+  var resps=Object.keys(respCount).sort(function(a,b){return respCount[b]-respCount[a];});
+  var rf=S.contRespFilter||'todos';
+  var filtered=gp.filter(function(c){
+    if(rf==='todos')return true;
+    if(rf==='__sem')return !_clientResp(c).length;
+    return _clientResp(c).indexOf(rf)>=0;
+  });
+
+  // Barra de responsável — no topo, perto do seletor de clientes
+  var rchip=function(val,inner,on,count){return '<span onclick="contSetRespFilter(\''+val.replace(/'/g,"\\'")+'\')" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:5px 11px;border-radius:99px;border:1px solid '+(on?'#0D3D9B':'#E2E8F0')+';background:'+(on?'#EFF3FF':'#fff')+';color:'+(on?'#0D3D9B':'#475569')+'">'+inner+(count!=null?' <span style="color:#94A3B8;font-weight:700">'+count+'</span>':'')+'</span>';};
+  var respBar='<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'
+    +'<span style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;margin-right:2px">Responsável:</span>'
+    +rchip('todos','Todos',rf==='todos',gp.length)
+    +resps.map(function(n){return rchip(n,_contOwnerAv(n,true),rf===n,respCount[n]);}).join('')
+    +(semResp?rchip('__sem','Sem responsável',rf==='__sem',semResp):'')
+    +'</div>';
+
+  if(!filtered.length)return head+respBar+'<div style="text-align:center;padding:40px;color:#94A3B8">Nenhum cliente para esse responsável.</div>';
+  if(!S.contClientId||!filtered.some(function(c){return c.id===S.contClientId;}))S.contClientId=filtered[0].id;
   var sel=_findClient(S.contClientId);
-  // Seletor de cliente enxuto (menu suspenso, no lugar da fileira de nomes soltos)
+  var respAv=_clientResp(sel).length?_clientResp(sel).map(function(n){return _contOwnerAv(n,true);}).join('&nbsp;&nbsp;'):'<span style="color:#94A3B8">sem responsável definido</span>';
+
   var selector='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">'
     +'<label style="font-size:12px;font-weight:700;color:#475569">Cliente:</label>'
     +'<select onchange="contPickClient(this.value)" style="font-size:14px;font-weight:600;color:#0D3D9B;padding:8px 12px;border:1px solid #CBD5E1;border-radius:9px;background:#fff;min-width:220px;cursor:pointer">'
-    +gp.map(function(c){return '<option value="'+c.id+'" '+(c.id===sel.id?'selected':'')+'>'+escH(c.name)+'</option>';}).join('')
+    +filtered.map(function(c){return '<option value="'+c.id+'" '+(c.id===sel.id?'selected':'')+'>'+escH(c.name)+'</option>';}).join('')
     +'</select>'
-    +'<span style="font-size:12px;color:#94A3B8">'+gp.length+' cliente'+(gp.length>1?'s':'')+' de Gestão de Perfil</span>'
+    +'<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#64748B;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:99px;padding:4px 11px"><span style="color:#94A3B8;font-weight:700">Responsável:</span> '+respAv+'</span>'
     +'<button class="btn btn-p" style="margin-left:auto" onclick="contCardOpen(\''+sel.id+'\',\'\',\'ideias\')">+ Novo tema / conteúdo</button></div>';
-  return head+selector+_contFicha(sel)+'<div class="card"><div class="cb" style="padding:16px">'+_contOwnerFilterBar(sel)+_contBoard(sel)+'</div></div>';
+  return head+respBar+selector+_contFicha(sel)+'<div class="card"><div class="cb" style="padding:16px">'+_contBoard(sel)+'</div></div>';
 }
-function contSetOwnerFilter(o){S.contOwnerFilter=o;render();}
-function contPickClient(cid){S.contClientId=cid;S.contOwnerFilter='todos';render();}
+function contSetRespFilter(o){S.contRespFilter=o;render();}
+function contPickClient(cid){S.contClientId=cid;render();}
 
 // ── Drag & drop ──
 var _contDrag=null;
@@ -1864,8 +1860,7 @@ function contCardOpen(cid,editId,status){
     +'<div class="fg"><label>Tema / Título *</label><input id="cont-title" value="'+(card?escH(card.title):'')+'" placeholder="Ex: Como escolher parceiros"></div>'
     +'<div class="fgrid"><div class="fg"><label>Etapa</label><select id="cont-status">'+CONT_ST.map(function(s){return '<option value="'+s[0]+'" '+(st===s[0]?'selected':'')+'>'+s[1]+'</option>';}).join('')+'</select></div>'
     +'<div class="fg"><label>Data de postagem</label><input type="date" id="cont-date" value="'+(card?(card.date||''):'')+'"></div></div>'
-    +'<div class="fgrid"><div class="fg"><label>Responsável</label><input id="cont-owner" list="cont-owner-list" value="'+(card?escH(card.owner||''):'')+'" placeholder="Ex: Bruna"><datalist id="cont-owner-list">'+(D.team||[]).map(function(m){return '<option value="'+escH(m.name)+'">';}).join('')+'</datalist></div>'
-    +'<div class="fg"><label>Rede</label><select id="cont-rede">'+redeOpts+'</select></div></div>'
+    +'<div class="fg" style="max-width:220px"><label>Rede</label><select id="cont-rede">'+redeOpts+'</select></div>'
     +'<div class="fg"><label>Link do material (opcional)</label><input id="cont-link" value="'+(card?escH(card.link||''):'')+'" placeholder="Cole o link da arte / pasta"></div>'
     +'<div style="font-size:11px;color:#94A3B8">💡 Na etapa <strong>Temas (ideias)</strong> a data é opcional — o tema fica guardado até virar arte.</div>'
     +'</div>'
@@ -1879,7 +1874,7 @@ function contCardSave(cid,editId){
   var c=_findClient(cid);if(!c)return;
   var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
   var title=g('cont-title');if(!title){if(typeof toast==='function')toast('⚠️ Escreva o tema/título');return;}
-  var data={title:title,status:g('cont-status')||'ideias',date:g('cont-date'),owner:g('cont-owner'),rede:g('cont-rede'),link:g('cont-link')};
+  var data={title:title,status:g('cont-status')||'ideias',date:g('cont-date'),rede:g('cont-rede'),link:g('cont-link')};
   var cards=_conteudos(c).cards;
   if(editId){var card=cards.find(function(x){return x.id===editId;});if(card)Object.assign(card,data);else cards.push(Object.assign({id:'ct'+Date.now(),createdAt:new Date().toISOString()},data));}
   else cards.push(Object.assign({id:'ct'+Date.now(),createdAt:new Date().toISOString()},data));
@@ -6583,7 +6578,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072403; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072404; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
