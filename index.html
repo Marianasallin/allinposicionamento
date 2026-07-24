@@ -265,6 +265,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
   <nav class="sb-nav">
     <div class="ni active" onclick="nav('dash')"><span class="ni-icon">📊</span><span>Dashboard</span></div>
     <div class="ni" onclick="nav('clients',{clientId:null})"><span class="ni-icon">👥</span><span>Clientes</span></div>
+    <div class="ni" onclick="nav('conteudos')"><span class="ni-icon">🎬</span><span>Conteúdos</span></div>
     <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Visão da Equipe</span></div>
     <div class="ni" onclick="nav('minhasamana')"><span class="ni-icon">⚡</span><span>Minha Semana</span></div>
     <div class="ni" onclick="nav('team')"><span class="ni-icon">👩‍💼</span><span>Equipe</span></div>
@@ -840,8 +841,8 @@ save();
 function nav(view,extra={}){
   if(S.view==='team')S.teamAuth=false;
   Object.assign(S,{view},extra);
-  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dash','clients','semana','minhasamana','team','financeiro'][i]===view));
-  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',semana:'Visão da Equipe',minhasamana:'Minha Semana',func:'Equipe',team:'Equipe',financeiro:'Financeiro'};
+  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dash','clients','conteudos','semana','minhasamana','team','financeiro'][i]===view));
+  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',conteudos:'Conteúdos',semana:'Visão da Equipe',minhasamana:'Minha Semana',func:'Equipe',team:'Equipe',financeiro:'Financeiro'};
   $('ttitle').textContent=titles[view]||view;
   render();
 }
@@ -874,7 +875,7 @@ function render(){
   if(S._realUser){document.body.insertAdjacentHTML('beforeend','<div id="veras-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#7C3AED,#9333EA);color:#fff;padding:9px 14px;text-align:center;font-size:13px;font-weight:600;box-shadow:0 -2px 10px rgba(0,0,0,.2)">👁 Você está vendo como <strong>'+(S.currentUser.name||'').split(' ')[0]+'</strong> (só visualização) <button onclick="voltarMeuPerfil()" style="margin-left:12px;background:#fff;color:#7C3AED;border:none;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer">Voltar ao meu perfil</button></div>');}
   // Normal admin views
   try{
-    const _viewFns={dash:rDash,clients:rClients,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rTeam,team:rTeam,clientView:rClientView,financeiro:rFinanceiro};
+    const _viewFns={dash:rDash,clients:rClients,conteudos:rConteudos,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rTeam,team:rTeam,clientView:rClientView,financeiro:rFinanceiro};
     const _fn=_viewFns[S.view];
     if(!_fn){
       $('view').innerHTML='<div style="padding:20px;color:var(--muted)">Vista desconhecida: <code>'+S.view+'</code></div>';
@@ -1673,6 +1674,222 @@ function planoSaveAdd(cid,editId,encDate){
   if(editId){var t=plan.find(function(x){return x.id===editId;});if(t)Object.assign(t,data);else plan.push(Object.assign({id:'pa'+Date.now(),createdAt:new Date().toISOString()},data));}
   else plan.push(Object.assign({id:'pa'+Date.now(),createdAt:new Date().toISOString()},data));
   save();var ov=document.getElementById('plano-overlay');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Plano de ação atualizado!');render();
+}
+
+// ════════════════════════════════════════════════════════════
+// CONTEÚDOS — Ficha do cliente + Quadro (kanban) estilo Trello
+// Só para clientes de Gestão de Perfil. Campo isolado c.conteudos
+// (grava granular → nunca sobrescreve leads/campanhas das meninas).
+// ════════════════════════════════════════════════════════════
+var CONT_ST=[
+  ['ideias','💡 Temas (ideias)','#7C3AED','#F5F3FF','#DDD6FE'],
+  ['arte','🎨 Em arte','#0369A1','#EFF6FF','#BFDBFE'],
+  ['cliente','📤 Aguardando cliente','#B45309','#FFF7ED','#FED7AA'],
+  ['aprovado','✅ Aprovado','#15803D','#F0FDF4','#86EFAC'],
+  ['publicado','📢 Publicado','#334155','#F1F5F9','#CBD5E1']
+];
+function _contStMeta(s){for(var i=0;i<CONT_ST.length;i++)if(CONT_ST[i][0]===s)return CONT_ST[i];return CONT_ST[0];}
+function _conteudos(c){if(!c.conteudos)c.conteudos={ficha:{},cards:[]};if(!c.conteudos.ficha)c.conteudos.ficha={};if(!Array.isArray(c.conteudos.cards))c.conteudos.cards=[];return c.conteudos;}
+function _isGP(c){return (c.products||[]).includes('Gestão de Perfil');}
+function _gpClients(){return D.clients.filter(function(c){return _isGP(c)&&c.contractStatus!=='inativo';}).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});}
+function _validUrl(u){u=(u||'').trim();if(!u)return '';return /^https?:\/\//i.test(u)?u:('https://'+u);}
+
+// ── Card de conteúdo (arrastável) ──
+function _contCard(c,card,showClient){
+  var st=_contStMeta(card.status);
+  var meta=[];
+  if(card.status!=='ideias'&&card.date)meta.push('📅 '+fmtDate(card.date+'T12:00:00'));
+  if(card.owner)meta.push('👤 '+escH(card.owner));
+  if(card.rede)meta.push(card.rede==='LinkedIn'?'💼 LinkedIn':'📸 Instagram');
+  var link=_validUrl(card.link);
+  return '<div draggable="true" ondragstart="contDragStart(event,\''+c.id+'\',\''+card.id+'\')" title="Arraste para mover de etapa" '
+    +'style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.04)">'
+    +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">'
+    +'<div style="font-size:13px;font-weight:600;color:#1E293B;line-height:1.35;word-break:break-word">'+escH(card.title||'(sem título)')+'</div>'
+    +'<div style="display:flex;gap:3px;flex-shrink:0"><button class="btn btn-o btn-s" style="font-size:10px;padding:2px 6px" onclick="contCardOpen(\''+c.id+'\',\''+card.id+'\')">✏️</button>'
+    +'<button class="btn btn-o btn-s" style="font-size:10px;padding:2px 6px;border-color:var(--red);color:var(--red)" onclick="contDelete(\''+c.id+'\',\''+card.id+'\')">🗑</button></div></div>'
+    +(showClient?'<div style="font-size:10px;font-weight:700;color:#7C3AED;margin-top:6px">🏷 '+escH((c.name||'').split(' ').slice(0,2).join(' '))+'</div>':'')
+    +(meta.length?'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:7px;font-size:11px;color:#64748B">'+meta.map(function(m){return '<span>'+m+'</span>';}).join('')+'</div>':'')
+    +(link?'<div style="margin-top:7px"><a href="'+escH(link)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">🔗 Abrir material</a></div>':'')
+    +'</div>';
+}
+
+// ── Uma coluna do quadro (drop zone). Publicado agrupa por mês. ──
+function _contCol(s,cards,cid){
+  var body;
+  if(s[0]==='publicado'){
+    var pub=cards.slice().sort(function(a,b){return (''+(b.date||'')).localeCompare(''+(a.date||''));});
+    if(!pub.length)body='<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">Solte aqui</div>';
+    else{
+      var curMk=null;body='';
+      pub.forEach(function(card){
+        var mk=card.date?getMonthKey(new Date(card.date+'T12:00:00')).toUpperCase():'SEM DATA';
+        if(mk!==curMk){curMk=mk;body+='<div style="font-size:10px;font-weight:800;color:#94A3B8;letter-spacing:.5px;margin:10px 0 6px">'+mk+'</div>';}
+        body+=_contCard(_findClient(cid),card,false);
+      });
+    }
+  }else{
+    body=cards.length?cards.map(function(card){return _contCard(_findClient(cid),card,false);}).join('')
+      :'<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">Solte aqui</div>';
+  }
+  var hint=s[0]==='ideias'?'<div style="font-size:10px;color:#94A3B8;margin-bottom:8px">sem data — ficam guardados</div>':'';
+  return '<div ondragover="contDragOver(event)" ondragenter="this.style.background=\'#EFF6FF\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';contDrop(event,\''+cid+'\',\''+s[0]+'\')" '
+    +'style="flex:1;min-width:210px;max-width:280px;background:#F8FAFC;border-radius:12px;padding:12px;transition:background .15s">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12px;font-weight:700;color:'+s[2]+'">'+s[1]+' <span style="color:#94A3B8">('+cards.length+')</span></span>'
+    +'<button class="btn btn-o btn-s" style="font-size:12px;padding:1px 7px;line-height:1.2" title="Adicionar aqui" onclick="contCardOpen(\''+cid+'\',\'\',\''+s[0]+'\')">+</button></div>'
+    +hint+body+'</div>';
+}
+function _findClient(cid){return D.clients.find(function(x){return x.id===cid;});}
+
+// ── Quadro de um cliente ──
+function _contBoard(c){
+  var cards=_conteudos(c).cards;
+  var cols=CONT_ST.map(function(s){return _contCol(s,cards.filter(function(t){return (t.status||'ideias')===s[0];}),c.id);}).join('');
+  return '<div style="display:flex;gap:12px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start;padding-bottom:6px">'+cols+'</div>';
+}
+
+// ── Ficha do cliente (fixa no topo) ──
+function _contFicha(c){
+  var f=_conteudos(c).ficha;
+  var redes=(f.redes||[]);
+  var linha=_validUrl(f.linhaEditorial),pasta=_validUrl(f.pastaArtes);
+  var item=function(ic,lbl,val){return '<div style="min-width:150px"><div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">'+ic+' '+lbl+'</div><div style="font-size:13px;color:#1E293B">'+(val||'<span style=\'color:#CBD5E1\'>—</span>')+'</div></div>';};
+  var redesHtml=redes.length?redes.map(function(r){return '<span style="display:inline-block;font-size:11px;font-weight:600;background:#EFF6FF;color:#0369A1;border-radius:99px;padding:2px 9px;margin-right:4px">'+(r==='LinkedIn'?'💼 ':'📸 ')+escH(r)+'</span>';}).join(''):'<span style="color:#CBD5E1">—</span>';
+  var linkBtn=function(url,lbl,ic){return url?'<a href="'+escH(url)+'" target="_blank" style="font-size:12px;font-weight:600;color:#0369A1;text-decoration:none">'+ic+' '+lbl+' ↗</a>':'<span style="font-size:12px;color:#CBD5E1">'+ic+' '+lbl+' (não informado)</span>';};
+  return '<div class="card" style="margin-bottom:16px;border:1px solid #E5E7EB">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:linear-gradient(135deg,#0D3D9B,#0891B2);border-radius:12px 12px 0 0">'
+    +'<h3 style="margin:0;color:#fff;font-size:14px">📋 Ficha — '+escH(c.name)+'</h3>'
+    +'<button class="btn btn-s" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.35);font-size:12px" onclick="contFichaOpen(\''+c.id+'\')">✏️ Editar ficha</button></div>'
+    +'<div style="padding:14px 16px">'
+    +'<div style="display:flex;flex-wrap:wrap;gap:18px 24px">'
+    +item('🕐','Horário e dias',escH(f.horarioDias))
+    +item('🔁','Frequência',escH(f.frequencia))
+    +'<div style="min-width:150px"><div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">📱 Redes sociais</div>'+redesHtml+'</div>'
+    +'</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;padding-top:12px;border-top:1px solid #F1F5F9">'
+    +'<div>'+linkBtn(linha,'Linha editorial','✍️')+'</div>'
+    +'<div>'+linkBtn(pasta,'Pasta de artes e materiais','📁')+'</div>'
+    +'</div>'
+    +(f.obs?'<div style="margin-top:12px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">📝 Observações</div><div style="font-size:13px;color:#334155;white-space:pre-wrap">'+escH(f.obs)+'</div></div>':'')
+    +'</div></div>';
+}
+
+// ── View principal ──
+function rConteudos(){
+  var gp=_gpClients();
+  var mode=S.contMode==='geral'?'geral':'cliente';
+  var toggle='<div style="display:inline-flex;background:#F1F5F9;border-radius:9px;padding:3px">'
+    +[['geral','▦ Quadro geral'],['cliente','👤 Por cliente']].map(function(o){var on=mode===o[0];return '<span onclick="contSetMode(\''+o[0]+'\')" style="cursor:pointer;font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px;background:'+(on?'#fff':'transparent')+';color:'+(on?'#0D3D9B':'#64748B')+';'+(on?'box-shadow:0 1px 2px rgba(0,0,0,.08)':'')+'">'+o[1]+'</span>';}).join('')+'</div>';
+  var head='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
+    +'<div><h2 style="font-size:19px;margin:0">🎬 Conteúdos</h2><div style="font-size:12px;color:var(--muted)">Planejamento editorial dos clientes de Gestão de Perfil</div></div>'+toggle+'</div>';
+
+  if(!gp.length)return head+'<div style="text-align:center;padding:50px;color:#94A3B8">Nenhum cliente de Gestão de Perfil cadastrado ainda.</div>';
+
+  if(mode==='geral'){
+    var all=[];gp.forEach(function(c){_conteudos(c).cards.forEach(function(card){all.push({c:c,card:card});});});
+    var cols=CONT_ST.map(function(s){
+      var items=all.filter(function(o){return (o.card.status||'ideias')===s[0];});
+      var inner=items.length?items.map(function(o){return _contCard(o.c,o.card,true);}).join(''):'<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">Vazio</div>';
+      return '<div ondragover="contDragOver(event)" ondragenter="this.style.background=\'#EFF6FF\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';contDropGeral(event,\''+s[0]+'\')" style="flex:1;min-width:210px;max-width:280px;background:#F8FAFC;border-radius:12px;padding:12px;transition:background .15s">'
+        +'<div style="font-size:12px;font-weight:700;color:'+s[2]+';margin-bottom:8px">'+s[1]+' <span style="color:#94A3B8">('+items.length+')</span></div>'+inner+'</div>';
+    }).join('');
+    return head+'<div class="card"><div class="cb" style="padding:16px"><div style="display:flex;gap:12px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start;padding-bottom:6px">'+cols+'</div></div></div>';
+  }
+
+  // modo Por cliente
+  if(!S.contClientId||!gp.some(function(c){return c.id===S.contClientId;}))S.contClientId=gp[0].id;
+  var sel=_findClient(S.contClientId);
+  var chips='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">'+gp.map(function(c){
+    var on=c.id===S.contClientId;
+    return '<span onclick="contPickClient(\''+c.id+'\')" style="cursor:pointer;font-size:12px;font-weight:600;padding:6px 12px;border-radius:99px;border:1px solid '+(on?'#0D3D9B':'#E2E8F0')+';background:'+(on?'#0D3D9B':'#fff')+';color:'+(on?'#fff':'#475569')+'">'+escH(c.name.split(' ').slice(0,2).join(' '))+'</span>';
+  }).join('')+'</div>';
+  var addBtn='<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn btn-p" onclick="contCardOpen(\''+sel.id+'\',\'\',\'ideias\')">+ Novo tema / conteúdo</button></div>';
+  return head+chips+_contFicha(sel)+addBtn+'<div class="card"><div class="cb" style="padding:16px">'+_contBoard(sel)+'</div></div>';
+}
+function contSetMode(m){S.contMode=m;render();}
+function contPickClient(cid){S.contClientId=cid;render();}
+
+// ── Drag & drop ──
+var _contDrag=null;
+function contDragStart(ev,cid,id){_contDrag={cid:cid,id:id};if(ev.dataTransfer){ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',id);}catch(e){}}}
+function contDragOver(ev){ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect='move';}
+function contDrop(ev,cid,status){ev.preventDefault();var d=_contDrag;_contDrag=null;if(!d||d.cid!==cid)return;contSetStatus(cid,d.id,status);}
+function contDropGeral(ev,status){ev.preventDefault();var d=_contDrag;_contDrag=null;if(!d)return;contSetStatus(d.cid,d.id,status);}
+function contSetStatus(cid,id,status){
+  var c=_findClient(cid);if(!c)return;
+  var card=_conteudos(c).cards.find(function(x){return x.id===id;});if(!card)return;
+  card.status=status;save();if(typeof toast==='function')toast('✅ Movido para '+_contStMeta(status)[1]);render();
+}
+function contDelete(cid,id){
+  var c=_findClient(cid);if(!c)return;
+  if(!confirm('Remover este conteúdo?'))return;
+  _conteudos(c).cards=_conteudos(c).cards.filter(function(x){return x.id!==id;});save();render();
+}
+
+// ── Modal: novo/editar conteúdo ──
+function contCardOpen(cid,editId,status){
+  var c=_findClient(cid);if(!c)return;
+  var card=editId?_conteudos(c).cards.find(function(x){return x.id===editId;}):null;
+  var st=(card&&card.status)||status||'ideias';
+  var redeOpts=['','LinkedIn','Instagram'].map(function(r){return '<option value="'+r+'" '+(((card&&card.rede)===r)?'selected':'')+'>'+(r||'—')+'</option>';}).join('');
+  var ov=document.createElement('div');ov.id='cont-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:500px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">'+(card?'✏️ Editar conteúdo':'➕ Novo conteúdo')+'</h3><button onclick="document.getElementById(\'cont-overlay\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:20px;display:flex;flex-direction:column;gap:12px">'
+    +'<div class="fg"><label>Tema / Título *</label><input id="cont-title" value="'+(card?escH(card.title):'')+'" placeholder="Ex: Como escolher parceiros"></div>'
+    +'<div class="fgrid"><div class="fg"><label>Etapa</label><select id="cont-status">'+CONT_ST.map(function(s){return '<option value="'+s[0]+'" '+(st===s[0]?'selected':'')+'>'+s[1]+'</option>';}).join('')+'</select></div>'
+    +'<div class="fg"><label>Data de postagem</label><input type="date" id="cont-date" value="'+(card?(card.date||''):'')+'"></div></div>'
+    +'<div class="fgrid"><div class="fg"><label>Responsável</label><input id="cont-owner" value="'+(card?escH(card.owner||''):'')+'" placeholder="Ex: Bruna"></div>'
+    +'<div class="fg"><label>Rede</label><select id="cont-rede">'+redeOpts+'</select></div></div>'
+    +'<div class="fg"><label>Link do material (opcional)</label><input id="cont-link" value="'+(card?escH(card.link||''):'')+'" placeholder="Cole o link da arte / pasta"></div>'
+    +'<div style="font-size:11px;color:#94A3B8">💡 Na etapa <strong>Temas (ideias)</strong> a data é opcional — o tema fica guardado até virar arte.</div>'
+    +'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'cont-overlay\').remove()">Cancelar</button><button class="btn btn-p" onclick="contCardSave(\''+cid+'\',\''+(editId||'')+'\')">💾 Salvar</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+  setTimeout(function(){var el=document.getElementById('cont-title');if(el)el.focus();},50);
+}
+function contCardSave(cid,editId){
+  var c=_findClient(cid);if(!c)return;
+  var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
+  var title=g('cont-title');if(!title){if(typeof toast==='function')toast('⚠️ Escreva o tema/título');return;}
+  var data={title:title,status:g('cont-status')||'ideias',date:g('cont-date'),owner:g('cont-owner'),rede:g('cont-rede'),link:g('cont-link')};
+  var cards=_conteudos(c).cards;
+  if(editId){var card=cards.find(function(x){return x.id===editId;});if(card)Object.assign(card,data);else cards.push(Object.assign({id:'ct'+Date.now(),createdAt:new Date().toISOString()},data));}
+  else cards.push(Object.assign({id:'ct'+Date.now(),createdAt:new Date().toISOString()},data));
+  save();var ov=document.getElementById('cont-overlay');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Conteúdo salvo!');render();
+}
+
+// ── Modal: editar ficha ──
+function contFichaOpen(cid){
+  var c=_findClient(cid);if(!c)return;
+  var f=_conteudos(c).ficha;var redes=(f.redes||[]);
+  var ck=function(r){return redes.indexOf(r)>=0?'checked':'';};
+  var ov=document.createElement('div');ov.id='ficha-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">📋 Ficha — '+escH(c.name)+'</h3><button onclick="document.getElementById(\'ficha-overlay\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:20px;display:flex;flex-direction:column;gap:12px">'
+    +'<div class="fgrid"><div class="fg"><label>🕐 Horário e dias de postagem</label><input id="fc-horario" value="'+escH(f.horarioDias||'')+'" placeholder="Ex: Ter e Qui, 9h"></div>'
+    +'<div class="fg"><label>🔁 Frequência de postagem</label><input id="fc-freq" value="'+escH(f.frequencia||'')+'" placeholder="Ex: 3x por semana"></div></div>'
+    +'<div class="fg"><label>📱 Redes sociais</label><div style="display:flex;gap:18px;padding:4px 0"><label style="display:flex;align-items:center;gap:6px;font-weight:500;cursor:pointer"><input type="checkbox" id="fc-linkedin" '+ck('LinkedIn')+'> 💼 LinkedIn</label><label style="display:flex;align-items:center;gap:6px;font-weight:500;cursor:pointer"><input type="checkbox" id="fc-instagram" '+ck('Instagram')+'> 📸 Instagram</label></div></div>'
+    +'<div class="fg"><label>✍️ Linha editorial <span style="font-weight:400;color:#94A3B8">(link do arquivo — Drive/Dropbox)</span></label><input id="fc-linha" value="'+escH(f.linhaEditorial||'')+'" placeholder="Cole o link do documento"></div>'
+    +'<div class="fg"><label>📁 Pasta de artes e materiais <span style="font-weight:400;color:#94A3B8">(link)</span></label><input id="fc-pasta" value="'+escH(f.pastaArtes||'')+'" placeholder="Cole o link da pasta"></div>'
+    +'<div class="fg"><label>📝 Observações gerais</label><textarea id="fc-obs" rows="3" style="width:100%;resize:vertical" placeholder="Qualquer detalhe importante do cliente">'+escH(f.obs||'')+'</textarea></div>'
+    +'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'ficha-overlay\').remove()">Cancelar</button><button class="btn btn-p" onclick="contFichaSave(\''+cid+'\')">💾 Salvar ficha</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+function contFichaSave(cid){
+  var c=_findClient(cid);if(!c)return;
+  var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
+  var redes=[];if(document.getElementById('fc-linkedin').checked)redes.push('LinkedIn');if(document.getElementById('fc-instagram').checked)redes.push('Instagram');
+  _conteudos(c).ficha={horarioDias:g('fc-horario'),frequencia:g('fc-freq'),redes:redes,linhaEditorial:g('fc-linha'),pastaArtes:g('fc-pasta'),obs:g('fc-obs')};
+  save();var ov=document.getElementById('ficha-overlay');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Ficha salva!');render();
 }
 function rDetail(){
   const c=getC();if(!c)return'';
@@ -6342,7 +6559,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026063060; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072401; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -6440,6 +6657,9 @@ window.addEventListener('hashchange',handleNavigation);
         if(!c.arts)c.arts=[];
         if(!c.continuousActivities)c.continuousActivities=[];
         if(!c.campaigns)c.campaigns=[];
+        if(!c.conteudos)c.conteudos={ficha:{},cards:[]};
+        if(!c.conteudos.ficha)c.conteudos.ficha={};
+        if(!Array.isArray(c.conteudos.cards))c.conteudos.cards=[];
       });
       if(!data.team)data.team=[];
       (data.team||[]).forEach(function(m){if(!m.notesLog)m.notesLog=[];});
