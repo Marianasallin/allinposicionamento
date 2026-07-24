@@ -1758,6 +1758,16 @@ function _contOwners(c){
   var set=[];_conteudos(c).cards.forEach(function(t){var o=(t.owner||'').trim();if(o&&set.indexOf(o)<0)set.push(o);});
   return set.sort(function(a,b){return a.localeCompare(b);});
 }
+// responsáveis de conteúdo = quem já aparece nos cards + equipe de conteúdo (Gestão / Head de Conteúdo)
+// assim o filtro aparece desde o começo, mesmo com o quadro vazio.
+function _contResponsaveis(c){
+  var set=_contOwners(c);
+  (D.team||[]).forEach(function(m){
+    var r=(m.role||'');
+    if((r==='Gestão'||/conte[úu]do/i.test(r))&&m.name&&set.indexOf(m.name)<0)set.push(m.name);
+  });
+  return set.sort(function(a,b){return a.localeCompare(b);});
+}
 // ── Quadro de um cliente (respeita o filtro de responsável) ──
 function _contBoard(c){
   var of=S.contOwnerFilter||'todos';
@@ -1767,7 +1777,7 @@ function _contBoard(c){
 }
 // barra de filtro por responsável
 function _contOwnerFilterBar(c){
-  var owners=_contOwners(c);if(!owners.length)return '';
+  var owners=_contResponsaveis(c);if(!owners.length)return '';
   var of=S.contOwnerFilter||'todos';
   var chip=function(val,inner,on){return '<span onclick="contSetOwnerFilter(\''+val.replace(/'/g,"\\'")+'\')" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:5px 11px;border-radius:99px;border:1px solid '+(on?'#0D3D9B':'#E2E8F0')+';background:'+(on?'#EFF3FF':'#fff')+';color:'+(on?'#0D3D9B':'#475569')+'">'+inner+'</span>';};
   return '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'
@@ -6573,7 +6583,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072402; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072403; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
