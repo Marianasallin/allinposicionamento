@@ -1780,9 +1780,10 @@ function _contFicha(c){
     +'<div style="min-width:150px"><div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">📱 Redes sociais</div>'+redesHtml+'</div>'
     +'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;padding-top:12px;border-top:1px solid #F1F5F9">'
-    +'<div>'+linkBtn(linha,'Linha editorial','✍️')+'</div>'
+    +'<div>'+linkBtn(linha,'Linha editorial (arquivo)','✍️')+'</div>'
     +'<div>'+linkBtn(pasta,'Pasta de artes e materiais','📁')+'</div>'
     +'</div>'
+    +(f.linhaEditorialTexto?'<div style="margin-top:12px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">🧭 Linha editorial — resumo <span style="color:#7C3AED">(a IA lê isto)</span></div><div style="font-size:13px;color:#334155;white-space:pre-wrap">'+escH(f.linhaEditorialTexto)+'</div></div>':'')
     +(f.obs?'<div style="margin-top:12px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">📝 Observações</div><div style="font-size:13px;color:#334155;white-space:pre-wrap">'+escH(f.obs)+'</div></div>':'')
     +'</div></div>';
 }
@@ -1895,6 +1896,7 @@ function contFichaOpen(cid){
     +'<div class="fg"><label>🔁 Frequência de postagem</label><input id="fc-freq" value="'+escH(f.frequencia||'')+'" placeholder="Ex: 3x por semana"></div></div>'
     +'<div class="fg"><label>📱 Redes sociais</label><div style="display:flex;gap:18px;padding:4px 0"><label style="display:flex;align-items:center;gap:6px;font-weight:500;cursor:pointer"><input type="checkbox" id="fc-linkedin" '+ck('LinkedIn')+'> 💼 LinkedIn</label><label style="display:flex;align-items:center;gap:6px;font-weight:500;cursor:pointer"><input type="checkbox" id="fc-instagram" '+ck('Instagram')+'> 📸 Instagram</label></div></div>'
     +'<div class="fg"><label>✍️ Linha editorial <span style="font-weight:400;color:#94A3B8">(link do arquivo — Drive/Dropbox)</span></label><input id="fc-linha" value="'+escH(f.linhaEditorial||'')+'" placeholder="Cole o link do documento"></div>'
+    +'<div class="fg"><label>🧭 Linha editorial — resumo para a IA <span style="font-weight:400;color:#7C3AED">(tom de voz, temas, o que pode/não pode)</span></label><textarea id="fc-linha-txt" rows="4" style="width:100%;resize:vertical" placeholder="Ex: Tom profissional e acolhedor. Temas: liderança, RH, cultura. Evitar: política, humor forçado. Público: gestores de RH.">'+escH(f.linhaEditorialTexto||'')+'</textarea></div>'
     +'<div class="fg"><label>📁 Pasta de artes e materiais <span style="font-weight:400;color:#94A3B8">(link)</span></label><input id="fc-pasta" value="'+escH(f.pastaArtes||'')+'" placeholder="Cole o link da pasta"></div>'
     +'<div class="fg"><label>📝 Observações gerais</label><textarea id="fc-obs" rows="3" style="width:100%;resize:vertical" placeholder="Qualquer detalhe importante do cliente">'+escH(f.obs||'')+'</textarea></div>'
     +'</div>'
@@ -1907,7 +1909,7 @@ function contFichaSave(cid){
   var c=_findClient(cid);if(!c)return;
   var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
   var redes=[];if(document.getElementById('fc-linkedin').checked)redes.push('LinkedIn');if(document.getElementById('fc-instagram').checked)redes.push('Instagram');
-  _conteudos(c).ficha={horarioDias:g('fc-horario'),frequencia:g('fc-freq'),redes:redes,linhaEditorial:g('fc-linha'),pastaArtes:g('fc-pasta'),obs:g('fc-obs')};
+  _conteudos(c).ficha={horarioDias:g('fc-horario'),frequencia:g('fc-freq'),redes:redes,linhaEditorial:g('fc-linha'),linhaEditorialTexto:g('fc-linha-txt'),pastaArtes:g('fc-pasta'),obs:g('fc-obs')};
   save();var ov=document.getElementById('ficha-overlay');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Ficha salva!');render();
 }
 function rDetail(){
@@ -6578,7 +6580,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072404; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072405; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
