@@ -1718,10 +1718,12 @@ function _contCard(c,card){
     +'style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.04)">'
     +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">'
     +'<div style="font-size:13px;font-weight:600;color:#1E293B;line-height:1.35;word-break:break-word">'+escH(card.title||'(sem título)')+'</div>'
-    +'<div style="display:flex;gap:3px;flex-shrink:0"><button class="btn btn-o btn-s" style="font-size:10px;padding:2px 6px" onclick="contCardOpen(\''+c.id+'\',\''+card.id+'\')">✏️</button>'
+    +'<div style="display:flex;gap:3px;flex-shrink:0"><button class="btn btn-s" style="font-size:10px;padding:2px 6px;background:linear-gradient(135deg,#7C3AED,#0D3D9B);color:#fff;border:none" title="Gerar legenda com a IA" onclick="contAIGerarLegenda(\''+c.id+'\',\''+card.id+'\')">✨</button>'
+    +'<button class="btn btn-o btn-s" style="font-size:10px;padding:2px 6px" onclick="contCardOpen(\''+c.id+'\',\''+card.id+'\')">✏️</button>'
     +'<button class="btn btn-o btn-s" style="font-size:10px;padding:2px 6px;border-color:var(--red);color:var(--red)" onclick="contDelete(\''+c.id+'\',\''+card.id+'\')">🗑</button></div></div>'
     +(footer.length?'<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:11px;color:#64748B">'+footer.join('')+'</div>':'')
     +(link?'<div style="margin-top:7px"><a href="'+escH(link)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">🔗 Abrir material</a></div>':'')
+    +(card.caption?'<div style="margin-top:7px;font-size:11px;color:#7C3AED">📝 legenda salva</div>':'')
     +'</div>';
 }
 
@@ -1825,7 +1827,8 @@ function rConteudos(){
     +filtered.map(function(c){return '<option value="'+c.id+'" '+(c.id===sel.id?'selected':'')+'>'+escH(c.name)+'</option>';}).join('')
     +'</select>'
     +'<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#64748B;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:99px;padding:4px 11px"><span style="color:#94A3B8;font-weight:700">Responsável:</span> '+respAv+'</span>'
-    +'<button class="btn btn-p" style="margin-left:auto" onclick="contCardOpen(\''+sel.id+'\',\'\',\'ideias\')">+ Novo tema / conteúdo</button></div>';
+    +'<button style="margin-left:auto;background:linear-gradient(135deg,#7C3AED,#0D3D9B);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer" onclick="contAISugerirTemas(\''+sel.id+'\')" title="A IA sugere temas lendo a linha editorial deste cliente">✨ Sugerir temas (IA)</button>'
+    +'<button class="btn btn-p" onclick="contCardOpen(\''+sel.id+'\',\'\',\'ideias\')">+ Novo tema / conteúdo</button></div>';
   return head+respBar+selector+_contFicha(sel)+'<div class="card"><div class="cb" style="padding:16px">'+_contBoard(sel)+'</div></div>';
 }
 function contSetRespFilter(o){S.contRespFilter=o;render();}
@@ -1911,6 +1914,107 @@ function contFichaSave(cid){
   var redes=[];if(document.getElementById('fc-linkedin').checked)redes.push('LinkedIn');if(document.getElementById('fc-instagram').checked)redes.push('Instagram');
   _conteudos(c).ficha={horarioDias:g('fc-horario'),frequencia:g('fc-freq'),redes:redes,linhaEditorial:g('fc-linha'),linhaEditorialTexto:g('fc-linha-txt'),pastaArtes:g('fc-pasta'),obs:g('fc-obs')};
   save();var ov=document.getElementById('ficha-overlay');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Ficha salva!');render();
+}
+
+// ════════════════════════════════════════════════════════════
+// ALL IN TEMA (IA) — chama o cofre pelo banco (_ai/req → _ai/res)
+// ════════════════════════════════════════════════════════════
+function _aiRequest(payload){
+  return new Promise(function(resolve,reject){
+    try{
+      if(typeof firebase==='undefined'||!firebase.database){reject(new Error('Sistema offline — recarregue a página.'));return;}
+      var id='q'+Date.now()+Math.floor(Math.random()*100000);
+      var db=firebase.database();
+      var resRef=db.ref('_ai/res/'+id);
+      var done=false;
+      var timer=setTimeout(function(){if(done)return;done=true;resRef.off();reject(new Error('A IA demorou demais. Tente de novo em instantes.'));},95000);
+      resRef.on('value',function(snap){
+        var v=snap.val();if(!v||done)return;
+        done=true;clearTimeout(timer);resRef.off();
+        try{resRef.remove();}catch(e){}
+        if(v.error)reject(new Error(v.error));else resolve(v);
+      });
+      db.ref('_ai/req/'+id).set(Object.assign({ts:Date.now()},payload)).catch(function(e){if(done)return;done=true;clearTimeout(timer);resRef.off();reject(e);});
+    }catch(e){reject(e);}
+  });
+}
+function _contClientAICtx(c){
+  var f=_conteudos(c).ficha||{};
+  var hist=_conteudos(c).cards.filter(function(k){return k.title;}).map(function(k){return k.title;});
+  return {clientName:c.name,niche:(c.nicho||c.niche||''),editorialLine:(f.linhaEditorialTexto||''),history:hist};
+}
+function _aiLoading(show,msg){
+  var ex=document.getElementById('ai-loading');if(ex)ex.remove();
+  if(!show)return;
+  var d=document.createElement('div');d.id='ai-loading';
+  d.style.cssText='position:fixed;inset:0;background:rgba(13,61,155,.35);z-index:3000;display:flex;align-items:center;justify-content:center';
+  d.innerHTML='<div style="background:#fff;border-radius:16px;padding:26px 34px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)"><div style="font-size:30px;margin-bottom:8px">✨</div><div style="font-size:14px;font-weight:700;color:#0D3D9B">ALL IN TEMA está pensando...</div><div style="font-size:12px;color:#64748B;margin-top:4px">'+(msg||'Gerando com a IA, um instante')+'</div></div>';
+  document.body.appendChild(d);
+}
+function _contAIExtractTitles(text){
+  var out=[];
+  (text||'').split('\n').forEach(function(ln){
+    var m=ln.match(/^\s*(?:[-*]\s*)?(?:\*\*)?\s*\d+[\.\)]\s*(?:\*\*)?\s*(.+?)\s*(?:\*\*)?\s*$/);
+    if(m){var t=(m[1]||'').replace(/\*\*/g,'').replace(/^["“”'']+|["“”'']+$/g,'').trim();if(t&&t.length>=3&&t.length<=140)out.push(t);}
+  });
+  return out;
+}
+function contAISugerirTemas(cid){
+  var c=_findClient(cid);if(!c)return;
+  _aiLoading(true,'Sugerindo temas para '+c.name.split(' ')[0]);
+  _aiRequest(Object.assign({mode:'temas'},_contClientAICtx(c))).then(function(v){
+    _aiLoading(false);
+    var titles=_contAIExtractTitles(v.text);
+    var ov=document.createElement('div');ov.id='ai-review';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+    var checks=titles.length?titles.map(function(t,i){return '<label style="display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:6px;cursor:pointer;font-size:13px"><input type="checkbox" id="ait-'+i+'" checked style="margin-top:2px"><span>'+escH(t)+'</span></label>';}).join(''):'<div style="font-size:12px;color:#94A3B8">Não consegui separar em títulos — copie do texto acima.</div>';
+    ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+      +'<div style="background:linear-gradient(135deg,#7C3AED,#0D3D9B);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">✨ Temas sugeridos — '+escH(c.name)+'</h3><button onclick="document.getElementById(\'ai-review\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+      +'<div style="padding:18px 20px">'
+      +'<div style="font-size:11px;color:#7C3AED;font-weight:700;margin-bottom:8px">💡 A equipe revisa e escolhe — nada entra sem você aprovar</div>'
+      +'<div style="background:#FAFAFF;border:1px solid #EEF;border-radius:10px;padding:12px;font-size:13px;white-space:pre-wrap;color:#334155;margin-bottom:14px">'+escH(v.text)+'</div>'
+      +'<div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px">Adicionar aos Temas (ideias):</div>'+checks
+      +'</div>'
+      +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:space-between;align-items:center"><span style="font-size:11px;color:#94A3B8">custo: R$ '+(v.custoBRL!=null?v.custoBRL:'—')+'</span><div style="display:flex;gap:8px"><button class="btn btn-o" onclick="document.getElementById(\'ai-review\').remove()">Fechar</button>'+(titles.length?'<button class="btn btn-p" onclick="contAIAddTitles(\''+cid+'\','+titles.length+')">➕ Adicionar selecionados</button>':'')+'</div></div>'
+      +'</div>';
+    ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+    document.body.appendChild(ov);
+    ov._titles=titles;
+  }).catch(function(e){_aiLoading(false);if(typeof toast==='function')toast('❌ '+e.message);});
+}
+function contAIAddTitles(cid,n){
+  var c=_findClient(cid);if(!c)return;
+  var ov=document.getElementById('ai-review');var titles=(ov&&ov._titles)||[];
+  var add=0;
+  for(var i=0;i<n;i++){var chk=document.getElementById('ait-'+i);if(chk&&chk.checked&&titles[i]){_conteudos(c).cards.push({id:'ct'+Date.now()+i,createdAt:new Date().toISOString(),title:titles[i],status:'ideias'});add++;}}
+  if(!add){if(typeof toast==='function')toast('Selecione ao menos um tema');return;}
+  save();if(ov)ov.remove();if(typeof toast==='function')toast('✅ '+add+' tema(s) adicionado(s)!');render();
+}
+function contAIGerarLegenda(cid,cardId){
+  var c=_findClient(cid);if(!c)return;
+  var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
+  _aiLoading(true,'Escrevendo a legenda de "'+(card.title||'').slice(0,30)+'"');
+  _aiRequest(Object.assign({mode:'legenda',theme:card.title||''},_contClientAICtx(c))).then(function(v){
+    _aiLoading(false);
+    var ov=document.createElement('div');ov.id='ai-review';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+      +'<div style="background:linear-gradient(135deg,#7C3AED,#0D3D9B);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">✨ Legenda — '+escH(card.title||'')+'</h3><button onclick="document.getElementById(\'ai-review\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+      +'<div style="padding:18px 20px">'
+      +'<div style="font-size:11px;color:#7C3AED;font-weight:700;margin-bottom:8px">💡 Revise e ajuste antes de usar</div>'
+      +'<textarea id="ai-legenda" rows="14" style="width:100%;resize:vertical;font-size:13px;line-height:1.5;padding:12px;border:1px solid #E5E7EB;border-radius:10px">'+escH(v.text)+'</textarea>'
+      +'</div>'
+      +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:space-between;align-items:center"><span style="font-size:11px;color:#94A3B8">custo: R$ '+(v.custoBRL!=null?v.custoBRL:'—')+'</span><div style="display:flex;gap:8px"><button class="btn btn-o" onclick="_aiCopyLegenda()">📋 Copiar</button><button class="btn btn-p" onclick="contAISaveLegenda(\''+cid+'\',\''+cardId+'\')">💾 Salvar no card</button></div></div>'
+      +'</div>';
+    ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+    document.body.appendChild(ov);
+  }).catch(function(e){_aiLoading(false);if(typeof toast==='function')toast('❌ '+e.message);});
+}
+function _aiCopyLegenda(){var t=document.getElementById('ai-legenda');if(!t)return;t.select();try{document.execCommand('copy');}catch(e){}try{navigator.clipboard.writeText(t.value);}catch(e){}if(typeof toast==='function')toast('📋 Legenda copiada!');}
+function contAISaveLegenda(cid,cardId){
+  var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
+  var t=document.getElementById('ai-legenda');card.caption=t?t.value:'';
+  save();var ov=document.getElementById('ai-review');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Legenda salva no card!');render();
 }
 function rDetail(){
   const c=getC();if(!c)return'';
@@ -6670,7 +6774,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072407; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072408; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
