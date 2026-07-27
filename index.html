@@ -4454,7 +4454,11 @@ function openEncounterModal(cid,encIdx){
   const _isDual=_hasIC&&(c.products||[]).includes('Gestão de Perfil');
   const _defTipo=enc.tipo||(_isDual?'':(_hasIC?'IC':'GP'));
   closeEncounterModal();
-  const tnames=TEAM_NAMES();
+  // Participantes: só quem está ATIVO na equipe + quem já está neste encontro (preserva histórico ao editar).
+  // Assim membros desativados (ex: Gisele) não aparecem como opção em encontros novos.
+  const _actNames=D.team.filter(m=>m.active!==false).map(m=>m.name);
+  const tnames=_actNames.concat((enc.attendees||[]).filter(n=>_actNames.indexOf(n)<0));
+  window._encAttOpts=tnames;
   const html=`<div class="overlay" id="em-overlay" onclick="if(event.target===this)cancelEncounterModal()">
     <div class="modal" style="max-width:520px">
       <div class="modal-hd"><h3>${isEdit?'✏️ Editar':'🤝 Registrar'} Encontro</h3><button class="btn btn-o btn-s" onclick="cancelEncounterModal()">✕</button></div>
@@ -4542,7 +4546,7 @@ function saveEncounter(cid,encIdx){
     const time=$('em-time')?$('em-time').value:'';
     const tipo=$('em-tipo')?$('em-tipo').value:'GP';
     if($('em-tipo')&&!tipo){toast('⚠️ Selecione o tipo do encontro (Implementação Comercial ou Gestão de Perfil).');return;}
-    const tnames=TEAM_NAMES();
+    const tnames=window._encAttOpts||TEAM_NAMES();
     const attendees=[];
     tnames.forEach((n,i)=>{if($(`em-att-${i}`)?.checked)attendees.push(n);});
     const description=($('em-desc')?$('em-desc').value:'').trim();
@@ -6164,33 +6168,113 @@ function portalUpdateProspect(cid,pid,field,value){
 }
 
 function rPortalReunioes(c){
-  const encs=(c.encounters&&c.encounters.list||[]).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  // Portal do cliente: mostra SÓ as datas dos encontros (sem comentários/notas/participantes) — vale p/ todos os produtos
+  const encs=(c.encounters&&c.encounters.list||[]).filter(e=>e.date).sort((a,b)=>new Date(b.date)-new Date(a.date));
   return`
     <div class="portal-hero" style="margin-bottom:24px">
       <div>
         <h1>🤝 Reuniões e Encontros</h1>
-        <p>${encs.length} encontro(s) registrado(s) com nosso time</p>
+        <p>${encs.length} encontro(s) com nosso time</p>
       </div>
     </div>
-    ${encs.length===0?`<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhum encontro registrado ainda.<br><span style="font-size:12px">Os encontros realizados com nosso time aparecerão aqui.</span></div>`:`
+    ${encs.length===0?`<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhum encontro registrado ainda.<br><span style="font-size:12px">As datas dos encontros com nosso time aparecerão aqui.</span></div>`:`
     <div class="portal-card" style="padding:0">
       ${encs.map(enc=>{
-        const d=new Date(enc.date);
+        const d=new Date(enc.date+'T12:00:00');
         const mes=d.toLocaleDateString('pt-BR',{month:'short'}).replace('.','');
-        return`<div style="display:flex;gap:20px;padding:20px;border-bottom:1px solid #EEF2F7;align-items:flex-start">
+        const ext=d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+        return`<div style="display:flex;gap:16px;padding:18px 20px;border-bottom:1px solid #EEF2F7;align-items:center">
           <div style="text-align:center;min-width:48px;background:#EFF6FF;border-radius:10px;padding:8px">
             <div style="font-size:20px;font-weight:700;color:#0D3D9B;line-height:1">${d.getDate()}</div>
             <div style="font-size:10px;color:#4A90E2;text-transform:uppercase;font-weight:600">${mes}</div>
           </div>
           <div style="flex:1">
-            <div style="font-size:13px;font-weight:600;color:#1E293B;margin-bottom:4px">${enc.description||'Encontro registrado'}</div>
-            ${enc.attendees&&enc.attendees.length?`<div style="font-size:11px;color:#64748B;margin-bottom:6px">👥 Participantes: ${(enc.attendees||[]).join(', ')}</div>`:''}
-            ${enc.notes?`<div style="font-size:12px;color:#475569;background:#F8FAFF;padding:8px 12px;border-radius:8px;border-left:3px solid #4A90E2">${enc.notes}</div>`:''}
-            ${enc.attachments&&enc.attachments.length?`<div style="font-size:11px;color:#64748B;margin-top:6px">📎 ${enc.attachments.length} anexo(s)</div>`:''}
+            <div style="font-size:13px;font-weight:600;color:#1E293B">Encontro realizado</div>
+            <div style="font-size:11px;color:#94A3B8;text-transform:capitalize">${ext}</div>
           </div>
         </div>`;
       }).join('')}
     </div>`}`;
+}
+
+// ════════════════════════════════════════════════════════════
+// CRM DO CLIENTE (portal) — só Implementação Comercial
+// O próprio cliente cadastra os leads e move pelas etapas.
+// Campo isolado c.icLeads (gravação granular).
+// ════════════════════════════════════════════════════════════
+var IC_CRM_ST=[
+  ['novo','Novo','#7C3AED','#F5F3FF','#DDD6FE'],
+  ['fu1','Follow-up 1','#B45309','#FFF7ED','#FED7AA'],
+  ['fu2','Follow-up 2','#C2410C','#FFF1E6','#FDBA74'],
+  ['reuniao','Reunião','#0369A1','#EFF6FF','#BFDBFE'],
+  ['fechado','Fechado','#15803D','#F0FDF4','#86EFAC']
+];
+function _icCrmStMeta(s){for(var i=0;i<IC_CRM_ST.length;i++)if(IC_CRM_ST[i][0]===s)return IC_CRM_ST[i];return IC_CRM_ST[0];}
+function _icLeads(c){if(!Array.isArray(c.icLeads))c.icLeads=[];return c.icLeads;}
+function _icReunioesCount(c){return _icLeads(c).filter(function(l){return l.stage==='reuniao'||l.stage==='fechado';}).length;}
+function _icCrmCard(c,l){
+  var meta=[];
+  if(l.empresa)meta.push('🏢 '+escH(l.empresa));
+  if(l.date)meta.push('📅 '+fmtDate(l.date+'T12:00:00'));
+  var chips=IC_CRM_ST.map(function(s){var on=(l.stage||'novo')===s[0];return '<span onclick="icCrmSetStage(\''+c.id+'\',\''+l.id+'\',\''+s[0]+'\')" style="cursor:pointer;font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;background:'+(on?s[3]:'#fff')+';color:'+(on?s[2]:'#94A3B8')+';border:1px solid '+(on?s[4]:'#E5E7EB')+'">'+s[1]+'</span>';}).join(' ');
+  return '<div draggable="true" ondragstart="icCrmDragStart(event,\''+c.id+'\',\''+l.id+'\')" style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.04)">'
+    +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="font-size:13px;font-weight:600;color:#1E293B;word-break:break-word">'+escH(l.name||'(sem nome)')+'</div>'
+    +'<div style="display:flex;gap:3px;flex-shrink:0"><button onclick="icCrmOpen(\''+c.id+'\',\''+l.id+'\')" style="border:1px solid #E5E7EB;background:#fff;border-radius:6px;font-size:10px;padding:2px 6px;cursor:pointer">✏️</button><button onclick="icCrmDelete(\''+c.id+'\',\''+l.id+'\')" style="border:1px solid #FCA5A5;color:#DC2626;background:#fff;border-radius:6px;font-size:10px;padding:2px 6px;cursor:pointer">🗑</button></div></div>'
+    +(meta.length?'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:11px;color:#64748B">'+meta.map(function(m){return '<span>'+m+'</span>';}).join('')+'</div>':'')
+    +(l.notes?'<div style="font-size:11px;color:#475569;margin-top:6px;white-space:pre-wrap">'+escH(l.notes)+'</div>':'')
+    +'<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px" title="Toque numa etapa para mover">'+chips+'</div>'
+    +'</div>';
+}
+function rPortalCRM(c){
+  var leads=_icLeads(c);
+  var addBtn='<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button onclick="icCrmOpen(\''+c.id+'\',\'\',\'novo\')" style="background:#0D3D9B;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer">+ Novo lead</button></div>';
+  var cols=IC_CRM_ST.map(function(s){
+    var items=leads.filter(function(l){return (l.stage||'novo')===s[0];});
+    var cards=items.length?items.map(function(l){return _icCrmCard(c,l);}).join(''):'<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">Arraste um lead pra cá</div>';
+    return '<div ondragover="icCrmDragOver(event)" ondragenter="this.style.background=\'#EFF6FF\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';icCrmDrop(event,\''+c.id+'\',\''+s[0]+'\')" style="flex:1;min-width:220px;max-width:300px;background:#F8FAFC;border-radius:12px;padding:12px;transition:background .15s">'
+      +'<div style="font-size:12px;font-weight:700;color:'+s[2]+';margin-bottom:8px">'+s[1]+' <span style="color:#94A3B8">('+items.length+')</span></div>'+cards+'</div>';
+  }).join('');
+  return '<div class="portal-hero" style="margin-bottom:20px"><div><h1>🎯 Meus Leads</h1><p>Cadastre seus contatos e acompanhe cada etapa — do primeiro contato até a reunião e o fechamento</p></div></div>'
+    +addBtn
+    +'<div class="portal-card" style="padding:14px"><div style="display:flex;gap:12px;overflow-x:auto;align-items:flex-start;padding-bottom:6px">'+cols+'</div></div>'
+    +'<div style="font-size:11px;color:#94A3B8;margin-top:10px;text-align:center">💡 No computador, arraste os cards entre as etapas. No celular, toque nas etapas dentro do card pra mover.</div>';
+}
+var _icCrmDrag=null;
+function icCrmDragStart(ev,cid,id){_icCrmDrag={cid:cid,id:id};if(ev.dataTransfer){ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',id);}catch(e){}}}
+function icCrmDragOver(ev){ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect='move';}
+function icCrmDrop(ev,cid,stage){ev.preventDefault();var d=_icCrmDrag;_icCrmDrag=null;if(!d||d.cid!==cid)return;icCrmSetStage(cid,d.id,stage);}
+function icCrmSetStage(cid,id,stage){var c=_findClient(cid);if(!c)return;var l=_icLeads(c).find(function(x){return x.id===id;});if(!l)return;l.stage=stage;save();if(typeof toast==='function')toast('✅ Movido para '+_icCrmStMeta(stage)[1]);render();}
+function icCrmDelete(cid,id){var c=_findClient(cid);if(!c)return;if(!confirm('Remover este lead?'))return;c.icLeads=_icLeads(c).filter(function(x){return x.id!==id;});save();render();}
+function icCrmOpen(cid,editId,stage){
+  var c=_findClient(cid);if(!c)return;
+  var l=editId?_icLeads(c).find(function(x){return x.id===editId;}):null;
+  var st=(l&&l.stage)||stage||'novo';
+  var ov=document.createElement('div');ov.id='iccrm-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:460px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">'+(l?'✏️ Editar lead':'➕ Novo lead')+'</h3><button onclick="document.getElementById(\'iccrm-overlay\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:20px;display:flex;flex-direction:column;gap:12px">'
+    +'<div class="fg"><label>Nome do contato *</label><input id="icl-name" value="'+(l?escH(l.name):'')+'" placeholder="Ex: João da Silva"></div>'
+    +'<div class="fgrid"><div class="fg"><label>Empresa / cargo</label><input id="icl-empresa" value="'+(l?escH(l.empresa||''):'')+'" placeholder="Ex: Diretor na Acme"></div>'
+    +'<div class="fg"><label>Data do contato</label><input type="date" id="icl-date" value="'+(l?(l.date||''):'')+'"></div></div>'
+    +'<div class="fg"><label>Etapa</label><select id="icl-stage">'+IC_CRM_ST.map(function(s){return '<option value="'+s[0]+'" '+(st===s[0]?'selected':'')+'>'+s[1]+'</option>';}).join('')+'</select></div>'
+    +'<div class="fg"><label>Anotações</label><textarea id="icl-notes" rows="3" style="width:100%;resize:vertical" placeholder="Observações do contato">'+(l?escH(l.notes||''):'')+'</textarea></div>'
+    +'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'iccrm-overlay\').remove()">Cancelar</button><button class="btn btn-p" onclick="icCrmSave(\''+cid+'\',\''+(editId||'')+'\')">💾 Salvar</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+  setTimeout(function(){var el=document.getElementById('icl-name');if(el)el.focus();},50);
+}
+function icCrmSave(cid,editId){
+  var c=_findClient(cid);if(!c)return;
+  var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
+  var name=g('icl-name');if(!name){if(typeof toast==='function')toast('⚠️ Escreva o nome do contato');return;}
+  var data={name:name,empresa:g('icl-empresa'),date:g('icl-date'),stage:g('icl-stage')||'novo',notes:g('icl-notes')};
+  var leads=_icLeads(c);
+  if(editId){var l=leads.find(function(x){return x.id===editId;});if(l)Object.assign(l,data);else leads.push(Object.assign({id:'icl'+Date.now(),createdAt:new Date().toISOString()},data));}
+  else leads.push(Object.assign({id:'icl'+Date.now(),createdAt:new Date().toISOString()},data));
+  save();var ov=document.getElementById('iccrm-overlay');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Lead salvo!');render();
 }
 
 // === MINHAS MÉTRICAS (portal) — só clientes de Implementação Comercial ===
@@ -6259,22 +6343,25 @@ function rPortalDashboardIC(c){
   const latMonth=mkOf(latest.date)||(ptM[new Date().getMonth()]+' '+new Date().getFullYear());
   const pm=_prospMetricsMonth(c,latMonth);
   const nCamp=(c.campaigns||[]).length;
-  // meses (medições + reuniões) para o gráfico de reuniões/mês
+  // Reuniões vêm do CRM do cliente (leads em Reunião/Fechado), NÃO dos encontros internos da ALL IN
+  const icL=_icLeads(c);
+  const reunLeads=icL.filter(function(l){return (l.stage==='reuniao'||l.stage==='fechado')&&l.date;});
+  const nReun=_icReunioesCount(c);
   const monthsSet=new Set();
   hist.forEach(function(m){var k=mkOf(m.date);if(k)monthsSet.add(k);});
   (c.campaigns||[]).forEach(function(cp){_campHist(cp).forEach(function(m){var k=mkOf(m.date);if(k)monthsSet.add(k);});});
-  encList.forEach(function(e){var k=mkOf(e.date);if(k)monthsSet.add(k);});
+  reunLeads.forEach(function(l){var k=mkOf(l.date);if(k)monthsSet.add(k);});
   const months=[...monthsSet].sort(function(a,b){var A=a.split(' '),B=b.split(' ');return (parseInt(A[1])*12+ptM.indexOf(A[0]))-(parseInt(B[1])*12+ptM.indexOf(B[0]));});
-  const encCount=function(mk){return encList.filter(function(e){return mkOf(e.date)===mk;}).length;};
+  const encCount=function(mk){return reunLeads.filter(function(l){return mkOf(l.date)===mk;}).length;};
   const stat=function(v,l,color,bg){return '<div style="text-align:center;padding:14px 8px;background:'+bg+';border-radius:12px"><div style="font-size:24px;font-weight:800;color:'+color+'">'+v+'</div><div style="font-size:11px;color:#64748B;margin-top:2px">'+l+'</div></div>';};
   const val=function(v){return v!=null&&v!==''?Number(v).toLocaleString('pt-BR'):'—';};
-  const hasData=hist.length||encList.length||nCamp;
+  const hasData=hist.length||nCamp||icL.length;
   setTimeout(function(){try{var el=document.getElementById('icOverviewChart');if(!el||typeof Chart==='undefined')return;if(el._chart)el._chart.destroy();var lbl=months.map(function(mk){var p=mk.split(' ');return p[0].slice(0,3)+'/'+(p[1]||'').slice(2);});el._chart=new Chart(el,{type:'bar',data:{labels:lbl,datasets:[{label:'Reuniões',data:months.map(function(mk){return encCount(mk);}),backgroundColor:'#EA580C',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});}catch(e){}},120);
   return '<div class="portal-hero"><div><h1>Olá, '+c.name.split(' ')[0]+'! 👋</h1><p>Resumo da sua prospecção — atualize seus números em <strong>Minhas métricas</strong></p></div></div>'
     +(hasData?(
       '<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">Principais resultados'+(latest.date?' · última medição '+ (function(d){var x=new Date(d+"T12:00:00");return isNaN(x)?d:x.toLocaleDateString("pt-BR");})(latest.date):'')+'</div>'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px">'
-      +stat(encList.length,'🤝 Reuniões (total)','#EA580C','#FFF7ED')
+      +stat(nReun,'🤝 Reuniões (do CRM)','#EA580C','#FFF7ED')
       +stat(val(pm.convites),'Convites','#0D3D9B','#F8FAFF')
       +stat(val(pm.mensagens),'Mensagens','#0D3D9B','#F8FAFF')
       +stat(val(pm.seguir),'Seguir','#0D3D9B','#F8FAFF')
@@ -6433,6 +6520,7 @@ function rClientPortalAuth(){
     {id:'dashboard',icon:'📊',label:'Dashboard'},
     {id:'entregas',icon:'📦',label:'Entregas'},
     ...(_icOnly?[]:[{id:'prospeccao',icon:'🎯',label:'Leads'}]),
+    ...(_isICPortal?[{id:'crm',icon:'🎯',label:'Meus Leads'}]:[]),
     {id:'reunioes',icon:'🤝',label:'Reuniões'},
     {id:'plano',icon:'📋',label:'Plano de Ação'},
     ...(_isICPortal?[{id:'metricas',icon:'📈',label:'Minhas métricas'}]:[]),
@@ -6440,9 +6528,10 @@ function rClientPortalAuth(){
   ].filter(n=>!(c.semLeads&&(n.id==='prospeccao'||n.id==='relatorios')));
   if(c.semLeads&&(pv==='prospeccao'||pv==='relatorios')){pv='dashboard';S.portalView='dashboard';}
   if(!_isICPortal&&pv==='metricas'){pv='dashboard';S.portalView='dashboard';}
+  if(!_isICPortal&&pv==='crm'){pv='dashboard';S.portalView='dashboard';}
   if(_icOnly&&pv==='prospeccao'){pv='dashboard';S.portalView='dashboard';}
-  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',reunioes:'Reuniões',plano:'Plano de Ação',metricas:'Minhas métricas',relatorios:'Relatório de Resultados'};
-  const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,prospeccao:rPortalProspeccao,reunioes:rPortalReunioes,plano:rPortalPlano,metricas:rPortalMetricas,relatorios:rPortalRelatorios};
+  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',crm:'Meus Leads',reunioes:'Reuniões',plano:'Plano de Ação',metricas:'Minhas métricas',relatorios:'Relatório de Resultados'};
+  const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,prospeccao:rPortalProspeccao,crm:rPortalCRM,reunioes:rPortalReunioes,plano:rPortalPlano,metricas:rPortalMetricas,relatorios:rPortalRelatorios};
   const mainContent=(contentMap[pv]||rPortalDashboard)(c);
   return`<div class="portal-wrapper">
     <div class="portal-sidebar">
@@ -6580,7 +6669,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072405; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072406; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -6681,6 +6770,7 @@ window.addEventListener('hashchange',handleNavigation);
         if(!c.conteudos)c.conteudos={ficha:{},cards:[]};
         if(!c.conteudos.ficha)c.conteudos.ficha={};
         if(!Array.isArray(c.conteudos.cards))c.conteudos.cards=[];
+        if(!Array.isArray(c.icLeads))c.icLeads=[];
       });
       if(!data.team)data.team=[];
       (data.team||[]).forEach(function(m){if(!m.notesLog)m.notesLog=[];});
