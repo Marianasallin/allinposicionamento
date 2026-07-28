@@ -1708,25 +1708,36 @@ function _contOwnerAv(name,withName){
     +(withName?'<span>'+escH(mt.first)+'</span>':'')+'</span>';
 }
 function _contCard(c,card){
-  var meta=[];
-  if(card.date)meta.push('📅 '+fmtDate(card.date+'T12:00:00'));
-  if(card.rede)meta.push(card.rede==='LinkedIn'?'💼 LinkedIn':'📸 Instagram');
+  var isIdea=(card.status||'ideias')==='ideias';
+  var pub=!!card.published;
+  var dateStr=card.date?fmtDate(card.date+'T12:00:00'):'';
+  var rede=card.rede?(card.rede==='LinkedIn'?'💼 LinkedIn':'📸 Instagram'):'';
   var link=_validUrl(card.link);
-  var footer=[];
-  if(meta.length)footer.push('<span style="display:flex;flex-wrap:wrap;gap:8px">'+meta.map(function(m){return '<span>'+m+'</span>';}).join('')+'</span>');
+  var badge='';
+  if(!isIdea){
+    if(dateStr){
+      badge=pub
+        ?'<span onclick="contTogglePublished(\''+c.id+'\',\''+card.id+'\')" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#15803D;background:#F0FDF4;border:1px solid #86EFAC;border-radius:8px;padding:4px 10px" title="Clique para desmarcar">✅ Publicado: '+dateStr+'</span>'
+        :'<span onclick="contTogglePublished(\''+c.id+'\',\''+card.id+'\')" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#0D3D9B;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:4px 10px" title="Já publicou? Clique para marcar">📅 Prevista: '+dateStr+'</span>';
+    }else{
+      badge=pub
+        ?'<span onclick="contTogglePublished(\''+c.id+'\',\''+card.id+'\')" style="cursor:pointer;font-size:12px;font-weight:700;color:#15803D;background:#F0FDF4;border:1px solid #86EFAC;border-radius:8px;padding:4px 10px" title="Clique para desmarcar">✅ Publicado</span>'
+        :'<span onclick="contTogglePublished(\''+c.id+'\',\''+card.id+'\')" style="cursor:pointer;font-size:12px;font-weight:600;color:#94A3B8;background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:4px 10px" title="Marcar como publicado">☐ Já publiquei</span>';
+    }
+  }else if(dateStr){
+    badge='<span style="font-size:12px;font-weight:700;color:#0D3D9B;background:#EFF6FF;border-radius:8px;padding:4px 10px">📅 '+dateStr+'</span>';
+  }
   return '<div draggable="true" ondragstart="contDragStart(event,\''+c.id+'\',\''+card.id+'\')" title="Arraste para mover de etapa" '
-    +'style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.04)">'
-    +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">'
-    +'<div style="font-size:13px;font-weight:600;color:#1E293B;line-height:1.35;word-break:break-word">'+escH(card.title||'(sem título)')+'</div>'
-    +'<div style="display:flex;gap:3px;flex-shrink:0"><button class="btn btn-s" style="font-size:10px;padding:2px 6px;background:linear-gradient(135deg,#7C3AED,#0D3D9B);color:#fff;border:none" title="Gerar legenda com a IA" onclick="contAIPreGen(\''+c.id+'\',\'legenda\',\''+card.id+'\')">✨</button>'
-    +'<button class="btn btn-o btn-s" style="font-size:10px;padding:2px 6px" onclick="contCardOpen(\''+c.id+'\',\''+card.id+'\')">✏️</button>'
-    +'<button class="btn btn-o btn-s" style="font-size:10px;padding:2px 6px;border-color:var(--red);color:var(--red)" onclick="contDelete(\''+c.id+'\',\''+card.id+'\')">🗑</button></div></div>'
-    +(footer.length?'<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:11px;color:#64748B">'+footer.join('')+'</div>':'')
+    +'style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:11px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.04)">'
+    +'<div style="font-size:13px;font-weight:600;color:#1E293B;line-height:1.4;overflow-wrap:break-word">'+escH(card.title||'(sem título)')+'</div>'
+    +((badge||rede)?'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px">'+badge+(rede?'<span style="font-size:11px;color:#64748B">'+rede+'</span>':'')+'</div>':'')
     +(link?'<div style="margin-top:7px"><a href="'+escH(link)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">🔗 Abrir material</a></div>':'')
     +(card.caption?'<div onclick="contAIViewLegenda(\''+c.id+'\',\''+card.id+'\')" style="margin-top:7px;font-size:11px;color:#7C3AED;cursor:pointer;text-decoration:underline" title="Ver a legenda salva">📝 ver legenda salva</div>':'')
-    +((card.status||'ideias')==='ideias'?'':'<div style="margin-top:8px">'+(card.published
-        ?'<span onclick="contTogglePublished(\''+c.id+'\',\''+card.id+'\')" style="cursor:pointer;font-size:10px;font-weight:700;color:#15803D;background:#F0FDF4;border:1px solid #86EFAC;border-radius:99px;padding:3px 9px" title="Clique para desmarcar">✅ Publicado</span>'
-        :'<span onclick="contTogglePublished(\''+c.id+'\',\''+card.id+'\')" style="cursor:pointer;font-size:10px;font-weight:600;color:#94A3B8;background:#fff;border:1px solid #E5E7EB;border-radius:99px;padding:3px 9px" title="Marcar como já publicado">☐ Já publiquei</span>')+'</div>')
+    +'<div style="display:flex;justify-content:flex-end;gap:4px;margin-top:10px;padding-top:8px;border-top:1px solid #F1F5F9">'
+    +'<button class="btn btn-s" style="font-size:11px;padding:3px 9px;background:linear-gradient(135deg,#7C3AED,#0D3D9B);color:#fff;border:none" title="Gerar legenda com a IA" onclick="contAIPreGen(\''+c.id+'\',\'legenda\',\''+card.id+'\')">✨ Legenda</button>'
+    +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 8px" onclick="contCardOpen(\''+c.id+'\',\''+card.id+'\')" title="Editar">✏️</button>'
+    +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 8px;border-color:var(--red);color:var(--red)" onclick="contDelete(\''+c.id+'\',\''+card.id+'\')" title="Excluir">🗑</button>'
+    +'</div>'
     +'</div>';
 }
 
@@ -6835,7 +6846,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072410; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072411; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
