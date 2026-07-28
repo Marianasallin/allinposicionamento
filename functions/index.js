@@ -12,6 +12,7 @@ admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+const DRIVE_API_KEY = defineSecret("DRIVE_API_KEY");
 const MODEL = "claude-opus-4-8";
 const IMG_MODEL = "gemini-2.5-flash-image";
 
@@ -57,9 +58,38 @@ function normalizeImageUrl(url) {
   return url;
 }
 
-// Baixa uma referência e valida que é imagem de verdade (pelos primeiros bytes)
-async function fetchRefImage(rawUrl) {
-  const url = normalizeImageUrl(rawUrl);
+// Detecta link de PASTA do Google Drive
+function driveFolderId(url) {
+  const m = (url || "").match(/drive\.google\.com\/drive\/(?:u\/\d+\/)?folders\/([-\w]+)/) ||
+            (url || "").match(/[?&]folderview[^]*?[?&]id=([-\w]+)/) ||
+            (url || "").match(/folders\/([-\w]{20,})/);
+  return m ? m[1] : null;
+}
+// Lista as imagens de uma pasta pública do Drive (ordenadas por nome)
+async function listFolderImages(folderId) {
+  const q = "'" + folderId + "' in parents and mimeType contains 'image/' and trashed=false";
+  const u = "https://www.googleapis.com/drive/v3/files?q=" + encodeURIComponent(q) +
+    "&key=" + DRIVE_API_KEY.value() + "&fields=files(id,name)&pageSize=100&orderBy=name&supportsAllDrives=true&includeItemsFromAllDrives=true";
+  const r = await fetch(u);
+  const j = await r.json();
+  if (j.error) throw new Error("drive: " + (j.error.message || "erro ao listar pasta"));
+  return (j.files || []);
+}
+// Resolve uma referência para uma URL direta de imagem (pasta do Drive → escolhe uma imagem)
+async function resolveRefUrl(rawUrl, role) {
+  const fid = driveFolderId(rawUrl || "");
+  if (fid) {
+    const imgs = await listFolderImages(fid);
+    if (!imgs.length) throw new Error("pasta sem imagens");
+    // foto do cliente: varia (aleatória) entre posts; modelo de estilo: sempre a 1ª (consistência)
+    const pick = role === "foto" ? imgs[Math.floor(Math.random() * imgs.length)] : imgs[0];
+    return "https://drive.google.com/thumbnail?id=" + pick.id + "&sz=w2000";
+  }
+  return normalizeImageUrl(rawUrl);
+}
+
+// Baixa uma referência (já resolvida) e valida que é imagem de verdade (pelos primeiros bytes)
+async function fetchRefImage(url) {
   const ir = await fetch(url, { redirect: "follow" });
   const ab = await ir.arrayBuffer();
   const b = Buffer.from(ab);
@@ -80,16 +110,17 @@ async function generateArt(body, reqId) {
   const parts = [{ text: buildArtPrompt(body) }];
   // referências rotuladas: modelo de estilo primeiro (mais peso), depois foto do cliente, depois edição
   const refSpecs = [
-    { url: body.refModelo, label: "IMAGEM DE REFERÊNCIA DE ESTILO — copie fielmente desta arte a TIPOGRAFIA (fontes), a PALETA DE CORES, o layout e o nível de acabamento profissional. A arte final deve parecer da mesma linha visual desta referência:" },
-    { url: body.refFoto, label: "FOTO DO CLIENTE — use esta pessoa/imagem na arte, mantendo o rosto e a aparência:" },
-    { url: body.refEdit, label: "Esta é a arte ATUAL. Faça a alteração pedida mantendo o resto igual:" },
+    { url: body.refModelo, role: "modelo", label: "IMAGEM DE REFERÊNCIA DE ESTILO — copie fielmente desta arte a TIPOGRAFIA (fontes), a PALETA DE CORES, o layout e o nível de acabamento profissional. A arte final deve parecer da mesma linha visual desta referência:" },
+    { url: body.refFoto, role: "foto", label: "FOTO DO CLIENTE — use esta pessoa/imagem na arte, mantendo o rosto e a aparência:" },
+    { url: body.refEdit, role: "edit", label: "Esta é a arte ATUAL. Faça a alteração pedida mantendo o resto igual:" },
   ];
   let refsReq = 0, refsOk = 0, refsFail = [];
   for (const spec of refSpecs) {
     if (!spec.url) continue;
     refsReq++;
     try {
-      const img = await fetchRefImage(spec.url);
+      const resolved = await resolveRefUrl(spec.url, spec.role);
+      const img = await fetchRefImage(resolved);
       parts.push({ text: spec.label });
       parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
       refsOk++;
@@ -173,7 +204,7 @@ exports.allintema = onValueCreated(
   {
     ref: "/_ai/req/{reqId}",
     instance: "allin-sistema-default-rtdb",
-    secrets: [ANTHROPIC_API_KEY, GEMINI_API_KEY],
+    secrets: [ANTHROPIC_API_KEY, GEMINI_API_KEY, DRIVE_API_KEY],
     region: "us-central1",
     timeoutSeconds: 120,
     memory: "512MiB",

@@ -1948,9 +1948,10 @@ function contFichaOpen(cid){
     +'<div class="fg"><label>✍️ Linha editorial <span style="font-weight:400;color:#94A3B8">(link do arquivo — Drive/Dropbox)</span></label><input id="fc-linha" value="'+escH(f.linhaEditorial||'')+'" placeholder="Cole o link do documento"></div>'
     +'<div class="fg"><label>🧭 Linha editorial — resumo para a IA <span style="font-weight:400;color:#7C3AED">(tom de voz, temas, o que pode/não pode)</span></label><textarea id="fc-linha-txt" rows="4" style="width:100%;resize:vertical" placeholder="Ex: Tom profissional e acolhedor. Temas: liderança, RH, cultura. Evitar: política, humor forçado. Público: gestores de RH.">'+escH(f.linhaEditorialTexto||'')+'</textarea></div>'
     +'<div class="fg"><label>📁 Pasta de artes e materiais <span style="font-weight:400;color:#94A3B8">(link)</span></label><input id="fc-pasta" value="'+escH(f.pastaArtes||'')+'" placeholder="Cole o link da pasta"></div>'
-    +'<div style="margin-top:4px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:800;color:#EC4899;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">🎨 Recursos para a IA de arte</div>'
-    +'<div class="fg"><label>🖼️ Fotos do cliente <span style="font-weight:400;color:#94A3B8">(um link por linha — a IA usa como referência)</span></label><textarea id="fc-fotos" rows="3" style="width:100%;resize:vertical" placeholder="Cole aqui os links das fotos (Drive público, imgur...), um por linha">'+escH((f.fotosCliente||[]).join('\n'))+'</textarea></div>'
-    +'<div class="fg"><label>📐 Modelos / referências de estilo <span style="font-weight:400;color:#94A3B8">(um link por linha)</span></label><textarea id="fc-modelos" rows="3" style="width:100%;resize:vertical" placeholder="Links de artes-modelo para a IA seguir o estilo, um por linha">'+escH((f.modelosArte||[]).join('\n'))+'</textarea></div></div>'
+    +'<div style="margin-top:4px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:800;color:#EC4899;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">🎨 Recursos para a IA de arte</div>'
+    +'<div style="font-size:11px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:7px 10px;margin-bottom:10px">Pode ser o link de uma <b>imagem</b> ou de uma <b>pasta</b> do Google Drive (a IA pega as imagens de dentro). ⚠️ O arquivo/pasta precisa estar <b>público</b>: Compartilhar → "Qualquer pessoa com o link". Link do Trello não funciona (não é imagem).</div>'
+    +'<div class="fg"><label>🖼️ Fotos do cliente <span style="font-weight:400;color:#94A3B8">(um link por linha)</span></label><textarea id="fc-fotos" rows="3" style="width:100%;resize:vertical" placeholder="Link de uma foto OU de uma pasta do Drive com as fotos">'+escH((f.fotosCliente||[]).join('\n'))+'</textarea></div>'
+    +'<div class="fg"><label>📐 Modelos / referências de estilo <span style="font-weight:400;color:#94A3B8">(um link por linha)</span></label><textarea id="fc-modelos" rows="3" style="width:100%;resize:vertical" placeholder="Link de uma imagem-modelo OU pasta do Drive com os modelos">'+escH((f.modelosArte||[]).join('\n'))+'</textarea></div></div>'
     +'<div class="fg"><label>📝 Observações gerais</label><textarea id="fc-obs" rows="3" style="width:100%;resize:vertical" placeholder="Qualquer detalhe importante do cliente">'+escH(f.obs||'')+'</textarea></div>'
     +'</div>'
     +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'ficha-overlay\').remove()">Cancelar</button><button class="btn btn-p" onclick="contFichaSave(\''+cid+'\')">💾 Salvar ficha</button></div>'
@@ -7052,7 +7053,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072802; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072803; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
