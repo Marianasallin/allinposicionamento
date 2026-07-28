@@ -244,6 +244,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -1736,9 +1737,11 @@ function _contCard(c,card){
     +'<div style="font-size:13px;font-weight:600;color:#1E293B;line-height:1.4;overflow-wrap:break-word">'+escH(card.title||'(sem título)')+'</div>'
     +((fmtBadge||badge||rede)?'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px">'+fmtBadge+badge+(rede?'<span style="font-size:11px;color:#64748B">'+rede+'</span>':'')+'</div>':'')
     +(link?'<div style="margin-top:7px"><a href="'+escH(link)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">🔗 Abrir material</a></div>':'')
+    +(function(){var im=_cardImgs(card);if(!im.length)return '';return '<div style="margin-top:8px;position:relative"><img src="'+escH(im[0].url)+'" onclick="contArteView(\''+c.id+'\',\''+card.id+'\')" style="width:100%;max-height:170px;object-fit:cover;border-radius:8px;cursor:pointer;display:block;border:1px solid #EEE" title="Ver / editar arte">'+(im.length>1?'<span style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:2px 8px">📚 '+im.length+' páginas</span>':'')+'</div>';})()
     +(card.caption?'<div onclick="contAIViewLegenda(\''+c.id+'\',\''+card.id+'\')" style="margin-top:7px;font-size:11px;color:#7C3AED;cursor:pointer;text-decoration:underline" title="Ver a legenda salva">📝 ver legenda salva</div>':'')
-    +'<div style="display:flex;justify-content:flex-end;gap:4px;margin-top:10px;padding-top:8px;border-top:1px solid #F1F5F9">'
+    +'<div style="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:4px;margin-top:10px;padding-top:8px;border-top:1px solid #F1F5F9">'
     +'<button class="btn btn-s" style="font-size:11px;padding:3px 9px;background:linear-gradient(135deg,#7C3AED,#0D3D9B);color:#fff;border:none" title="Gerar legenda com a IA" onclick="contAIPreGen(\''+c.id+'\',\'legenda\',\''+card.id+'\')">✨ Legenda</button>'
+    +'<button class="btn btn-s" style="font-size:11px;padding:3px 9px;background:linear-gradient(135deg,#EC4899,#7C3AED);color:#fff;border:none" title="Gerar arte com a IA" onclick="contArtePreGen(\''+c.id+'\',\''+card.id+'\')">🎨 '+(_cardImgs(card).length?'Nova arte':'Arte')+'</button>'
     +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 8px" onclick="contCardOpen(\''+c.id+'\',\''+card.id+'\')" title="Editar">✏️</button>'
     +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 8px;border-color:var(--red);color:var(--red)" onclick="contDelete(\''+c.id+'\',\''+card.id+'\')" title="Excluir">🗑</button>'
     +'</div>'
@@ -1945,6 +1948,9 @@ function contFichaOpen(cid){
     +'<div class="fg"><label>✍️ Linha editorial <span style="font-weight:400;color:#94A3B8">(link do arquivo — Drive/Dropbox)</span></label><input id="fc-linha" value="'+escH(f.linhaEditorial||'')+'" placeholder="Cole o link do documento"></div>'
     +'<div class="fg"><label>🧭 Linha editorial — resumo para a IA <span style="font-weight:400;color:#7C3AED">(tom de voz, temas, o que pode/não pode)</span></label><textarea id="fc-linha-txt" rows="4" style="width:100%;resize:vertical" placeholder="Ex: Tom profissional e acolhedor. Temas: liderança, RH, cultura. Evitar: política, humor forçado. Público: gestores de RH.">'+escH(f.linhaEditorialTexto||'')+'</textarea></div>'
     +'<div class="fg"><label>📁 Pasta de artes e materiais <span style="font-weight:400;color:#94A3B8">(link)</span></label><input id="fc-pasta" value="'+escH(f.pastaArtes||'')+'" placeholder="Cole o link da pasta"></div>'
+    +'<div style="margin-top:4px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:800;color:#EC4899;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">🎨 Recursos para a IA de arte</div>'
+    +'<div class="fg"><label>🖼️ Fotos do cliente <span style="font-weight:400;color:#94A3B8">(um link por linha — a IA usa como referência)</span></label><textarea id="fc-fotos" rows="3" style="width:100%;resize:vertical" placeholder="Cole aqui os links das fotos (Drive público, imgur...), um por linha">'+escH((f.fotosCliente||[]).join('\n'))+'</textarea></div>'
+    +'<div class="fg"><label>📐 Modelos / referências de estilo <span style="font-weight:400;color:#94A3B8">(um link por linha)</span></label><textarea id="fc-modelos" rows="3" style="width:100%;resize:vertical" placeholder="Links de artes-modelo para a IA seguir o estilo, um por linha">'+escH((f.modelosArte||[]).join('\n'))+'</textarea></div></div>'
     +'<div class="fg"><label>📝 Observações gerais</label><textarea id="fc-obs" rows="3" style="width:100%;resize:vertical" placeholder="Qualquer detalhe importante do cliente">'+escH(f.obs||'')+'</textarea></div>'
     +'</div>'
     +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'ficha-overlay\').remove()">Cancelar</button><button class="btn btn-p" onclick="contFichaSave(\''+cid+'\')">💾 Salvar ficha</button></div>'
@@ -1956,7 +1962,8 @@ function contFichaSave(cid){
   var c=_findClient(cid);if(!c)return;
   var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
   var redes=[];if(document.getElementById('fc-linkedin').checked)redes.push('LinkedIn');if(document.getElementById('fc-instagram').checked)redes.push('Instagram');
-  _conteudos(c).ficha={horarioDias:g('fc-horario'),frequencia:g('fc-freq'),redes:redes,linhaEditorial:g('fc-linha'),linhaEditorialTexto:g('fc-linha-txt'),pastaArtes:g('fc-pasta'),obs:g('fc-obs')};
+  var parseLinks=function(id){return g(id).split('\n').map(function(s){return s.trim();}).filter(Boolean);};
+  _conteudos(c).ficha={horarioDias:g('fc-horario'),frequencia:g('fc-freq'),redes:redes,linhaEditorial:g('fc-linha'),linhaEditorialTexto:g('fc-linha-txt'),pastaArtes:g('fc-pasta'),fotosCliente:parseLinks('fc-fotos'),modelosArte:parseLinks('fc-modelos'),obs:g('fc-obs')};
   save();var ov=document.getElementById('ficha-overlay');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Ficha salva!');render();
 }
 
@@ -2110,6 +2117,175 @@ function contAIViewLegenda(cid,cardId){
     +'</div>';
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
   document.body.appendChild(ov);
+}
+// ══════════ ARTE (Gemini) ══════════
+// imagens de um card (compat: imageUrl antigo → lista)
+function _cardImgs(card){if(card&&card.images&&card.images.length)return card.images;if(card&&card.imageUrl)return [{url:card.imageUrl,texto:''}];return [];}
+function _slug(s){return (s||'arte').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'arte';}
+// baixar uma imagem (usa CORS do bucket; se falhar, abre em nova aba)
+function _arteDL(url,name){
+  fetch(url).then(function(r){return r.blob();}).then(function(b){
+    var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},3000);
+    if(typeof toast==='function')toast('📥 Baixado: '+name);
+  }).catch(function(){window.open(url,'_blank');});
+}
+function _imgDataURL(url){return fetch(url).then(function(r){return r.blob();}).then(function(b){return new Promise(function(res,rej){var fr=new FileReader();fr.onload=function(){res(fr.result);};fr.onerror=rej;fr.readAsDataURL(b);});});}
+// gerar PDF do carrossel (uma imagem por página)
+function _artePDF(urls,name){
+  var JP=window.jspdf&&window.jspdf.jsPDF;if(!JP){if(typeof toast==='function')toast('❌ PDF indisponível — recarregue a página');return;}
+  if(typeof toast==='function')toast('📄 Gerando PDF...');
+  var doc=null,i=0;
+  (function next(){
+    if(i>=urls.length){doc.save(name);if(typeof toast==='function')toast('📄 PDF pronto: '+name);return;}
+    _imgDataURL(urls[i]).then(function(d){
+      var im=new Image();
+      im.onload=function(){
+        var w=im.width||1024,h=im.height||1024;
+        if(!doc)doc=new JP({orientation:w>=h?'l':'p',unit:'px',format:[w,h]});
+        else doc.addPage([w,h],w>=h?'l':'p');
+        doc.addImage(d,'PNG',0,0,w,h);i++;next();
+      };
+      im.onerror=function(){i++;next();};im.src=d;
+    }).catch(function(){i++;next();});
+  })();
+}
+// Modal de pré-geração: formato + texto + observações + referências (puxadas da ficha)
+function contArtePreGen(cid,cardId){
+  var c=_findClient(cid);if(!c)return;
+  var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
+  var f=_conteudos(c).ficha||{};
+  var fotos=(f.fotosCliente||[]),modelos=(f.modelosArte||[]);
+  var curFmt=card.formato||'';
+  var fo=function(f,l){return '<option value="'+f+'" '+(curFmt===f?'selected':'')+'>'+l+'</option>';};
+  var refOpts=function(arr,lbl){return '<option value="">— nenhuma —</option>'+arr.map(function(u,i){return '<option value="'+escH(u)+'">'+lbl+' '+(i+1)+'</option>';}).join('')+'<option value="__manual">✏️ colar outro link...</option>';};
+  var ov=document.createElement('div');ov.id='arte-pregen';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:500px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#EC4899,#7C3AED);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🎨 Gerar arte — '+escH(c.name)+'</h3><button onclick="document.getElementById(\'arte-pregen\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:20px;display:flex;flex-direction:column;gap:12px">'
+    +'<div class="fg"><label>✍️ Texto que vai escrito na arte</label><input id="arte-texto" value="'+escH(card.title||'')+'" placeholder="O texto que aparece na imagem" style="width:100%"><div style="font-size:11px;color:#EC4899;margin-top:3px">⚠️ Confira a grafia na arte gerada — se a IA errar uma palavra, é só clicar em 🔄 Refazer.</div></div>'
+    +'<div class="fg"><label>Formato</label><select id="arte-formato">'+fo('','— livre —')+fo('Carrossel','📚 Carrossel')+fo('Estático','🖼️ Estático')+fo('Enquete','📊 Enquete')+'</select></div>'
+    +'<div class="fg"><label>O que você quer na arte? <span style="font-weight:400;color:#94A3B8">(opcional)</span></label><textarea id="arte-obs" rows="3" style="width:100%;resize:vertical" placeholder="Ex: fundo azul claro, sensação de segurança, estilo clean, uma família ao fundo"></textarea></div>'
+    +'<div class="fgrid"><div class="fg"><label>🖼️ Foto do cliente</label><select id="arte-reffoto-sel" onchange="_arteRefToggle(\'foto\')">'+refOpts(fotos,'Foto')+'</select><input id="arte-reffoto-man" placeholder="Cole o link da foto" style="width:100%;margin-top:6px;display:none"></div>'
+    +'<div class="fg"><label>📐 Modelo de estilo</label><select id="arte-refmodelo-sel" onchange="_arteRefToggle(\'modelo\')">'+refOpts(modelos,'Modelo')+'</select><input id="arte-refmodelo-man" placeholder="Cole o link do modelo" style="width:100%;margin-top:6px;display:none"></div></div>'
+    +((fotos.length||modelos.length)?'':'<div style="font-size:11px;color:#94A3B8">💡 Dica: salve fotos e modelos fixos na <b>Ficha</b> do cliente para não colar link toda vez.</div>')
+    +'<div style="font-size:11px;color:#94A3B8">A arte sai quadrada (feed do LinkedIn e Instagram), seguindo a linha editorial do cliente.</div>'
+    +'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'arte-pregen\').remove()">Cancelar</button><button class="btn btn-p" style="background:linear-gradient(135deg,#EC4899,#7C3AED);border:none" onclick="contArteGo(\''+cid+'\',\''+cardId+'\')">🎨 Gerar arte</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+function _arteRefToggle(which){var sel=document.getElementById('arte-ref'+which+'-sel');var man=document.getElementById('arte-ref'+which+'-man');if(!sel||!man)return;if(sel.value==='__manual'){man.style.display='block';man.focus();}else{man.style.display='none';}}
+function _arteRefVal(which){var sel=document.getElementById('arte-ref'+which+'-sel');if(!sel)return '';if(sel.value==='__manual')return ((document.getElementById('arte-ref'+which+'-man')||{}).value||'').trim();return sel.value||'';}
+function contArteGo(cid,cardId){
+  var fmt=(document.getElementById('arte-formato')||{}).value||'';
+  var obs=(document.getElementById('arte-obs')||{}).value||'';
+  var texto=((document.getElementById('arte-texto')||{}).value||'').trim();
+  var refFoto=_arteRefVal('foto'),refModelo=_arteRefVal('modelo');
+  var ov=document.getElementById('arte-pregen');if(ov)ov.remove();
+  _contAIGenArte(cid,cardId,{formato:fmt,obs:obs,textoArte:texto,refFoto:refFoto,refModelo:refModelo,items:[]});
+}
+// gera (nova / mais uma / edição) e devolve pro modal de revisão
+function _contAIGenArte(cid,cardId,opts){
+  var c=_findClient(cid);if(!c)return;
+  var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
+  opts=opts||{};
+  var msg=opts.replaceLast?'Refazendo a arte':(opts.slide?'Criando a próxima página do carrossel':'Criando a arte de "'+(card.title||'').slice(0,26)+'"');
+  _aiLoading(true,msg+' (pode levar até 1 min)');
+  var ctx=_contClientAICtx(c);
+  var payload={mode:'arte',theme:card.title||'',textoArte:opts.textoArte||card.title||'',editorialLine:ctx.editorialLine,niche:ctx.niche,formato:opts.formato||'',obs:opts.obs||''};
+  if(opts.slide)payload.slide=true;
+  if(opts.refFoto)payload.refFoto=opts.refFoto;
+  if(opts.refModelo)payload.refModelo=opts.refModelo;
+  if(opts.refEdit)payload.refEdit=opts.refEdit;
+  _aiRequest(payload).then(function(v){
+    _aiLoading(false);
+    var items=(opts.items||[]).slice();
+    var item={url:v.imageUrl,texto:opts.textoArte||card.title||''};
+    if(opts.replaceLast&&items.length)items[items.length-1]=item;else items.push(item);
+    _contArteReview(cid,cardId,{items:items,formato:opts.formato||'',refFoto:opts.refFoto||'',refModelo:opts.refModelo||''},v.custoBRL,(opts.acumCusto||0)+(v.custoBRL||0));
+  }).catch(function(e){_aiLoading(false);if(typeof toast==='function')toast('❌ '+e.message);});
+}
+// Modal de revisão — mostra as imagens pendentes (carrossel = várias), editar, gerar próxima, baixar, salvar
+function _contArteReview(cid,cardId,st,custo,acum){
+  var c=_findClient(cid);if(!c)return;
+  var card=_conteudos(c).cards.find(function(x){return x.id===cardId;})||{};
+  var items=st.items||[];var isCarr=/carrossel/i.test(st.formato||'')||items.length>1;
+  var slug=_slug(card.title);
+  var ov=document.getElementById('ai-review');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='ai-review';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  var imgsHtml=items.map(function(it,i){return '<div style="margin-bottom:14px">'
+    +'<img src="'+escH(it.url)+'" style="width:100%;border-radius:10px;border:1px solid #EEE;display:block">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">'
+    +'<span style="font-size:11px;color:#94A3B8">'+(isCarr?('Página '+(i+1)+' de '+items.length):'Imagem')+'</span>'
+    +'<button class="btn btn-o btn-s" style="font-size:11px" onclick="_arteDLItem('+i+')">📥 Baixar imagem</button>'
+    +'</div></div>';}).join('');
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#EC4899,#7C3AED);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🎨 Arte — '+escH(card.title||'')+'</h3><button onclick="document.getElementById(\'ai-review\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:18px 20px">'
+    +imgsHtml
+    +'<div style="margin-top:6px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:700;color:#EC4899;margin-bottom:6px">✏️ Ajustar a última imagem (a IA edita)</div>'
+    +'<div style="display:flex;gap:6px"><input id="arte-edit" placeholder="Ex: deixe mais azul, tire o cofrinho, corrija o texto..." style="flex:1;font-size:12px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px"><button class="btn btn-o btn-s" style="white-space:nowrap" onclick="contArteEdit(\''+cid+'\',\''+cardId+'\')">🔄 Refazer</button></div></div>'
+    +'<div style="margin-top:12px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:700;color:#7C3AED;margin-bottom:6px">➕ Gerar mais uma imagem deste tema (carrossel)</div>'
+    +'<div style="display:flex;gap:6px"><input id="arte-next" placeholder="Texto da próxima página. Ex: Dica 1: revise seus gastos" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px"><button class="btn btn-o btn-s" style="white-space:nowrap" onclick="contArteMore(\''+cid+'\',\''+cardId+'\')">➕ Gerar página</button></div></div>'
+    +'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap">'
+    +'<span style="font-size:11px;color:#94A3B8">custo desta sessão: R$ '+((acum!=null?acum:custo)||0).toFixed(3)+'</span>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +(items.length>1?'<button class="btn btn-o" onclick="contArtePDF()">📄 Baixar PDF</button>':'')
+    +'<button class="btn btn-o" onclick="document.getElementById(\'ai-review\').remove()">Descartar</button>'
+    +'<button class="btn btn-p" style="background:linear-gradient(135deg,#EC4899,#7C3AED);border:none" onclick="contArteSave(\''+cid+'\',\''+cardId+'\')">💾 Salvar no card</button></div></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+  ov._arte={items:items,formato:st.formato||'',refFoto:st.refFoto||'',refModelo:st.refModelo||'',slug:slug,acum:(acum!=null?acum:custo)||0};
+}
+function _arteDLItem(i){var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var it=ov._arte.items[i];if(!it)return;_arteDL(it.url,ov._arte.slug+'-'+(i+1)+'.png');}
+function contArtePDF(){var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;_artePDF(ov._arte.items.map(function(x){return x.url;}),ov._arte.slug+'-carrossel.pdf');}
+function contArteEdit(cid,cardId){
+  var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;
+  var instr=((document.getElementById('arte-edit')||{}).value||'').trim();
+  if(!instr){if(typeof toast==='function')toast('Escreva o ajuste que você quer');return;}
+  var a=ov._arte;var last=a.items[a.items.length-1]||{};ov.remove();
+  _contAIGenArte(cid,cardId,{formato:a.formato,obs:instr,textoArte:last.texto,refFoto:a.refFoto,refModelo:a.refModelo,refEdit:last.url,items:a.items,replaceLast:true,acumCusto:a.acum});
+}
+function contArteMore(cid,cardId){
+  var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;
+  var txt=((document.getElementById('arte-next')||{}).value||'').trim();
+  if(!txt){if(typeof toast==='function')toast('Escreva o texto da próxima página');return;}
+  var a=ov._arte;var cover=(a.items[0]||{}).url||'';ov.remove();
+  _contAIGenArte(cid,cardId,{formato:'Carrossel',slide:true,textoArte:txt,refModelo:cover||a.refModelo,refFoto:'',items:a.items,acumCusto:a.acum});
+}
+function contArteSave(cid,cardId){
+  var ov=document.getElementById('ai-review');var items=(ov&&ov._arte&&ov._arte.items)||[];
+  var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
+  if(items.length){card.images=items;delete card.imageUrl;}
+  save();if(ov)ov.remove();if(typeof toast==='function')toast('✅ Arte salva no card!');render();
+}
+function contArteView(cid,cardId){
+  var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
+  var items=_cardImgs(card);if(!items.length)return;var isCarr=items.length>1;var slug=_slug(card.title);
+  var ov=document.getElementById('ai-review');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='ai-review';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  var imgsHtml=items.map(function(it,i){return '<div style="margin-bottom:14px"><img src="'+escH(it.url)+'" style="width:100%;border-radius:10px;border:1px solid #EEE;display:block"><div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px"><span style="font-size:11px;color:#94A3B8">'+(isCarr?('Página '+(i+1)+' de '+items.length):'Imagem')+'</span><button class="btn btn-o btn-s" style="font-size:11px" onclick="_arteDLItem('+i+')">📥 Baixar imagem</button></div></div>';}).join('');
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#EC4899,#7C3AED);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🎨 Arte — '+escH(card.title||'')+'</h3><button onclick="document.getElementById(\'ai-review\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:18px 20px">'+imgsHtml+'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">'
+    +(items.length>1?'<button class="btn btn-o" onclick="contArtePDF()">📄 Baixar PDF</button>':'')
+    +'<button class="btn btn-o" onclick="contArtePreGen(\''+cid+'\',\''+cardId+'\')">🎨 Gerar nova</button>'
+    +'<button class="btn btn-o" style="border-color:var(--red);color:var(--red)" onclick="contArteRemove(\''+cid+'\',\''+cardId+'\')">🗑 Remover</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+  ov._arte={items:items,slug:slug};
+}
+function contArteRemove(cid,cardId){
+  var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
+  delete card.imageUrl;delete card.images;save();var ov=document.getElementById('ai-review');if(ov)ov.remove();if(typeof toast==='function')toast('Arte removida');render();
 }
 function contTogglePublished(cid,cardId){
   var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
@@ -6873,7 +7049,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072412; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072801; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){

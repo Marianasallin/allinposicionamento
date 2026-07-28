@@ -11,7 +11,72 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 const MODEL = "claude-opus-4-8";
+const IMG_MODEL = "gemini-2.5-flash-image";
+
+// Monta o prompt da arte a partir do tema + linha editorial + formato + observações
+function buildArtPrompt(body) {
+  const tema = (body.theme || "").trim();
+  const linha = (body.editorialLine || "").trim();
+  const formato = (body.formato || "").trim();
+  const obs = (body.obs || "").trim();
+  const comTexto = body.comTexto !== false; // por padrão, escreve texto na arte
+  const textoArte = (body.textoArte || tema || "").trim();
+  const ehCarrossel = /carrossel/i.test(formato);
+  const temModelo = !!(body.refModelo || body.refEdit);
+
+  let p = "Crie uma arte PROFISSIONAL para post de rede social (serve para LinkedIn e para o feed do Instagram). ";
+  p += "FORMATO OBRIGATÓRIO: imagem QUADRADA, proporção 1:1, alta resolução, composição pensada para feed (nada cortado nas bordas).\n";
+  if (tema) p += "Tema do post: " + tema + ".\n";
+  if (ehCarrossel) p += (body.slide ? "Esta é uma PÁGINA (slide) de um carrossel." : "Esta é a CAPA de um carrossel — deve ser chamativa e convidar a arrastar.") + "\n";
+  if (comTexto && textoArte) {
+    p += "ESCREVA na arte, como título/chamada em destaque, EXATAMENTE este texto e NADA MAIS, mantendo a grafia e a acentuação corretas do português brasileiro, SEM erros e SEM cortar palavras: \"" + textoArte + "\". ";
+    p += "REGRA ABSOLUTA: a ÚNICA palavra ou frase escrita na imagem deve ser exatamente esse texto. É PROIBIDO adicionar qualquer outro texto — nada de subtítulos, chamadas como 'deslize', 'arraste', 'saiba mais', números de página, marca d'água, assinatura ou legenda. Sem texto em outro idioma. O texto deve ficar bem legível, com boa hierarquia e integrado ao design.\n";
+  } else {
+    p += "NÃO escreva textos, palavras nem letras dentro da imagem.\n";
+  }
+  if (linha) p += "Identidade e linha editorial do cliente (siga estilo, cores e tom): " + linha + ".\n";
+  if (temModelo) p += "Siga fielmente o ESTILO VISUAL (cores, tipografia, composição) da imagem de referência enviada, para manter a identidade da marca.\n";
+  if (obs) p += "Instruções específicas (siga à risca): " + obs + ".\n";
+  p += "Arte limpa, moderna e profissional, sem marcas d'água, sem logos de terceiros e sem texto embaralhado.";
+  return p;
+}
+
+// Gera a arte no Gemini, faz upload no Storage e devolve a URL
+async function generateArt(body, reqId) {
+  const parts = [{ text: buildArtPrompt(body) }];
+  // imagens de referência (foto do cliente e/ou modelo) via link
+  const refs = [body.refFoto, body.refModelo, body.refEdit].filter(Boolean);
+  for (const url of refs) {
+    try {
+      const ir = await fetch(url);
+      const ct = (ir.headers.get("content-type") || "image/png").split(";")[0];
+      if (ct.indexOf("image/") === 0) {
+        const ab = await ir.arrayBuffer();
+        parts.push({ inline_data: { mime_type: ct, data: Buffer.from(ab).toString("base64") } });
+      }
+    } catch (e) { /* ignora referência inválida */ }
+  }
+  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + IMG_MODEL + ":generateContent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY.value() },
+    body: JSON.stringify({ contents: [{ parts }] }),
+  });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.message || "Erro na IA de imagem");
+  const outParts = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
+  const imgPart = outParts.find((p) => p.inlineData || p.inline_data);
+  if (!imgPart) throw new Error("A IA não retornou imagem. " + outParts.map((p) => p.text).filter(Boolean).join(" ").slice(0, 140));
+  const d = imgPart.inlineData || imgPart.inline_data;
+  const buf = Buffer.from(d.data, "base64");
+  const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const path = "artes/" + reqId + ".png";
+  const bucket = admin.storage().bucket("allin-sistema-artes");
+  await bucket.file(path).save(buf, { contentType: "image/png", metadata: { metadata: { firebaseStorageDownloadTokens: token } } });
+  const imageUrl = "https://firebasestorage.googleapis.com/v0/b/" + bucket.name + "/o/" + encodeURIComponent(path) + "?alt=media&token=" + token;
+  return { imageUrl, custoBRL: Number((0.039 * 5.5).toFixed(3)) };
+}
 
 function systemPrompt() {
   return [
@@ -71,16 +136,22 @@ exports.allintema = onValueCreated(
   {
     ref: "/_ai/req/{reqId}",
     instance: "allin-sistema-default-rtdb",
-    secrets: [ANTHROPIC_API_KEY],
+    secrets: [ANTHROPIC_API_KEY, GEMINI_API_KEY],
     region: "us-central1",
     timeoutSeconds: 120,
-    memory: "256MiB",
+    memory: "512MiB",
   },
   async (event) => {
     const reqId = event.params.reqId;
     const body = (event.data && event.data.val()) || {};
     const resRef = admin.database().ref("/_ai/res/" + reqId);
     try {
+      if (body.mode === "arte") {
+        const out = await generateArt(body, reqId);
+        await resRef.set({ imageUrl: out.imageUrl, mode: "arte", custoBRL: out.custoBRL, ts: Date.now() });
+        await event.data.ref.remove();
+        return;
+      }
       const mode = body.mode === "legenda" ? "legenda" : "temas";
       const maxTokens = mode === "legenda" ? 1200 : 900;
       const r = await fetch("https://api.anthropic.com/v1/messages", {
