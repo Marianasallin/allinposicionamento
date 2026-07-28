@@ -1709,7 +1709,7 @@ function _contOwnerAv(name,withName){
 }
 function _contCard(c,card){
   var meta=[];
-  if(card.status!=='ideias'&&card.date)meta.push('📅 '+fmtDate(card.date+'T12:00:00'));
+  if(card.date)meta.push('📅 '+fmtDate(card.date+'T12:00:00'));
   if(card.rede)meta.push(card.rede==='LinkedIn'?'💼 LinkedIn':'📸 Instagram');
   var link=_validUrl(card.link);
   var footer=[];
@@ -1723,7 +1723,10 @@ function _contCard(c,card){
     +'<button class="btn btn-o btn-s" style="font-size:10px;padding:2px 6px;border-color:var(--red);color:var(--red)" onclick="contDelete(\''+c.id+'\',\''+card.id+'\')">🗑</button></div></div>'
     +(footer.length?'<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:11px;color:#64748B">'+footer.join('')+'</div>':'')
     +(link?'<div style="margin-top:7px"><a href="'+escH(link)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">🔗 Abrir material</a></div>':'')
-    +(card.caption?'<div style="margin-top:7px;font-size:11px;color:#7C3AED">📝 legenda salva</div>':'')
+    +(card.caption?'<div onclick="contAIViewLegenda(\''+c.id+'\',\''+card.id+'\')" style="margin-top:7px;font-size:11px;color:#7C3AED;cursor:pointer;text-decoration:underline" title="Ver a legenda salva">📝 ver legenda salva</div>':'')
+    +((card.status||'ideias')==='ideias'?'':'<div style="margin-top:8px">'+(card.published
+        ?'<span onclick="contTogglePublished(\''+c.id+'\',\''+card.id+'\')" style="cursor:pointer;font-size:10px;font-weight:700;color:#15803D;background:#F0FDF4;border:1px solid #86EFAC;border-radius:99px;padding:3px 9px" title="Clique para desmarcar">✅ Publicado</span>'
+        :'<span onclick="contTogglePublished(\''+c.id+'\',\''+card.id+'\')" style="cursor:pointer;font-size:10px;font-weight:600;color:#94A3B8;background:#fff;border:1px solid #E5E7EB;border-radius:99px;padding:3px 9px" title="Marcar como já publicado">☐ Já publiquei</span>')+'</div>')
     +'</div>';
 }
 
@@ -1786,11 +1789,15 @@ function _contFicha(c){
     +'<div>'+linkBtn(linha,'Linha editorial (arquivo)','✍️')+'</div>'
     +'<div>'+linkBtn(pasta,'Pasta de artes e materiais','📁')+'</div>'
     +'</div>'
-    +(f.linhaEditorialTexto?'<div style="margin-top:12px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">🧭 Linha editorial — resumo <span style="color:#7C3AED">(a IA lê isto)</span></div><div style="font-size:13px;color:#334155;white-space:pre-wrap">'+escH(f.linhaEditorialTexto)+'</div></div>':'')
+    +(f.linhaEditorialTexto?'<div style="margin-top:12px;padding-top:12px;border-top:1px solid #F1F5F9">'
+      +'<div onclick="contFichaLinhaToggle()" style="cursor:pointer;display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="font-size:11px;color:#7C3AED;display:inline-block;transition:transform .2s;transform:rotate('+(S.contFichaLinhaOpen?'90':'0')+'deg)">▸</span><span style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px">🧭 Linha editorial — resumo <span style="color:#7C3AED">(a IA lê isto)</span>'+(S.contFichaLinhaOpen?'':' · toque para ver')+'</span></div>'
+      +(S.contFichaLinhaOpen?'<div style="font-size:13px;color:#334155;white-space:pre-wrap">'+escH(f.linhaEditorialTexto)+'</div>':'')
+      +'</div>':'')
     +(f.obs?'<div style="margin-top:12px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">📝 Observações</div><div style="font-size:13px;color:#334155;white-space:pre-wrap">'+escH(f.obs)+'</div></div>':'')
     +'</div>'):'')+'</div>';
 }
 function contFichaToggle(){S.contFichaOpen=!S.contFichaOpen;render();}
+function contFichaLinhaToggle(){S.contFichaLinhaOpen=!S.contFichaLinhaOpen;render();}
 
 // ── View principal ──
 function rConteudos(){
@@ -2053,6 +2060,22 @@ function contAISaveLegenda(cid,cardId){
   var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
   var t=document.getElementById('ai-legenda');card.caption=t?t.value:'';
   save();var ov=document.getElementById('ai-review');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Legenda salva no card!');render();
+}
+function contAIViewLegenda(cid,cardId){
+  var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card||!card.caption)return;
+  var ov=document.createElement('div');ov.id='ai-review';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#7C3AED,#0D3D9B);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">📝 Legenda — '+escH(card.title||'')+'</h3><button onclick="document.getElementById(\'ai-review\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:18px 20px"><textarea id="ai-legenda" rows="14" style="width:100%;resize:vertical;font-size:13px;line-height:1.5;padding:12px;border:1px solid #E5E7EB;border-radius:10px">'+escH(card.caption)+'</textarea></div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btn-o" onclick="contAIPreGen(\''+cid+'\',\'legenda\',\''+cardId+'\')">✨ Gerar nova versão</button><button class="btn btn-o" onclick="_aiCopyLegenda()">📋 Copiar</button><button class="btn btn-p" onclick="contAISaveLegenda(\''+cid+'\',\''+cardId+'\')">💾 Salvar alterações</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+function contTogglePublished(cid,cardId){
+  var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
+  card.published=!card.published;save();if(typeof toast==='function')toast(card.published?'✅ Marcado como publicado':'Desmarcado');render();
 }
 function rDetail(){
   const c=getC();if(!c)return'';
@@ -6812,7 +6835,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072409; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072410; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
