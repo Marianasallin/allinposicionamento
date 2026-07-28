@@ -32,13 +32,17 @@ function buildUserMessage(body) {
   const nome = (body.clientName || "").trim();
   const nicho = (body.niche || "").trim();
   const linha = (body.editorialLine || "").trim();
+  const formato = (body.formato || "").trim();
+  const obs = (body.obs || "").trim();
   const hist = Array.isArray(body.history) ? body.history.filter(Boolean).slice(0, 20) : [];
   let ctx = "DADOS DO CLIENTE\n";
   if (nome) ctx += "Cliente: " + nome + "\n";
   if (nicho) ctx += "Nicho: " + nicho + "\n";
   ctx += "Rede: LinkedIn\n";
+  if (formato) ctx += "Formato do post: " + formato + " (adeque a estrutura a esse formato)\n";
   ctx += "\nLINHA EDITORIAL DO CLIENTE:\n" + (linha || "(não informada — use o nicho e bom senso, e mantenha tom profissional)") + "\n";
   if (hist.length) ctx += "\nTEMAS/POSTS JÁ FEITOS (não repita):\n- " + hist.join("\n- ") + "\n";
+  if (obs) ctx += "\n⚠️ OBSERVAÇÃO/PEDIDO DA EQUIPE (prioridade máxima — siga à risca):\n" + obs + "\n";
   if (body.mode === "legenda") {
     const tema = (body.theme || "").trim();
     return ctx + "\nTAREFA: escreva UMA legenda completa e pronta para revisão para o tema abaixo, seguindo a linha editorial.\n" +
