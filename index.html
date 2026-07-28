@@ -2201,10 +2201,12 @@ function _contAIGenArte(cid,cardId,opts){
   if(opts.refEdit)payload.refEdit=opts.refEdit;
   _aiRequest(payload).then(function(v){
     _aiLoading(false);
+    var warn=(v.refsReq&&v.refsOk<v.refsReq)?('⚠️ Não consegui abrir '+(v.refsReq-v.refsOk)+' referência(s) — provavelmente o arquivo não está público. No Drive: Compartilhar → "Qualquer pessoa com o link". A arte foi gerada SEM essa referência.'):'';
+    if(warn&&typeof toast==='function')toast('⚠️ Referência não abriu — veja o aviso na arte');
     var items=(opts.items||[]).slice();
     var item={url:v.imageUrl,texto:opts.textoArte||card.title||''};
     if(opts.replaceLast&&items.length)items[items.length-1]=item;else items.push(item);
-    _contArteReview(cid,cardId,{items:items,formato:opts.formato||'',refFoto:opts.refFoto||'',refModelo:opts.refModelo||''},v.custoBRL,(opts.acumCusto||0)+(v.custoBRL||0));
+    _contArteReview(cid,cardId,{items:items,formato:opts.formato||'',refFoto:opts.refFoto||'',refModelo:opts.refModelo||'',warn:warn},v.custoBRL,(opts.acumCusto||0)+(v.custoBRL||0));
   }).catch(function(e){_aiLoading(false);if(typeof toast==='function')toast('❌ '+e.message);});
 }
 // Modal de revisão — mostra as imagens pendentes (carrossel = várias), editar, gerar próxima, baixar, salvar
@@ -2225,6 +2227,7 @@ function _contArteReview(cid,cardId,st,custo,acum){
   ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
     +'<div style="background:linear-gradient(135deg,#EC4899,#7C3AED);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🎨 Arte — '+escH(card.title||'')+'</h3><button onclick="document.getElementById(\'ai-review\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
     +'<div style="padding:18px 20px">'
+    +(st.warn?'<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#92400E;line-height:1.45">'+escH(st.warn)+'</div>':'')
     +imgsHtml
     +'<div style="margin-top:6px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:700;color:#EC4899;margin-bottom:6px">✏️ Ajustar a última imagem (a IA edita)</div>'
     +'<div style="display:flex;gap:6px"><input id="arte-edit" placeholder="Ex: deixe mais azul, tire o cofrinho, corrija o texto..." style="flex:1;font-size:12px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px"><button class="btn btn-o btn-s" style="white-space:nowrap" onclick="contArteEdit(\''+cid+'\',\''+cardId+'\')">🔄 Refazer</button></div></div>'
@@ -7049,7 +7052,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072801; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072802; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){

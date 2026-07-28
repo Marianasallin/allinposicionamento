@@ -43,20 +43,57 @@ function buildArtPrompt(body) {
   return p;
 }
 
+// Converte links de "visualização" (Drive/Dropbox) para o arquivo direto da imagem
+function normalizeImageUrl(url) {
+  url = (url || "").trim();
+  if (!url) return url;
+  // Google Drive → endpoint de thumbnail (devolve a imagem de forma confiável, se o arquivo estiver público)
+  let m = url.match(/drive\.google\.com\/file\/d\/([^/]+)/) ||
+          url.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([^&]+)/) ||
+          url.match(/[?&]id=([-\w]{20,})/);
+  if (m) return "https://drive.google.com/thumbnail?id=" + m[1] + "&sz=w2000";
+  // Dropbox → arquivo bruto
+  if (/dropbox\.com/.test(url)) return url.replace(/[?&]dl=\d/, "").replace(/[?&]raw=\d/, "") + (url.indexOf("?") >= 0 ? "&raw=1" : "?raw=1");
+  return url;
+}
+
+// Baixa uma referência e valida que é imagem de verdade (pelos primeiros bytes)
+async function fetchRefImage(rawUrl) {
+  const url = normalizeImageUrl(rawUrl);
+  const ir = await fetch(url, { redirect: "follow" });
+  const ab = await ir.arrayBuffer();
+  const b = Buffer.from(ab);
+  let mime = (ir.headers.get("content-type") || "").split(";")[0].trim();
+  // detecta pelo cabeçalho binário (assinatura mágica), independente do content-type
+  if (b.length > 12) {
+    if (b[0] === 0xFF && b[1] === 0xD8) mime = "image/jpeg";
+    else if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) mime = "image/png";
+    else if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) mime = "image/gif";
+    else if (b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) mime = "image/webp";
+  }
+  if (mime.indexOf("image/") !== 0) throw new Error("não é imagem");
+  return { mime, data: b.toString("base64") };
+}
+
 // Gera a arte no Gemini, faz upload no Storage e devolve a URL
 async function generateArt(body, reqId) {
   const parts = [{ text: buildArtPrompt(body) }];
-  // imagens de referência (foto do cliente e/ou modelo) via link
-  const refs = [body.refFoto, body.refModelo, body.refEdit].filter(Boolean);
-  for (const url of refs) {
+  // referências rotuladas: modelo de estilo primeiro (mais peso), depois foto do cliente, depois edição
+  const refSpecs = [
+    { url: body.refModelo, label: "IMAGEM DE REFERÊNCIA DE ESTILO — copie fielmente desta arte a TIPOGRAFIA (fontes), a PALETA DE CORES, o layout e o nível de acabamento profissional. A arte final deve parecer da mesma linha visual desta referência:" },
+    { url: body.refFoto, label: "FOTO DO CLIENTE — use esta pessoa/imagem na arte, mantendo o rosto e a aparência:" },
+    { url: body.refEdit, label: "Esta é a arte ATUAL. Faça a alteração pedida mantendo o resto igual:" },
+  ];
+  let refsReq = 0, refsOk = 0, refsFail = [];
+  for (const spec of refSpecs) {
+    if (!spec.url) continue;
+    refsReq++;
     try {
-      const ir = await fetch(url);
-      const ct = (ir.headers.get("content-type") || "image/png").split(";")[0];
-      if (ct.indexOf("image/") === 0) {
-        const ab = await ir.arrayBuffer();
-        parts.push({ inline_data: { mime_type: ct, data: Buffer.from(ab).toString("base64") } });
-      }
-    } catch (e) { /* ignora referência inválida */ }
+      const img = await fetchRefImage(spec.url);
+      parts.push({ text: spec.label });
+      parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
+      refsOk++;
+    } catch (e) { refsFail.push(spec.url); }
   }
   const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + IMG_MODEL + ":generateContent", {
     method: "POST",
@@ -75,7 +112,7 @@ async function generateArt(body, reqId) {
   const bucket = admin.storage().bucket("allin-sistema-artes");
   await bucket.file(path).save(buf, { contentType: "image/png", metadata: { metadata: { firebaseStorageDownloadTokens: token } } });
   const imageUrl = "https://firebasestorage.googleapis.com/v0/b/" + bucket.name + "/o/" + encodeURIComponent(path) + "?alt=media&token=" + token;
-  return { imageUrl, custoBRL: Number((0.039 * 5.5).toFixed(3)) };
+  return { imageUrl, custoBRL: Number((0.039 * 5.5).toFixed(3)), refsReq, refsOk, refsFail };
 }
 
 function systemPrompt() {
@@ -148,7 +185,7 @@ exports.allintema = onValueCreated(
     try {
       if (body.mode === "arte") {
         const out = await generateArt(body, reqId);
-        await resRef.set({ imageUrl: out.imageUrl, mode: "arte", custoBRL: out.custoBRL, ts: Date.now() });
+        await resRef.set({ imageUrl: out.imageUrl, mode: "arte", custoBRL: out.custoBRL, refsReq: out.refsReq || 0, refsOk: out.refsOk || 0, ts: Date.now() });
         await event.data.ref.remove();
         return;
       }
