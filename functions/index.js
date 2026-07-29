@@ -31,6 +31,7 @@ function buildArtPrompt(body) {
   p += "FORMATO OBRIGATÓRIO: imagem QUADRADA, proporção 1:1, alta resolução, composição pensada para feed (nada cortado nas bordas).\n";
   if (tema) p += "Tema do post: " + tema + ".\n";
   if (ehCarrossel) p += (body.slide ? "Esta é uma PÁGINA (slide) de um carrossel." : "Esta é a CAPA de um carrossel — deve ser chamativa e convidar a arrastar.") + "\n";
+  if (body.semFoto) p += "NÃO inclua pessoas, rostos nem retratos. Gere apenas um FUNDO/cenário limpo e elegante (ambiente, textura ou gradiente) nas cores da marca, com bastante espaço de respiro.\n";
   if (comTexto && textoArte) {
     p += "ESCREVA na arte, como título/chamada em destaque, EXATAMENTE este texto e NADA MAIS, mantendo a grafia e a acentuação corretas do português brasileiro, SEM erros e SEM cortar palavras: \"" + textoArte + "\". ";
     p += "REGRA ABSOLUTA: a ÚNICA palavra ou frase escrita na imagem deve ser exatamente esse texto. É PROIBIDO adicionar qualquer outro texto — nada de subtítulos, chamadas como 'deslize', 'arraste', 'saiba mais', números de página, marca d'água, assinatura ou legenda. Sem texto em outro idioma. O texto deve ficar bem legível, com boa hierarquia e integrado ao design.\n";
@@ -114,10 +115,13 @@ async function fetchRefImage(url) {
 // Gera a arte no Gemini, faz upload no Storage e devolve a URL
 async function generateArt(body, reqId) {
   const parts = [{ text: buildArtPrompt(body) }];
-  // referências rotuladas: modelo de estilo primeiro (mais peso), depois foto do cliente, depois edição
+  // referências rotuladas. No modo overlay (texto pelo sistema) NÃO enviamos o modelo,
+  // porque a IA acaba copiando texto/caixas/logo dele; o design é feito pelo sistema.
+  const usarModelo = !!body.comTexto;
+  const usarFoto = !body.semFoto;
   const refSpecs = [
-    { url: body.refModelo, role: "modelo", label: "IMAGEM DE REFERÊNCIA DE ESTILO — copie fielmente desta arte a TIPOGRAFIA (fontes), a PALETA DE CORES, o layout e o nível de acabamento profissional. A arte final deve parecer da mesma linha visual desta referência:" },
-    { url: body.refFoto, role: "foto", label: "FOTO DO CLIENTE — use esta pessoa/imagem na arte, mantendo o rosto e a aparência:" },
+    { url: usarModelo ? body.refModelo : "", role: "modelo", label: "IMAGEM DE REFERÊNCIA DE ESTILO — copie fielmente desta arte a TIPOGRAFIA (fontes), a PALETA DE CORES, o layout e o nível de acabamento profissional. A arte final deve parecer da mesma linha visual desta referência:" },
+    { url: usarFoto ? body.refFoto : "", role: "foto", label: "FOTO DO CLIENTE — use esta pessoa/imagem na arte, mantendo o rosto e a aparência:" },
     { url: body.refEdit, role: "edit", label: "Esta é a arte ATUAL. Faça a alteração pedida mantendo o resto igual:" },
   ];
   let refsReq = 0, refsOk = 0, refsFail = [];

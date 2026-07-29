@@ -1953,7 +1953,8 @@ function contFichaOpen(cid){
     +'<div style="margin-top:4px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:800;color:#EC4899;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">🎨 Recursos para a IA de arte</div>'
     +'<div style="font-size:11px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:7px 10px;margin-bottom:10px">Pode ser o link de uma <b>imagem</b> ou de uma <b>pasta</b> do Google Drive (a IA pega as imagens de dentro). ⚠️ O arquivo/pasta precisa estar <b>público</b>: Compartilhar → "Qualquer pessoa com o link". Link do Trello não funciona (não é imagem).</div>'
     +'<div class="fg"><label>🖼️ Fotos do cliente <span style="font-weight:400;color:#94A3B8">(um link por linha)</span></label><textarea id="fc-fotos" rows="3" style="width:100%;resize:vertical" placeholder="Link de uma foto OU de uma pasta do Drive com as fotos">'+escH((f.fotosCliente||[]).join('\n'))+'</textarea></div>'
-    +'<div class="fg"><label>📐 Modelos / referências de estilo <span style="font-weight:400;color:#94A3B8">(um link por linha)</span></label><textarea id="fc-modelos" rows="3" style="width:100%;resize:vertical" placeholder="Link de uma imagem-modelo OU pasta do Drive com os modelos">'+escH((f.modelosArte||[]).join('\n'))+'</textarea></div></div>'
+    +'<div class="fg"><label>📐 Modelos / referências de estilo <span style="font-weight:400;color:#94A3B8">(um link por linha)</span></label><textarea id="fc-modelos" rows="3" style="width:100%;resize:vertical" placeholder="Link de uma imagem-modelo OU pasta do Drive com os modelos">'+escH((f.modelosArte||[]).join('\n'))+'</textarea></div>'
+    +'<div class="fg"><label>🔷 Logo do cliente <span style="font-weight:400;color:#94A3B8">(link de UMA imagem, de preferência PNG com fundo transparente)</span></label><input id="fc-logo" value="'+escH(f.logoLink||'')+'" placeholder="Cole o link da logo (público)"></div></div>'
     +'<div class="fg"><label>📝 Observações gerais</label><textarea id="fc-obs" rows="3" style="width:100%;resize:vertical" placeholder="Qualquer detalhe importante do cliente">'+escH(f.obs||'')+'</textarea></div>'
     +'</div>'
     +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'ficha-overlay\').remove()">Cancelar</button><button class="btn btn-p" onclick="contFichaSave(\''+cid+'\')">💾 Salvar ficha</button></div>'
@@ -1966,7 +1967,7 @@ function contFichaSave(cid){
   var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
   var redes=[];if(document.getElementById('fc-linkedin').checked)redes.push('LinkedIn');if(document.getElementById('fc-instagram').checked)redes.push('Instagram');
   var parseLinks=function(id){return g(id).split('\n').map(function(s){return s.trim();}).filter(Boolean);};
-  _conteudos(c).ficha={horarioDias:g('fc-horario'),frequencia:g('fc-freq'),redes:redes,linhaEditorial:g('fc-linha'),linhaEditorialTexto:g('fc-linha-txt'),pastaArtes:g('fc-pasta'),fotosCliente:parseLinks('fc-fotos'),modelosArte:parseLinks('fc-modelos'),obs:g('fc-obs')};
+  _conteudos(c).ficha={horarioDias:g('fc-horario'),frequencia:g('fc-freq'),redes:redes,linhaEditorial:g('fc-linha'),linhaEditorialTexto:g('fc-linha-txt'),pastaArtes:g('fc-pasta'),fotosCliente:parseLinks('fc-fotos'),modelosArte:parseLinks('fc-modelos'),logoLink:g('fc-logo'),obs:g('fc-obs')};
   save();var ov=document.getElementById('ficha-overlay');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Ficha salva!');render();
 }
 
@@ -2142,6 +2143,15 @@ function _artDrawBlocks(ctx,W,H,blocks,selId){
   var C=_artColors();var boxes=[];
   var famMap={elegante:'Georgia,"Times New Roman",serif',moderna:'"Arial Black",Arial,sans-serif',clean:'"Trebuchet MS","Segoe UI",Arial,sans-serif'};
   (blocks||[]).forEach(function(b){
+    if(b.type==='logo'){
+      var wpx=Math.max(20,Math.round(W*(b.size||0.22)));var lim=_artImgEls[b.src];
+      var hpx=(lim&&lim.naturalWidth)?Math.round(wpx*lim.naturalHeight/lim.naturalWidth):wpx;
+      var lx=b.xf*W-wpx/2,ly=b.yf*H-hpx/2;
+      if(lim&&lim.complete&&lim.naturalWidth){try{ctx.drawImage(lim,lx,ly,wpx,hpx);}catch(e){}}
+      if(selId&&b.id===selId){ctx.strokeStyle='#EC4899';ctx.lineWidth=Math.max(2,W*0.004);ctx.setLineDash([W*0.02,W*0.014]);ctx.strokeRect(lx,ly,wpx,hpx);ctx.setLineDash([]);}
+      boxes.push({id:b.id,x0:lx/W,y0:ly/H,x1:(lx+wpx)/W,y1:(ly+hpx)/H});
+      return;
+    }
     var weight=b.font==='moderna'?'800':b.font==='clean'?'600':'700';
     var fam=famMap[b.font]||famMap.elegante;
     var fs=Math.max(9,Math.round(W*(b.size||0.082)));var maxW=W*0.9;
@@ -2166,14 +2176,17 @@ function _artDrawBlocks(ctx,W,H,blocks,selId){
 }
 window._artCache=window._artCache||{};window._artImgEls=window._artImgEls||{};
 function _artGetImg(url){return new Promise(function(res,rej){var c=_artImgEls[url];if(c&&c.complete&&c.naturalWidth){res(c);return;}var im=new Image();im.crossOrigin='anonymous';im.onload=function(){_artImgEls[url]=im;res(im);};im.onerror=rej;im.src=url;});}
+function _artItemImgs(item){var s=[];if(item&&item.bg)s.push(item.bg);(_artItemBlocks(item)||[]).forEach(function(b){if(b.type==='logo'&&b.src)s.push(b.src);});return s;}
+function _artPreload(item){return Promise.all(_artItemImgs(item).map(function(u){return _artGetImg(u).catch(function(){return null;});}));}
 function _artKey(item){return item&&item.bg?JSON.stringify([item.bg,_artItemBlocks(item)]):(item&&item.url)||'';}
-// devolve (via Promise) a URL exibível: composição (bg+blocos) ou a url direta (legado)
+// devolve (via Promise) a URL exibível: composição (bg+blocos+logo) ou a url direta (legado)
 function _artCompose(item){
   return new Promise(function(res){
     if(!item){res('');return;}
     if(!item.bg){res(item.url||'');return;}
     var key=_artKey(item);if(_artCache[key]){res(_artCache[key]);return;}
-    _artGetImg(item.bg).then(function(img){
+    _artPreload(item).then(function(){
+      var img=_artImgEls[item.bg];if(!img){res(item.bg);return;}
       var W=img.naturalWidth||1024,H=img.naturalHeight||1024;
       var cv=document.createElement('canvas');cv.width=W;cv.height=H;var ctx=cv.getContext('2d');
       ctx.drawImage(img,0,0,W,H);
@@ -2227,11 +2240,11 @@ function contArtePreGen(cid,cardId){
     +'<div class="fg"><label>✍️ Texto que vai escrito na arte</label><input id="arte-texto" value="'+escH(card.title||'')+'" placeholder="O texto que aparece na imagem" style="width:100%"><div style="font-size:11px;color:#059669;margin-top:3px">✅ O sistema escreve este texto por cima da arte — grafia sempre certa. Você ajusta fonte, cor e posição depois.</div></div>'
     +'<div class="fg"><label>Formato</label><select id="arte-formato">'+fo('','— livre —')+fo('Carrossel','📚 Carrossel')+fo('Estático','🖼️ Estático')+fo('Enquete','📊 Enquete')+'</select></div>'
     +'<div class="fg"><label>O que você quer na arte? <span style="font-weight:400;color:#94A3B8">(opcional)</span></label><textarea id="arte-obs" rows="3" style="width:100%;resize:vertical" placeholder="Ex: fundo azul claro, sensação de segurança, estilo clean, uma família ao fundo"></textarea></div>'
-    +'<div class="fgrid"><div class="fg"><label>🖼️ Foto do cliente</label><select id="arte-reffoto-sel" onchange="_arteRefToggle(\'foto\')">'+refOpts(fotos,'Foto')+'</select><input id="arte-reffoto-man" placeholder="Cole o link da foto" style="width:100%;margin-top:6px;display:none"></div>'
-    +'<div class="fg"><label>📐 Modelo de estilo</label><select id="arte-refmodelo-sel" onchange="_arteRefToggle(\'modelo\')">'+refOpts(modelos,'Modelo')+'</select><input id="arte-refmodelo-man" placeholder="Cole o link do modelo" style="width:100%;margin-top:6px;display:none"></div></div>'
-    +((fotos.length||modelos.length)?'':'<div style="font-size:11px;color:#94A3B8">💡 Dica: salve fotos e modelos fixos na <b>Ficha</b> do cliente para não colar link toda vez.</div>')
-    +'<label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#475569;cursor:pointer;background:#F8FAFC;border-radius:8px;padding:8px 10px"><input type="checkbox" id="arte-ia-texto" style="margin-top:2px"><span>Deixar a <b>IA</b> escrever o texto dentro da arte (mais integrado ao design, mas pode ter erro de português)</span></label>'
-    +'<div style="font-size:11px;color:#94A3B8">A arte sai quadrada (feed do LinkedIn e Instagram), seguindo a linha editorial do cliente.</div>'
+    +'<div class="fg"><label>🖼️ Fundo</label><select id="arte-fundo" onchange="_arteFundoToggle()"><option value="foto">Com foto do cliente</option><option value="semfoto">Sem foto — só cenário/cores</option></select></div>'
+    +'<div class="fg" id="arte-foto-wrap"><label>Foto do cliente <span style="font-weight:400;color:#94A3B8">(da ficha ou link)</span></label><select id="arte-reffoto-sel" onchange="_arteRefToggle(\'foto\')">'+refOpts(fotos,'Foto')+'</select><input id="arte-reffoto-man" placeholder="Cole o link da foto" style="width:100%;margin-top:6px;display:none"></div>'
+    +'<label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#475569;cursor:pointer;background:#F8FAFC;border-radius:8px;padding:8px 10px"><input type="checkbox" id="arte-ia-texto" onchange="_arteModeloWrap()" style="margin-top:2px"><span>Deixar a <b>IA</b> escrever o texto e copiar o modelo (mais rápido, mas pode errar o português)</span></label>'
+    +'<div class="fg" id="arte-modelo-wrap" style="display:none"><label>📐 Modelo de estilo <span style="font-weight:400;color:#94A3B8">(usado só quando a IA escreve)</span></label><select id="arte-refmodelo-sel" onchange="_arteRefToggle(\'modelo\')">'+refOpts(modelos,'Modelo')+'</select><input id="arte-refmodelo-man" placeholder="Cole o link do modelo" style="width:100%;margin-top:6px;display:none"></div>'
+    +'<div style="font-size:11px;color:#059669">✅ A IA faz o fundo. O <b>design</b> (caixas, data, logo e texto) você monta no editor — grafia sempre certa. Cadastre a logo na Ficha.</div>'
     +'</div>'
     +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'arte-pregen\').remove()">Cancelar</button><button class="btn btn-p" style="background:linear-gradient(135deg,#EC4899,#7C3AED);border:none" onclick="contArteGo(\''+cid+'\',\''+cardId+'\')">🎨 Gerar arte</button></div>'
     +'</div>';
@@ -2239,15 +2252,19 @@ function contArtePreGen(cid,cardId){
   document.body.appendChild(ov);
 }
 function _arteRefToggle(which){var sel=document.getElementById('arte-ref'+which+'-sel');var man=document.getElementById('arte-ref'+which+'-man');if(!sel||!man)return;if(sel.value==='__manual'){man.style.display='block';man.focus();}else{man.style.display='none';}}
+function _arteFundoToggle(){var s=document.getElementById('arte-fundo');var w=document.getElementById('arte-foto-wrap');if(s&&w)w.style.display=(s.value==='semfoto')?'none':'';}
+function _arteModeloWrap(){var chk=document.getElementById('arte-ia-texto');var w=document.getElementById('arte-modelo-wrap');if(chk&&w)w.style.display=chk.checked?'':'none';}
 function _arteRefVal(which){var sel=document.getElementById('arte-ref'+which+'-sel');if(!sel)return '';if(sel.value==='__manual')return ((document.getElementById('arte-ref'+which+'-man')||{}).value||'').trim();return sel.value||'';}
 function contArteGo(cid,cardId){
   var fmt=(document.getElementById('arte-formato')||{}).value||'';
   var obs=(document.getElementById('arte-obs')||{}).value||'';
   var texto=((document.getElementById('arte-texto')||{}).value||'').trim();
   var iaTexto=!!(document.getElementById('arte-ia-texto')||{}).checked;
-  var refFoto=_arteRefVal('foto'),refModelo=_arteRefVal('modelo');
+  var semFoto=((document.getElementById('arte-fundo')||{}).value)==='semfoto';
+  var refFoto=semFoto?'':_arteRefVal('foto');
+  var refModelo=iaTexto?_arteRefVal('modelo'):'';
   var ov=document.getElementById('arte-pregen');if(ov)ov.remove();
-  _contAIGenArte(cid,cardId,{formato:fmt,obs:obs,textoArte:texto,iaTexto:iaTexto,refFoto:refFoto,refModelo:refModelo,style:_artDefStyle(),items:[]});
+  _contAIGenArte(cid,cardId,{formato:fmt,obs:obs,textoArte:texto,iaTexto:iaTexto,semFoto:semFoto,refFoto:refFoto,refModelo:refModelo,items:[]});
 }
 // gera (nova / trocar fundo / editar / próxima página) e volta pro modal de revisão
 function _contAIGenArte(cid,cardId,opts){
@@ -2257,7 +2274,7 @@ function _contAIGenArte(cid,cardId,opts){
   var msg=opts.replaceLast?'Refazendo a arte':(opts.slide?'Criando a próxima página do carrossel':'Criando a arte de "'+(card.title||'').slice(0,26)+'"');
   _aiLoading(true,msg+' (pode levar até 1 min)');
   var ctx=_contClientAICtx(c);
-  var payload={mode:'arte',theme:card.title||'',textoArte:opts.textoArte||card.title||'',editorialLine:ctx.editorialLine,niche:ctx.niche,formato:opts.formato||'',obs:opts.obs||'',comTexto:!!opts.iaTexto};
+  var payload={mode:'arte',theme:card.title||'',textoArte:opts.textoArte||card.title||'',editorialLine:ctx.editorialLine,niche:ctx.niche,formato:opts.formato||'',obs:opts.obs||'',comTexto:!!opts.iaTexto,semFoto:!!opts.semFoto};
   if(opts.slide)payload.slide=true;
   if(opts.refFoto)payload.refFoto=opts.refFoto;
   if(opts.refModelo)payload.refModelo=opts.refModelo;
@@ -2271,7 +2288,7 @@ function _contAIGenArte(cid,cardId,opts){
     var item=opts.iaTexto?{url:v.imageUrl,texto:opts.textoArte||card.title||''}:{bg:v.imageUrl,blocks:blocks};
     var idx=(opts._replaceIdx!=null)?opts._replaceIdx:(opts.replaceLast?items.length-1:-1);
     if(idx>=0&&items.length)items[idx]=item;else{items.push(item);idx=items.length-1;}
-    _contArteReview(cid,cardId,{items:items,formato:opts.formato||'',iaTexto:!!opts.iaTexto,refFoto:opts.refFoto||'',refModelo:opts.refModelo||'',warn:warn,sel:idx},v.custoBRL,(opts.acumCusto||0)+(v.custoBRL||0));
+    _contArteReview(cid,cardId,{items:items,formato:opts.formato||'',iaTexto:!!opts.iaTexto,semFoto:!!opts.semFoto,refFoto:opts.refFoto||'',refModelo:opts.refModelo||'',warn:warn,sel:idx},v.custoBRL,(opts.acumCusto||0)+(v.custoBRL||0));
   }).catch(function(e){_aiLoading(false);if(typeof toast==='function')toast('❌ '+e.message);});
 }
 // Modal de revisão com editor de texto (preview ao vivo)
@@ -2295,7 +2312,7 @@ function _contArteReview(cid,cardId,st,custo,acum){
     +'</div>';
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
   document.body.appendChild(ov);
-  ov._arte={items:items,formato:st.formato||'',iaTexto:!!st.iaTexto,refFoto:st.refFoto||'',refModelo:st.refModelo||'',slug:_slug(card.title),acum:(acum!=null?acum:custo)||0,cid:cid,cardId:cardId,sel:(st.sel!=null?st.sel:items.length-1)};
+  ov._arte={items:items,formato:st.formato||'',iaTexto:!!st.iaTexto,semFoto:!!st.semFoto,refFoto:st.refFoto||'',refModelo:st.refModelo||'',slug:_slug(card.title),acum:(acum!=null?acum:custo)||0,cid:cid,cardId:cardId,sel:(st.sel!=null?st.sel:items.length-1)};
   _arteRenderReview();
 }
 // (re)desenha o corpo do modal de revisão (canvas interativo + editor de blocos)
@@ -2311,7 +2328,7 @@ function _arteRenderReview(){
     +(editavel
       ?'<canvas id="arte-canvas" style="width:100%;touch-action:none;cursor:move;border-radius:10px;border:1px solid #EEE;display:block;background:#F1F5F9"></canvas>'
         +'<div style="font-size:11px;color:#94A3B8;margin-top:5px">🖱️ Arraste o texto na imagem para posicionar · toque para selecionar</div>'
-        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn btn-o btn-s" onclick="_arteAddBlock(\'texto\')">➕ Texto</button><button class="btn btn-o btn-s" onclick="_arteAddBlock(\'data\')">➕ Data</button></div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn btn-o btn-s" onclick="_arteAddBlock(\'texto\')">➕ Texto</button><button class="btn btn-o btn-s" onclick="_arteAddBlock(\'data\')">➕ Data</button><button class="btn btn-o btn-s" onclick="_arteAddBlock(\'logo\')">🔷 Logo</button></div>'
         +'<div id="arte-ctrls" style="margin-top:10px"></div>'
       :'<img id="arte-prev" style="width:100%;border-radius:10px;border:1px solid #EEE;display:block;background:#F1F5F9;min-height:120px"><div style="margin-top:8px;font-size:11px;color:#94A3B8">✍️ Texto escrito pela IA (não editável). Para controlar cada texto, gere sem marcar “IA escreve o texto”.</div>')
     +'<div style="text-align:right;margin-top:8px"><button class="btn btn-o btn-s" style="font-size:11px" onclick="_arteDLItem('+sel+')">📥 Baixar imagem</button></div>'
@@ -2334,11 +2351,9 @@ function _arteCanvasEl(){return document.getElementById('arte-canvas');}
 function _arteDraw(){
   var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var a=ov._arte;var it=a.items[a.sel];if(!it||!it.bg)return;
   var cv=_arteCanvasEl();if(!cv)return;
-  _artGetImg(it.bg).then(function(img){
-    var W=img.naturalWidth||1024,H=img.naturalHeight||1024;if(cv.width!==W)cv.width=W;if(cv.height!==H)cv.height=H;
-    var ctx=cv.getContext('2d');ctx.clearRect(0,0,W,H);ctx.drawImage(img,0,0,W,H);
-    cv._bboxes=_artDrawBlocks(ctx,W,H,_artItemBlocks(it),a.selBlock);
-  }).catch(function(){});
+  var draw=function(){var img=_artImgEls[it.bg];if(!img)return;var W=img.naturalWidth||1024,H=img.naturalHeight||1024;if(cv.width!==W)cv.width=W;if(cv.height!==H)cv.height=H;var ctx=cv.getContext('2d');ctx.clearRect(0,0,W,H);ctx.drawImage(img,0,0,W,H);cv._bboxes=_artDrawBlocks(ctx,W,H,_artItemBlocks(it),a.selBlock);};
+  if(a._drag&&_artImgEls[it.bg]){draw();return;}
+  _artPreload(it).then(draw).catch(function(){if(_artImgEls[it.bg])draw();});
 }
 // liga arraste dos blocos no canvas
 function _arteSetupCanvas(){
@@ -2354,7 +2369,14 @@ function _arteRenderCtrls(){
   var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var a=ov._arte;
   var el=document.getElementById('arte-ctrls');if(!el)return;
   var b=_artItemBlocks(a.items[a.sel]).filter(function(x){return x.id===a.selBlock;})[0];
-  if(!b){el.innerHTML='<div style="font-size:12px;color:#94A3B8;background:#F8FAFC;border-radius:8px;padding:10px">Toque em um texto na imagem para editar, ou use ➕ Texto / ➕ Data.</div>';return;}
+  if(!b){el.innerHTML='<div style="font-size:12px;color:#94A3B8;background:#F8FAFC;border-radius:8px;padding:10px">Toque em um elemento na imagem para editar, ou use ➕ Texto / ➕ Data / 🔷 Logo.</div>';return;}
+  if(b.type==='logo'){
+    el.innerHTML='<div style="padding:12px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px">'
+      +'<div style="font-size:11px;font-weight:800;color:#0D6ABF;margin-bottom:8px">🔷 LOGO — arraste na imagem para posicionar</div>'
+      +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:#64748B">Tamanho</span><input type="range" id="ac-size" min="80" max="600" value="'+Math.round((b.size||0.22)*1000)+'" oninput="_arteCtrlApply()" style="flex:1"><button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="_arteDelBlock()">🗑 remover logo</button></div>'
+      +'</div>';
+    return;
+  }
   var so=function(v,cur,l){return '<option value="'+v+'" '+(cur===v?'selected':'')+'>'+l+'</option>';};
   el.innerHTML='<div style="padding:12px;background:#FDF2F8;border:1px solid #FBCFE8;border-radius:10px">'
     +'<div style="font-size:11px;font-weight:800;color:#EC4899;margin-bottom:8px">✍️ TEXTO SELECIONADO (grafia sempre certa)</div>'
@@ -2382,6 +2404,13 @@ function _arteCtrlApply(){
 function _arteAddBlock(kind){
   var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var a=ov._arte;var it=a.items[a.sel];if(!it||!it.bg)return;
   var bl=_artItemBlocks(it);var nb;
+  if(kind==='logo'){
+    var c=_findClient(a.cid);var logo=c&&_validUrl((_conteudos(c).ficha||{}).logoLink||'');
+    if(!logo){if(typeof toast==='function')toast('Cadastre a logo do cliente na Ficha (campo 🔷 Logo) primeiro.');return;}
+    nb={id:'b'+Math.random().toString(36).slice(2,8),type:'logo',src:logo,xf:0.82,yf:0.12,size:0.22};
+    bl.push(nb);a.selBlock=nb.id;_artGetImg(logo).then(function(){_arteDraw();_arteThumbRefresh();}).catch(function(){if(typeof toast==='function')toast('Não consegui abrir a logo — deixe o arquivo público.');});
+    _arteDraw();_arteRenderCtrls();return;
+  }
   if(kind==='data'){nb=_artDefBlock('27/08',0.6);nb.cor='branco';nb.caixa='laranja';nb.size=0.058;}
   else{nb=_artDefBlock('Novo texto',0.5);nb.caixa='nenhuma';}
   bl.push(nb);a.selBlock=nb.id;_arteDraw();_arteRenderCtrls();_arteThumbRefresh();
@@ -2405,14 +2434,14 @@ function _arteDLItem(i){var ov=document.getElementById('ai-review');if(!ov||!ov.
 function contArtePDF(){var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var a=ov._arte;Promise.all(a.items.map(_artCompose)).then(function(ds){_artePDF(ds,a.slug+'-carrossel.pdf');});}
 function contArteTrocaFundo(){
   var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var a=ov._arte;var it=a.items[a.sel]||{};var blocks=it.bg?_artItemBlocks(it).map(function(b){return Object.assign({},b);}):null;ov.remove();
-  _contAIGenArte(a.cid,a.cardId,{formato:a.formato,iaTexto:a.iaTexto,blocks:blocks,refFoto:a.refFoto,refModelo:a.refModelo,items:a.items.slice(),acumCusto:a.acum,_replaceIdx:a.sel});
+  _contAIGenArte(a.cid,a.cardId,{formato:a.formato,iaTexto:a.iaTexto,semFoto:a.semFoto,blocks:blocks,refFoto:a.refFoto,refModelo:a.refModelo,items:a.items.slice(),acumCusto:a.acum,_replaceIdx:a.sel});
 }
 function contArteEdit(cid,cardId){
   var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;
   var instr=((document.getElementById('arte-edit')||{}).value||'').trim();
   if(!instr){if(typeof toast==='function')toast('Escreva o ajuste que você quer');return;}
   var a=ov._arte;var it=a.items[a.sel]||{};var blocks=it.bg?_artItemBlocks(it).map(function(b){return Object.assign({},b);}):null;ov.remove();
-  _contAIGenArte(cid,cardId,{formato:a.formato,iaTexto:a.iaTexto,obs:instr,blocks:blocks,refFoto:a.refFoto,refModelo:a.refModelo,refEdit:it.bg||it.url,items:a.items,acumCusto:a.acum,_replaceIdx:a.sel});
+  _contAIGenArte(cid,cardId,{formato:a.formato,iaTexto:a.iaTexto,semFoto:a.semFoto,obs:instr,blocks:blocks,refFoto:a.refFoto,refModelo:a.refModelo,refEdit:it.bg||it.url,items:a.items,acumCusto:a.acum,_replaceIdx:a.sel});
 }
 function contArteMore(cid,cardId){
   var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;
@@ -7199,7 +7228,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072805; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072806; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
