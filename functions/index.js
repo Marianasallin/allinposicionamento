@@ -35,11 +35,16 @@ function buildArtPrompt(body) {
     p += "ESCREVA na arte, como título/chamada em destaque, EXATAMENTE este texto e NADA MAIS, mantendo a grafia e a acentuação corretas do português brasileiro, SEM erros e SEM cortar palavras: \"" + textoArte + "\". ";
     p += "REGRA ABSOLUTA: a ÚNICA palavra ou frase escrita na imagem deve ser exatamente esse texto. É PROIBIDO adicionar qualquer outro texto — nada de subtítulos, chamadas como 'deslize', 'arraste', 'saiba mais', números de página, marca d'água, assinatura ou legenda. Sem texto em outro idioma. O texto deve ficar bem legível, com boa hierarquia e integrado ao design.\n";
   } else {
-    p += "NÃO escreva NENHUM texto, palavra, letra ou número dentro da imagem — nem título, nem assinatura, nem marca d'água. A imagem é só o fundo/visual; o texto será colocado por cima depois. ";
-    p += "Deixe uma ÁREA LIMPA e mais uniforme (no topo OU na base) com espaço de respiro, sem elementos importantes, para receber o texto depois.\n";
+    p += "REGRA CRÍTICA E ABSOLUTA: NÃO escreva NENHUM texto, palavra, letra, número, título, data, subtítulo, assinatura, marca d'água nem legenda em lugar NENHUM da imagem. ZERO caracteres. ";
+    p += "Gere APENAS o fundo visual (foto, cores, texturas e elementos gráficos). NÃO desenhe caixas, retângulos, balões ou molduras destinados a receber texto — o texto e as caixas serão adicionados por cima depois pelo sistema. ";
+    p += "Deixe áreas limpas e uniformes com espaço de respiro para o texto ser colocado depois.\n";
   }
   if (linha) p += "Identidade e linha editorial do cliente (siga estilo, cores e tom): " + linha + ".\n";
-  if (temModelo) p += "MUITO IMPORTANTE: siga FIELMENTE o ESTILO VISUAL da imagem de referência de estilo — mesma PALETA DE CORES, mesmo clima, mesmos elementos gráficos e mesmo nível de acabamento profissional. A arte deve claramente pertencer à mesma identidade visual daquela referência.\n";
+  if (temModelo) {
+    p += "MUITO IMPORTANTE: siga FIELMENTE o ESTILO VISUAL da imagem de referência — mesma PALETA DE CORES, mesmo clima e mesmo nível de acabamento profissional. ";
+    if (!comTexto) p += "ATENÇÃO: a imagem de referência PODE CONTER TEXTOS e CAIXAS de texto — IGNORE-OS COMPLETAMENTE. NÃO copie, NÃO reproduza e NÃO reescreva nenhum texto, número ou caixa de texto da referência. Copie apenas cores, iluminação e estilo visual, deixando a arte SEM qualquer texto.";
+    p += "\n";
+  }
   if (obs) p += "Instruções específicas (siga à risca): " + obs + ".\n";
   p += "Arte limpa, moderna e profissional, sem marcas d'água, sem logos de terceiros e sem texto embaralhado.";
   return p;
