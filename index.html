@@ -245,6 +245,9 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Fontes profissionais para as artes -->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Playfair+Display:wght@700;800;900&family=Poppins:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -2159,9 +2162,18 @@ function _artItemBlocks(item){
 }
 function _roundRect(ctx,x,y,w,h,r){r=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 // desenha todos os blocos; devolve bboxes em frações (para clique/arraste)
+var _artFontDefs={
+  elegante:{fam:'"Playfair Display",Georgia,serif',weight:'800',track:0},
+  moderna:{fam:'"Montserrat",Arial,sans-serif',weight:'800',track:0.006},
+  clean:{fam:'"Poppins","Segoe UI",Arial,sans-serif',weight:'600',track:0.002},
+  impacto:{fam:'"Bebas Neue",Impact,sans-serif',weight:'400',track:0.012}
+};
+function _artEnsureFonts(){
+  if(!document.fonts||!document.fonts.load)return Promise.resolve();
+  try{return Promise.all(['800 40px "Playfair Display"','800 40px "Montserrat"','900 40px "Montserrat"','600 40px "Poppins"','700 40px "Poppins"','40px "Bebas Neue"'].map(function(f){return document.fonts.load(f);})).catch(function(){});}catch(e){return Promise.resolve();}
+}
 function _artDrawBlocks(ctx,W,H,blocks,selId){
   var C=_artColors();var boxes=[];
-  var famMap={elegante:'Georgia,"Times New Roman",serif',moderna:'"Arial Black",Arial,sans-serif',clean:'"Trebuchet MS","Segoe UI",Arial,sans-serif'};
   (blocks||[]).forEach(function(b){
     if(b.type==='logo'){
       var wpx=Math.max(20,Math.round(W*(b.size||0.22)));var lim=_artImgEls[b.src];
@@ -2172,24 +2184,27 @@ function _artDrawBlocks(ctx,W,H,blocks,selId){
       boxes.push({id:b.id,x0:lx/W,y0:ly/H,x1:(lx+wpx)/W,y1:(ly+hpx)/H});
       return;
     }
-    var weight=b.font==='moderna'?'800':b.font==='clean'?'600':'700';
-    var fam=famMap[b.font]||famMap.elegante;
-    var fs=Math.max(9,Math.round(W*(b.size||0.082)));var maxW=W*0.9;
-    ctx.font=weight+' '+fs+'px '+fam;
+    var fd=_artFontDefs[b.font]||_artFontDefs.elegante;
+    var fs=Math.max(9,Math.round(W*(b.size||0.082)));var maxW=W*0.88;
+    var setFont=function(){ctx.font=fd.weight+' '+fs+'px '+fd.fam;try{ctx.letterSpacing=(fs*fd.track).toFixed(2)+'px';}catch(e){}};
+    setFont();
     var words=(b.text||'').split(/\s+/),cur='',lines=[];
     words.forEach(function(w){var t=cur?cur+' '+w:w;if(ctx.measureText(t).width>maxW&&cur){lines.push(cur);cur=w;}else cur=t;});
     if(cur)lines.push(cur);if(!lines.length)lines=[' '];
-    var lh=Math.round(fs*1.16),blockH=lines.length*lh,blockW=0;
+    var lh=Math.round(fs*1.14),blockH=lines.length*lh,blockW=0;
     lines.forEach(function(l){blockW=Math.max(blockW,ctx.measureText(l).width);});
-    var cx=b.xf*W,cy=b.yf*H,top=cy-blockH/2,pad=Math.round(fs*0.5);
-    var bx0=cx-blockW/2-pad,by0=top-pad*0.7,bw=blockW+pad*2,bh=blockH+pad*1.4;
+    var cx=b.xf*W,cy=b.yf*H,top=cy-blockH/2,padX=Math.round(fs*0.62),padY=Math.round(fs*0.5);
+    var bx0=cx-blockW/2-padX,by0=top-padY,bw=blockW+padX*2,bh=blockH+padY*1.9;
     var boxCol=C.caixa[b.caixa];
-    if(boxCol){ctx.fillStyle=boxCol;_roundRect(ctx,bx0,by0,bw,bh,Math.round(fs*0.4));ctx.fill();}
-    ctx.font=weight+' '+fs+'px '+fam;ctx.textAlign='center';ctx.textBaseline='top';ctx.fillStyle=C.texto[b.cor]||'#FFFFFF';
-    if(!boxCol){ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=Math.round(fs*0.28);ctx.shadowOffsetY=1;}
+    if(boxCol){
+      ctx.save();ctx.shadowColor='rgba(0,0,0,.30)';ctx.shadowBlur=Math.round(fs*0.55);ctx.shadowOffsetY=Math.round(fs*0.14);
+      ctx.fillStyle=boxCol;_roundRect(ctx,bx0,by0,bw,bh,Math.round(fs*0.42));ctx.fill();ctx.restore();
+    }
+    setFont();ctx.textAlign='center';ctx.textBaseline='top';ctx.fillStyle=C.texto[b.cor]||'#FFFFFF';
+    if(!boxCol){ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=Math.round(fs*0.34);ctx.shadowOffsetY=Math.round(fs*0.03);}
     lines.forEach(function(ln,i){ctx.fillText(ln,cx,top+i*lh);});
-    ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-    if(selId&&b.id===selId){ctx.strokeStyle='#EC4899';ctx.lineWidth=Math.max(2,W*0.004);ctx.setLineDash([W*0.02,W*0.014]);_roundRect(ctx,bx0,by0,bw,bh,Math.round(fs*0.4));ctx.stroke();ctx.setLineDash([]);}
+    ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;try{ctx.letterSpacing='0px';}catch(e){}
+    if(selId&&b.id===selId){ctx.strokeStyle='#EC4899';ctx.lineWidth=Math.max(2,W*0.004);ctx.setLineDash([W*0.02,W*0.014]);_roundRect(ctx,bx0,by0,bw,bh,Math.round(fs*0.42));ctx.stroke();ctx.setLineDash([]);}
     boxes.push({id:b.id,x0:bx0/W,y0:by0/H,x1:(bx0+bw)/W,y1:(by0+bh)/H});
   });
   return boxes;
@@ -2205,7 +2220,7 @@ function _artCompose(item){
     if(!item){res('');return;}
     if(!item.bg){res(item.url||'');return;}
     var key=_artKey(item);if(_artCache[key]){res(_artCache[key]);return;}
-    _artPreload(item).then(function(){
+    Promise.all([_artPreload(item),_artEnsureFonts()]).then(function(){
       var img=_artImgEls[item.bg];if(!img){res(item.bg);return;}
       var W=img.naturalWidth||1024,H=img.naturalHeight||1024;
       var cv=document.createElement('canvas');cv.width=W;cv.height=H;var ctx=cv.getContext('2d');
@@ -2373,7 +2388,7 @@ function _arteDraw(){
   var cv=_arteCanvasEl();if(!cv)return;
   var draw=function(){var img=_artImgEls[it.bg];if(!img)return;var W=img.naturalWidth||1024,H=img.naturalHeight||1024;if(cv.width!==W)cv.width=W;if(cv.height!==H)cv.height=H;var ctx=cv.getContext('2d');ctx.clearRect(0,0,W,H);ctx.drawImage(img,0,0,W,H);cv._bboxes=_artDrawBlocks(ctx,W,H,_artItemBlocks(it),a.selBlock);};
   if(a._drag&&_artImgEls[it.bg]){draw();return;}
-  _artPreload(it).then(draw).catch(function(){if(_artImgEls[it.bg])draw();});
+  Promise.all([_artPreload(it),_artEnsureFonts()]).then(draw).catch(function(){if(_artImgEls[it.bg])draw();});
 }
 // liga arraste dos blocos no canvas
 function _arteSetupCanvas(){
@@ -2402,7 +2417,7 @@ function _arteRenderCtrls(){
     +'<div style="font-size:11px;font-weight:800;color:#EC4899;margin-bottom:8px">✍️ TEXTO SELECIONADO (grafia sempre certa)</div>'
     +'<input id="ac-text" value="'+escH(b.text||'')+'" oninput="_arteCtrlApply()" style="width:100%;font-size:13px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:8px" placeholder="Digite o texto">'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
-    +'<select id="ac-font" onchange="_arteCtrlApply()" style="flex:1;min-width:100px;font-size:12px;padding:6px">'+so('elegante',b.font,'Fonte elegante')+so('moderna',b.font,'Fonte moderna')+so('clean',b.font,'Fonte fina')+'</select>'
+    +'<select id="ac-font" onchange="_arteCtrlApply()" style="flex:1;min-width:100px;font-size:12px;padding:6px">'+so('elegante',b.font,'Elegante (Playfair)')+so('moderna',b.font,'Moderna (Montserrat)')+so('clean',b.font,'Clean (Poppins)')+so('impacto',b.font,'Impacto (Bebas)')+'</select>'
     +'<select id="ac-cor" onchange="_arteCtrlApply()" style="flex:1;min-width:95px;font-size:12px;padding:6px">'+so('branco',b.cor,'Texto branco')+so('escuro',b.cor,'Texto escuro')+so('dourado',b.cor,'Texto dourado')+so('azul',b.cor,'Texto azul')+so('laranja',b.cor,'Texto laranja')+'</select>'
     +'<select id="ac-caixa" onchange="_arteCtrlApply()" style="flex:1;min-width:95px;font-size:12px;padding:6px">'+so('nenhuma',b.caixa,'Sem caixa')+so('escura',b.caixa,'Caixa escura')+so('clara',b.caixa,'Caixa clara')+so('azul',b.caixa,'Caixa azul')+so('laranja',b.caixa,'Caixa laranja')+so('dourada',b.caixa,'Caixa dourada')+'</select>'
     +'</div>'
@@ -7300,7 +7315,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072901; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072902; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
