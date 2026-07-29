@@ -2174,7 +2174,19 @@ function _artEnsureFonts(){
 }
 function _artDrawBlocks(ctx,W,H,blocks,selId){
   var C=_artColors();var boxes=[];
-  (blocks||[]).forEach(function(b){
+  var all=blocks||[];
+  // painéis primeiro (ficam atrás do texto); ordem de bbox mantém texto clicável por cima
+  var ordered=all.filter(function(b){return b.type==='painel';}).concat(all.filter(function(b){return b.type!=='painel';}));
+  ordered.forEach(function(b){
+    if(b.type==='painel'){
+      var pw=Math.max(30,Math.round(W*(b.wf||0.6))),ph=Math.max(30,Math.round(H*(b.hf||0.42)));
+      var px=b.xf*W-pw/2,py=b.yf*H-ph/2,pcol=C.caixa[b.cor]||'rgba(29,86,160,.93)';
+      ctx.save();ctx.shadowColor='rgba(0,0,0,.28)';ctx.shadowBlur=Math.round(W*0.03);ctx.shadowOffsetY=Math.round(W*0.008);
+      ctx.fillStyle=pcol;_roundRect(ctx,px,py,pw,ph,Math.round(W*(b.radius||0.045)));ctx.fill();ctx.restore();
+      if(selId&&b.id===selId){ctx.strokeStyle='#EC4899';ctx.lineWidth=Math.max(2,W*0.004);ctx.setLineDash([W*0.02,W*0.014]);_roundRect(ctx,px,py,pw,ph,Math.round(W*(b.radius||0.045)));ctx.stroke();ctx.setLineDash([]);}
+      boxes.push({id:b.id,x0:px/W,y0:py/H,x1:(px+pw)/W,y1:(py+ph)/H});
+      return;
+    }
     if(b.type==='logo'){
       var wpx=Math.max(20,Math.round(W*(b.size||0.22)));var lim=_artImgEls[b.src];
       var hpx=(lim&&lim.naturalWidth)?Math.round(wpx*lim.naturalHeight/lim.naturalWidth):wpx;
@@ -2363,7 +2375,7 @@ function _arteRenderReview(){
     +(editavel
       ?'<canvas id="arte-canvas" style="width:100%;touch-action:none;cursor:move;border-radius:10px;border:1px solid #EEE;display:block;background:#F1F5F9"></canvas>'
         +'<div style="font-size:11px;color:#94A3B8;margin-top:5px">🖱️ Arraste o texto na imagem para posicionar · toque para selecionar</div>'
-        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn btn-o btn-s" onclick="_arteAddBlock(\'texto\')">➕ Texto</button><button class="btn btn-o btn-s" onclick="_arteAddBlock(\'data\')">➕ Data</button><button class="btn btn-o btn-s" onclick="_arteAddBlock(\'logo\')">🔷 Logo</button></div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn btn-p btn-s" style="background:linear-gradient(135deg,#0891B2,#0D3D9B);border:none" onclick="_arteAplicarModelo()">✨ Layout do modelo</button><button class="btn btn-o btn-s" onclick="_arteAddBlock(\'texto\')">➕ Texto</button><button class="btn btn-o btn-s" onclick="_arteAddBlock(\'data\')">➕ Data</button><button class="btn btn-o btn-s" onclick="_arteAddBlock(\'painel\')">🟦 Painel</button><button class="btn btn-o btn-s" onclick="_arteAddBlock(\'logo\')">🔷 Logo</button></div>'
         +'<div id="arte-ctrls" style="margin-top:10px"></div>'
       :'<img id="arte-prev" style="width:100%;border-radius:10px;border:1px solid #EEE;display:block;background:#F1F5F9;min-height:120px"><div style="margin-top:8px;font-size:11px;color:#94A3B8">✍️ Texto escrito pela IA (não editável). Para controlar cada texto, gere sem marcar “IA escreve o texto”.</div>')
     +'<div style="text-align:right;margin-top:8px"><button class="btn btn-o btn-s" style="font-size:11px" onclick="_arteDLItem('+sel+')">📥 Baixar imagem</button></div>'
@@ -2404,7 +2416,17 @@ function _arteRenderCtrls(){
   var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var a=ov._arte;
   var el=document.getElementById('arte-ctrls');if(!el)return;
   var b=_artItemBlocks(a.items[a.sel]).filter(function(x){return x.id===a.selBlock;})[0];
-  if(!b){el.innerHTML='<div style="font-size:12px;color:#94A3B8;background:#F8FAFC;border-radius:8px;padding:10px">Toque em um elemento na imagem para editar, ou use ➕ Texto / ➕ Data / 🔷 Logo.</div>';return;}
+  if(!b){el.innerHTML='<div style="font-size:12px;color:#94A3B8;background:#F8FAFC;border-radius:8px;padding:10px">Toque em um elemento na imagem para editar, ou use os botões acima.</div>';return;}
+  if(b.type==='painel'){
+    var soc=function(v,cur,l){return '<option value="'+v+'" '+(cur===v?'selected':'')+'>'+l+'</option>';};
+    el.innerHTML='<div style="padding:12px;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px">'
+      +'<div style="font-size:11px;font-weight:800;color:#0891B2;margin-bottom:8px">🟦 PAINEL — a caixa grande do design (arraste para posicionar)</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><select id="ac-pcor" onchange="_arteCtrlApply()" style="flex:1;min-width:110px;font-size:12px;padding:6px">'+soc('azul',b.cor,'Azul')+soc('escura',b.cor,'Escuro')+soc('clara',b.cor,'Claro')+soc('laranja',b.cor,'Laranja')+soc('dourada',b.cor,'Dourado')+soc('verde',b.cor,'Verde')+'</select></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;color:#64748B;width:52px">Largura</span><input type="range" id="ac-largura" min="200" max="1000" value="'+Math.round((b.wf||0.6)*1000)+'" oninput="_arteCtrlApply()" style="flex:1"></div>'
+      +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:#64748B;width:52px">Altura</span><input type="range" id="ac-altura" min="150" max="1000" value="'+Math.round((b.hf||0.42)*1000)+'" oninput="_arteCtrlApply()" style="flex:1"><button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="_arteDelBlock()">🗑</button></div>'
+      +'</div>';
+    return;
+  }
   if(b.type==='logo'){
     el.innerHTML='<div style="padding:12px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px">'
       +'<div style="font-size:11px;font-weight:800;color:#0D6ABF;margin-bottom:8px">🔷 LOGO — arraste na imagem para posicionar</div>'
@@ -2434,6 +2456,9 @@ function _arteCtrlApply(){
   if(g('ac-cor'))b.cor=g('ac-cor').value;
   if(g('ac-caixa'))b.caixa=g('ac-caixa').value;
   if(g('ac-size'))b.size=(+g('ac-size').value)/1000;
+  if(g('ac-pcor'))b.cor=g('ac-pcor').value;
+  if(g('ac-largura'))b.wf=(+g('ac-largura').value)/1000;
+  if(g('ac-altura'))b.hf=(+g('ac-altura').value)/1000;
   _arteDraw();_arteThumbRefresh();
 }
 function _arteAddBlock(kind){
@@ -2446,9 +2471,28 @@ function _arteAddBlock(kind){
     bl.push(nb);a.selBlock=nb.id;_artGetImg(logo).then(function(){_arteDraw();_arteThumbRefresh();}).catch(function(){if(typeof toast==='function')toast('Não consegui abrir a logo — deixe o arquivo público.');});
     _arteDraw();_arteRenderCtrls();return;
   }
+  if(kind==='painel'){nb={id:'b'+Math.random().toString(36).slice(2,8),type:'painel',xf:0.5,yf:0.5,wf:0.6,hf:0.42,cor:'azul',radius:0.045};bl.push(nb);a.selBlock=nb.id;_arteDraw();_arteRenderCtrls();_arteThumbRefresh();return;}
   if(kind==='data'){nb=_artDefBlock('27/08',0.6);nb.cor='branco';nb.caixa='laranja';nb.size=0.058;}
   else{nb=_artDefBlock('Novo texto',0.5);nb.caixa='nenhuma';}
   bl.push(nb);a.selBlock=nb.id;_arteDraw();_arteRenderCtrls();_arteThumbRefresh();
+}
+// monta um layout profissional (painel + título + subtítulo + data + logo), tipo o modelo
+function _arteAplicarModelo(){
+  var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var a=ov._arte;var it=a.items[a.sel];if(!it||!it.bg)return;
+  var bl=_artItemBlocks(it);
+  var titulo=(bl.filter(function(x){return x.text;})[0]||{}).text||'Seu título aqui';
+  var c=_findClient(a.cid);var logo=c&&_validUrl((_conteudos(c).ficha||{}).logoLink||'');
+  var nid=function(){return 'b'+Math.random().toString(36).slice(2,8);};
+  var novo=[
+    {id:nid(),type:'painel',xf:0.68,yf:0.46,wf:0.58,hf:0.66,cor:'azul',radius:0.05},
+    {id:nid(),text:titulo,xf:0.68,yf:0.3,font:'moderna',cor:'branco',size:0.055,caixa:'nenhuma'},
+    {id:nid(),text:'chamada ou subtítulo aqui',xf:0.68,yf:0.5,font:'clean',cor:'branco',size:0.034,caixa:'nenhuma'},
+    {id:nid(),text:'00/00',xf:0.68,yf:0.66,font:'impacto',cor:'branco',size:0.05,caixa:'laranja'}
+  ];
+  if(logo){novo.push({id:nid(),type:'logo',src:logo,xf:0.85,yf:0.12,size:0.2});_artGetImg(logo).then(function(){_arteDraw();_arteThumbRefresh();}).catch(function(){});}
+  it.blocks=novo;a.selBlock=novo[1].id;
+  _arteDraw();_arteRenderCtrls();_arteThumbRefresh();
+  if(typeof toast==='function')toast('✨ Layout aplicado — arraste e edite cada elemento');
 }
 function _arteDelBlock(){
   var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var a=ov._arte;var it=a.items[a.sel];if(!it)return;
@@ -7315,7 +7359,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072902; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072903; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
