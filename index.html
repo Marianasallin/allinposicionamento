@@ -449,8 +449,28 @@ function icDels(){return[
   {id:'ic7',name:'Implementação da IA',product:'Implementação Comercial',status:'pendente',responsible:'',dueDate:null},
   {id:'ic8',name:'Entregáveis Finais',product:'Implementação Comercial',status:'pendente',responsible:'',dueDate:null},
 ]}
+// Estruturação de Perfil: etapas com prazo automático (em dias, a partir da data de início)
+function epDels(){return[
+  {id:'ep1',name:'Pagamento e contrato',product:'Estruturação de Perfil',status:'pendente',responsible:'',dueDate:null,dias:7},
+  {id:'ep2',name:'Envio do Formulário',product:'Estruturação de Perfil',status:'pendente',responsible:'',dueDate:null,dias:15},
+  {id:'ep3',name:'Estruturação de LinkedIn',product:'Estruturação de Perfil',status:'pendente',responsible:'',dueDate:null,dias:15},
+  {id:'ep4',name:'Devolutiva de LinkedIn e entrega de dossiê',product:'Estruturação de Perfil',status:'pendente',responsible:'',dueDate:null,dias:7},
+  {id:'ep5',name:'Treinamento para entrevista',product:'Estruturação de Perfil',status:'pendente',responsible:'',dueDate:null,dias:15},
+]}
+// responsáveis possíveis nas etapas de Estruturação (equipe + parceiro Ypsilon)
+function EP_RESP(){return TEAM_NAMES().concat(['Ypsilon']);}
+// recalcula os prazos das etapas a partir de c.epStart (soma acumulada dos dias de cada etapa)
+function epRecalcDates(c){
+  if(!c||!c.epStart)return;
+  var base=new Date(c.epStart+'T12:00:00'),acc=0;
+  (c.deliverables||[]).filter(function(d){return d.product==='Estruturação de Perfil';}).forEach(function(d){
+    acc+=(d.dias||0);var dt=new Date(base);dt.setDate(dt.getDate()+acc);
+    d.dueDate=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  });
+}
+function setEpStart(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;c.epStart=val;epRecalcDates(c);save();render();}
 function mkClient(name,i,products,contractStatus,contractDue,assignees,customDels){
-  const dels=customDels||(products.includes('Implementação Comercial')?[...gpDels(),...icDels()]:gpDels());
+  const dels=customDels||(products.includes('Implementação Comercial')?[...gpDels(),...icDels()]:products.includes('Estruturação de Perfil')?epDels():gpDels());
   return{id:name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'').substring(0,30)+'_'+i,
     name,initials:initials(name),color:color(i),products,contractStatus:contractStatus||'ativo',
     contractDue:contractDue||null,assignees:assignees||[],deliverables:dels,
@@ -2492,7 +2512,43 @@ function rDetail(){
   else if(S.tab==='entregas'){
     const hasGP=c.products.includes('Gestão de Perfil');
     const hasIC=c.products.includes('Implementação Comercial');
+    const hasEP=c.products.includes('Estruturação de Perfil');
     body='';
+
+    // Estruturação de Perfil — etapas com prazo automático + responsável por etapa
+    if(hasEP){
+      const epList=(c.deliverables||[]).filter(d=>d.product==='Estruturação de Perfil');
+      if(epList.length){
+        const getDayStrEp=d=>{const dy=getDaysUntil(d.dueDate);if(dy===null)return'—';if(dy<0)return`${Math.abs(dy)}d atrasado`;if(dy===0)return'Hoje';if(dy===1)return'Amanhã';return`${dy}d`;};
+        const doneEp=epList.filter(d=>d.status==='concluido').length;
+        const pctEp=Math.round(doneEp/epList.length*100);
+        const catBadge=c.categoria?`<span class="tag" style="font-size:10px;background:${c.categoria==='Negócios'?'#7C3AED18':'#0891B218'};color:${c.categoria==='Negócios'?'#7C3AED':'#0891B2'};border:1px solid ${c.categoria==='Negócios'?'#7C3AED':'#0891B2'}40">${c.categoria}</span>`:'';
+        body+=`<div class="card" style="margin-bottom:16px">
+          <div class="ch"><h3>🎯 Estruturação de Perfil ${catBadge}</h3>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:11px;color:var(--muted)">${doneEp}/${epList.length}</span>
+              <div style="width:70px;background:#E5E7EB;border-radius:99px;height:5px"><div style="width:${pctEp}%;height:5px;border-radius:99px;background:#0891B2"></div></div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--border);background:#F0F9FF">
+            <span style="font-size:12px;font-weight:600">📅 Data de início:</span>
+            <input type="date" class="mini" value="${c.epStart||''}" onchange="setEpStart('${c.id}',this.value)" style="width:150px">
+            <span style="font-size:11px;color:var(--muted)">os prazos são calculados automaticamente (7 · 15 · 15 · 7 · 15 dias). Você também pode ajustar cada data na mão.</span>
+          </div>
+          <div class="tw"><table><thead><tr><th>Etapa</th><th>Prazo</th><th>Responsável</th><th>Status</th></tr></thead><tbody>
+            ${epList.map(d=>`<tr>
+              <td>${d.name}${d.dias?` <span style="font-size:10px;color:var(--muted)">(${d.dias}d)</span>`:''}</td>
+              <td><input type="date" class="mini" value="${d.dueDate||''}" onchange="updDel('${c.id}','${d.id}','dueDate',this.value)" style="width:130px"><span style="font-size:10px;color:var(--muted);margin-left:6px">${getDayStrEp(d)}</span></td>
+              <td><select class="mini" onchange="updDel('${c.id}','${d.id}','responsible',this.value)">
+                <option value="">— Selecionar —</option>
+                ${EP_RESP().map(n=>`<option value="${n}" ${d.responsible===n?'selected':''}>${n.split(' ')[0]}</option>`).join('')}
+              </select></td>
+              <td><span class="badge ${getDelClassByDate(d)}" onclick="cycleDel('${c.id}','${d.id}')" title="Clique para alterar">${getDelStatusByDate(d)==='atrasado'?'❌ Atrasado':SL(d.status)} ↻</span></td>
+            </tr>`).join('')}
+          </tbody></table></div>
+        </div>`;
+      }
+    }
 
     if(hasGP){
       // SECTION 1: Continuous Activities
@@ -2789,9 +2845,9 @@ function rDetail(){
       <div class="fgrid3" style="margin-bottom:16px">
         <div class="fg"><label>Produto(s)</label>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
-            ${['Gestão de Perfil','Implementação Comercial','Mentoria','Consultoria'].map(p=>{
+            ${['Gestão de Perfil','Implementação Comercial','Estruturação de Perfil','Mentoria','Consultoria'].map(p=>{
               const sel=c.products.includes(p);
-              const colors={'Gestão de Perfil':'#0D3D9B','Implementação Comercial':'#E8622A','Mentoria':'#7C3AED','Consultoria':'#057642'};
+              const colors={'Gestão de Perfil':'#0D3D9B','Implementação Comercial':'#E8622A','Estruturação de Perfil':'#0891B2','Mentoria':'#7C3AED','Consultoria':'#057642'};
               const col=colors[p]||'#374151';
               return`<label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:2px solid ${sel?col:'#E5E7EB'};background:${sel?col+'18':'#F9FAFB'};cursor:pointer;font-size:12px;font-weight:600;color:${sel?col:'#6B7280'};transition:all .15s">
                 <input type="checkbox" id="ctp-${p.replace(/[\s\/]/g,'-')}" style="display:none" ${sel?'checked':''}
@@ -2799,6 +2855,11 @@ function rDetail(){
                 <span>${sel?'✓ ':''+ p}</span>
               </label>`;
             }).join('')}
+          </div>
+          <div style="margin-top:8px"><label style="font-size:11px;color:var(--muted)">Categoria (Estruturação de Perfil)</label>
+            <select id="ct-categoria" class="mini" style="width:160px">
+              ${['','Carreira','Negócios'].map(o=>`<option value="${o}" ${(c.categoria||'')===o?'selected':''}>${o||'— Selecionar —'}</option>`).join('')}
+            </select>
           </div>
         </div>
         <div class="fg"><label>Status do Contrato</label>
@@ -4633,11 +4694,16 @@ function setContractDate(cid,field,value){
 }
 function saveContrato(cid){
   const c=D.clients.find(c=>c.id===cid);
-  c.products=['Gestão de Perfil','Implementação Comercial','Mentoria','Consultoria'].filter(p=>document.getElementById('ctp-'+p.replace(/[\s\/]/g,'-'))?.checked);
+  c.products=['Gestão de Perfil','Implementação Comercial','Estruturação de Perfil','Mentoria','Consultoria'].filter(p=>document.getElementById('ctp-'+p.replace(/[\s\/]/g,'-'))?.checked);
+  if($('ct-categoria'))c.categoria=$('ct-categoria').value;
   // Ajusta as entregas conforme os produtos (adiciona o que falta; não remove pra não perder progresso)
   if(!c.deliverables)c.deliverables=[];
   if(c.products.includes('Implementação Comercial')&&!c.deliverables.some(d=>d.product==='Implementação Comercial')){
     c.deliverables=[...c.deliverables,...icDels().map(d=>({...d}))];
+  }
+  if(c.products.includes('Estruturação de Perfil')&&!c.deliverables.some(d=>d.product==='Estruturação de Perfil')){
+    c.deliverables=[...c.deliverables,...epDels().map(d=>({...d}))];
+    epRecalcDates(c);
   }
   if(c.products.includes('Gestão de Perfil')){
     if(!c.deliverables.some(d=>d.product==='Gestão de Perfil'))c.deliverables=[...c.deliverables,...gpDels().map(d=>({...d}))];
@@ -4942,9 +5008,11 @@ function addClient(){
           <div class="fg">
             <label>Produto(s)</label>
             <div style="display:flex;flex-direction:column;gap:8px;padding:8px;background:#F9FAFB;border-radius:8px;border:1px solid var(--border)">
-              <label style="font-size:13px;text-transform:none;letter-spacing:0;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="nc-gp" checked> Gestão de Perfil</label>
-              <label style="font-size:13px;text-transform:none;letter-spacing:0;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="nc-ic"> Implementação Comercial</label>
+              <label style="font-size:13px;text-transform:none;letter-spacing:0;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="nc-gp" checked onchange="_ncCatToggle()"> Gestão de Perfil</label>
+              <label style="font-size:13px;text-transform:none;letter-spacing:0;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="nc-ic" onchange="_ncCatToggle()"> Implementação Comercial</label>
+              <label style="font-size:13px;text-transform:none;letter-spacing:0;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="nc-ep" onchange="_ncCatToggle()"> Estruturação de Perfil</label>
             </div>
+            <div id="nc-cat-wrap" style="margin-top:8px;display:none"><label style="font-size:11px">Categoria</label><select id="nc-categoria" class="mini" style="width:100%"><option value="">— Selecionar —</option><option value="Carreira">Carreira</option><option value="Negócios">Negócios</option></select></div>
           </div>
           <div class="fg"><label>Responsável Principal</label>
             <select id="nc-as">
@@ -4965,16 +5033,20 @@ function addClient(){
   document.body.insertAdjacentHTML('beforeend',html);
 }
 function closeNC(){const el=$('nc-overlay');if(el)el.remove();}
+function _ncCatToggle(){var ep=$('nc-ep');var w=$('nc-cat-wrap');if(w)w.style.display=(ep&&ep.checked)?'':'none';}
 function confirmNC(){
   const name=$('nc-n').value.trim();
   if(!name){toast('⚠️ Informe o nome do cliente!');return;}
   const prods=[];
   if($('nc-gp').checked)prods.push('Gestão de Perfil');
   if($('nc-ic').checked)prods.push('Implementação Comercial');
+  if($('nc-ep')&&$('nc-ep').checked)prods.push('Estruturação de Perfil');
   if(!prods.length)prods.push('Gestão de Perfil');
   const i=D.clients.length;
   const cdv=$('nc-cd').value;
   const c=mkClient(name,i,prods,$('nc-cs').value,cdv?new Date(cdv).getTime():null,$('nc-as').value?[$('nc-as').value]:[]);
+  if($('nc-categoria'))c.categoria=$('nc-categoria').value;
+  if(prods.includes('Estruturação de Perfil')){c.epStart=$('nc-sd').value||'';epRecalcDates(c);}
   c.email=$('nc-e').value;c.phone=$('nc-p').value;c.linkedin=$('nc-l').value;
   c.nicho=$('nc-ni').value;c.cnpj=$('nc-cnpj').value;c.address=$('nc-addr').value;
   c.startDate=$('nc-sd').value;c.prospectionStart=($('nc-prosp')?$('nc-prosp').value:'');c.contractValue=$('nc-val').value;
@@ -7228,7 +7300,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072806; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072901; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
