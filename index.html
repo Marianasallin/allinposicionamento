@@ -893,6 +893,8 @@ function render(){
     if(si){si.focus();const l=si.value.length;si.setSelectionRange(l,l);}
     S._searchFocused=false;
   }
+  // compõe as miniaturas de arte (texto escrito pelo sistema por cima do fundo)
+  if(typeof _artFillThumbs==='function'){try{_artFillThumbs();}catch(e){}}
 }
 
 // ────────────────────────────────────────────────────────────
@@ -1737,7 +1739,7 @@ function _contCard(c,card){
     +'<div style="font-size:13px;font-weight:600;color:#1E293B;line-height:1.4;overflow-wrap:break-word">'+escH(card.title||'(sem título)')+'</div>'
     +((fmtBadge||badge||rede)?'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px">'+fmtBadge+badge+(rede?'<span style="font-size:11px;color:#64748B">'+rede+'</span>':'')+'</div>':'')
     +(link?'<div style="margin-top:7px"><a href="'+escH(link)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">🔗 Abrir material</a></div>':'')
-    +(function(){var im=_cardImgs(card);if(!im.length)return '';return '<div style="margin-top:8px;position:relative"><img src="'+escH(im[0].url)+'" onclick="contArteView(\''+c.id+'\',\''+card.id+'\')" style="width:100%;max-height:170px;object-fit:cover;border-radius:8px;cursor:pointer;display:block;border:1px solid #EEE" title="Ver / editar arte">'+(im.length>1?'<span style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:2px 8px">📚 '+im.length+' páginas</span>':'')+'</div>';})()
+    +(function(){var im=_cardImgs(card);if(!im.length)return '';return '<div style="margin-top:8px;position:relative"><img data-artref="'+c.id+'~'+card.id+'~0" src="'+escH(im[0].bg||im[0].url||'')+'" onclick="contArteView(\''+c.id+'\',\''+card.id+'\')" style="width:100%;max-height:170px;object-fit:cover;border-radius:8px;cursor:pointer;display:block;border:1px solid #EEE" title="Ver / editar arte">'+(im.length>1?'<span style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:2px 8px">📚 '+im.length+' páginas</span>':'')+'</div>';})()
     +(card.caption?'<div onclick="contAIViewLegenda(\''+c.id+'\',\''+card.id+'\')" style="margin-top:7px;font-size:11px;color:#7C3AED;cursor:pointer;text-decoration:underline" title="Ver a legenda salva">📝 ver legenda salva</div>':'')
     +'<div style="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:4px;margin-top:10px;padding-top:8px;border-top:1px solid #F1F5F9">'
     +'<button class="btn btn-s" style="font-size:11px;padding:3px 9px;background:linear-gradient(135deg,#7C3AED,#0D3D9B);color:#fff;border:none" title="Gerar legenda com a IA" onclick="contAIPreGen(\''+c.id+'\',\'legenda\',\''+card.id+'\')">✨ Legenda</button>'
@@ -2119,38 +2121,79 @@ function contAIViewLegenda(cid,cardId){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
   document.body.appendChild(ov);
 }
-// ══════════ ARTE (Gemini) ══════════
-// imagens de um card (compat: imageUrl antigo → lista)
+// ══════════ ARTE (Gemini + texto escrito pelo sistema) ══════════
+// item: {bg:'<url do fundo>', texto, style:{font,cor,pos,faixa}}  (novo)  ·  {url} = texto já embutido pela IA (legado)
 function _cardImgs(card){if(card&&card.images&&card.images.length)return card.images;if(card&&card.imageUrl)return [{url:card.imageUrl,texto:''}];return [];}
 function _slug(s){return (s||'arte').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'arte';}
-// baixar uma imagem (usa CORS do bucket; se falhar, abre em nova aba)
-function _arteDL(url,name){
-  fetch(url).then(function(r){return r.blob();}).then(function(b){
-    var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},3000);
-    if(typeof toast==='function')toast('📥 Baixado: '+name);
-  }).catch(function(){window.open(url,'_blank');});
+function _artDefStyle(){return {font:'elegante',cor:'claro',pos:'baixo',faixa:true};}
+// desenha o texto sobre o contexto do canvas
+function _artDraw(ctx,W,H,texto,style){
+  style=style||_artDefStyle();
+  var famMap={elegante:'Georgia,"Times New Roman",serif',moderna:'"Arial Black",Arial,sans-serif',clean:'"Trebuchet MS","Segoe UI",Arial,sans-serif'};
+  var weight=style.font==='moderna'?'800':style.font==='clean'?'400':'700';
+  var fam=famMap[style.font]||famMap.elegante;
+  var colMap={claro:'#FFFFFF',escuro:'#14213D',dourado:'#E7B85C'};
+  var col=colMap[style.cor]||'#FFFFFF';
+  function wrap(fs){ctx.font=weight+' '+fs+'px '+fam;var words=(texto||'').split(/\s+/),cur='',out=[];words.forEach(function(w){var t=cur?cur+' '+w:w;if(ctx.measureText(t).width>W*0.84&&cur){out.push(cur);cur=w;}else cur=t;});if(cur)out.push(cur);return out;}
+  var fs=Math.round(W*0.088),lines=wrap(fs);
+  while(lines.length>4&&fs>W*0.042){fs-=Math.round(W*0.006);lines=wrap(fs);}
+  var lh=Math.round(fs*1.2),blockH=lines.length*lh,cy;
+  if(style.pos==='cima')cy=Math.round(H*0.09);else if(style.pos==='centro')cy=Math.round(H/2-blockH/2);else cy=Math.round(H*0.91-blockH);
+  if(style.faixa!==false){var pad=Math.round(W*0.045);ctx.fillStyle=(style.cor==='escuro')?'rgba(255,255,255,.74)':'rgba(8,12,28,.44)';ctx.fillRect(0,cy-pad,W,blockH+pad*2);}
+  ctx.font=weight+' '+fs+'px '+fam;ctx.textAlign='center';ctx.textBaseline='top';ctx.fillStyle=col;
+  if(style.faixa===false){ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=Math.round(W*0.014);ctx.shadowOffsetY=2;}
+  lines.forEach(function(ln,i){ctx.fillText(ln,W/2,cy+i*lh);});
+  ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
 }
-function _imgDataURL(url){return fetch(url).then(function(r){return r.blob();}).then(function(b){return new Promise(function(res,rej){var fr=new FileReader();fr.onload=function(){res(fr.result);};fr.onerror=rej;fr.readAsDataURL(b);});});}
-// gerar PDF do carrossel (uma imagem por página)
-function _artePDF(urls,name){
+window._artCache=window._artCache||{};
+function _artKey(item){return item&&item.bg?JSON.stringify([item.bg,item.texto||'',item.style||_artDefStyle()]):(item&&item.url)||'';}
+// devolve (via Promise) a URL exibível: composição (bg+texto) para itens novos, ou a url direta para legado
+function _artCompose(item){
+  return new Promise(function(res){
+    if(!item){res('');return;}
+    if(!item.bg){res(item.url||'');return;}
+    var key=_artKey(item);if(_artCache[key]){res(_artCache[key]);return;}
+    var img=new Image();img.crossOrigin='anonymous';
+    img.onload=function(){
+      var W=img.naturalWidth||1024,H=img.naturalHeight||1024;
+      var cv=document.createElement('canvas');cv.width=W;cv.height=H;var ctx=cv.getContext('2d');
+      ctx.drawImage(img,0,0,W,H);
+      if(item.texto)_artDraw(ctx,W,H,item.texto,item.style);
+      var out;try{out=cv.toDataURL('image/png');}catch(e){res(item.bg);return;}
+      _artCache[key]=out;res(out);
+    };
+    img.onerror=function(){res(item.bg);};
+    img.src=item.bg;
+  });
+}
+// preenche as miniaturas de arte nos cards (chamado depois do render)
+function _artFillThumbs(){
+  document.querySelectorAll('img[data-artref]').forEach(function(el){
+    if(el.getAttribute('data-artdone'))return;el.setAttribute('data-artdone','1');
+    var p=(el.getAttribute('data-artref')||'').split('~');var c=_findClient(p[0]);if(!c)return;
+    var card=(_conteudos(c).cards||[]).find(function(x){return x.id===p[1];});if(!card)return;
+    var it=_cardImgs(card)[+p[2]];if(!it)return;
+    _artCompose(it).then(function(u){if(u)el.src=u;});
+  });
+}
+// baixa uma imagem já composta (dataURL) ou por link (com CORS)
+function _arteDL(dataOrUrl,name){
+  if(/^data:/.test(dataOrUrl)){var a=document.createElement('a');a.href=dataOrUrl;a.download=name;document.body.appendChild(a);a.click();a.remove();if(typeof toast==='function')toast('📥 Baixado: '+name);return;}
+  fetch(dataOrUrl).then(function(r){return r.blob();}).then(function(b){var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},3000);if(typeof toast==='function')toast('📥 Baixado: '+name);}).catch(function(){window.open(dataOrUrl,'_blank');});
+}
+// gera PDF do carrossel a partir de dataURLs já compostos
+function _artePDF(datas,name){
   var JP=window.jspdf&&window.jspdf.jsPDF;if(!JP){if(typeof toast==='function')toast('❌ PDF indisponível — recarregue a página');return;}
   if(typeof toast==='function')toast('📄 Gerando PDF...');
   var doc=null,i=0;
   (function next(){
-    if(i>=urls.length){doc.save(name);if(typeof toast==='function')toast('📄 PDF pronto: '+name);return;}
-    _imgDataURL(urls[i]).then(function(d){
-      var im=new Image();
-      im.onload=function(){
-        var w=im.width||1024,h=im.height||1024;
-        if(!doc)doc=new JP({orientation:w>=h?'l':'p',unit:'px',format:[w,h]});
-        else doc.addPage([w,h],w>=h?'l':'p');
-        doc.addImage(d,'PNG',0,0,w,h);i++;next();
-      };
-      im.onerror=function(){i++;next();};im.src=d;
-    }).catch(function(){i++;next();});
+    if(i>=datas.length){doc.save(name);if(typeof toast==='function')toast('📄 PDF pronto: '+name);return;}
+    var im=new Image();
+    im.onload=function(){var w=im.width||1024,h=im.height||1024;if(!doc)doc=new JP({orientation:w>=h?'l':'p',unit:'px',format:[w,h]});else doc.addPage([w,h],w>=h?'l':'p');doc.addImage(im.src,'PNG',0,0,w,h);i++;next();};
+    im.onerror=function(){i++;next();};im.src=datas[i];
   })();
 }
-// Modal de pré-geração: formato + texto + observações + referências (puxadas da ficha)
+// Modal de pré-geração
 function contArtePreGen(cid,cardId){
   var c=_findClient(cid);if(!c)return;
   var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
@@ -2164,12 +2207,13 @@ function contArtePreGen(cid,cardId){
   ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:500px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
     +'<div style="background:linear-gradient(135deg,#EC4899,#7C3AED);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🎨 Gerar arte — '+escH(c.name)+'</h3><button onclick="document.getElementById(\'arte-pregen\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
     +'<div style="padding:20px;display:flex;flex-direction:column;gap:12px">'
-    +'<div class="fg"><label>✍️ Texto que vai escrito na arte</label><input id="arte-texto" value="'+escH(card.title||'')+'" placeholder="O texto que aparece na imagem" style="width:100%"><div style="font-size:11px;color:#EC4899;margin-top:3px">⚠️ Confira a grafia na arte gerada — se a IA errar uma palavra, é só clicar em 🔄 Refazer.</div></div>'
+    +'<div class="fg"><label>✍️ Texto que vai escrito na arte</label><input id="arte-texto" value="'+escH(card.title||'')+'" placeholder="O texto que aparece na imagem" style="width:100%"><div style="font-size:11px;color:#059669;margin-top:3px">✅ O sistema escreve este texto por cima da arte — grafia sempre certa. Você ajusta fonte, cor e posição depois.</div></div>'
     +'<div class="fg"><label>Formato</label><select id="arte-formato">'+fo('','— livre —')+fo('Carrossel','📚 Carrossel')+fo('Estático','🖼️ Estático')+fo('Enquete','📊 Enquete')+'</select></div>'
     +'<div class="fg"><label>O que você quer na arte? <span style="font-weight:400;color:#94A3B8">(opcional)</span></label><textarea id="arte-obs" rows="3" style="width:100%;resize:vertical" placeholder="Ex: fundo azul claro, sensação de segurança, estilo clean, uma família ao fundo"></textarea></div>'
     +'<div class="fgrid"><div class="fg"><label>🖼️ Foto do cliente</label><select id="arte-reffoto-sel" onchange="_arteRefToggle(\'foto\')">'+refOpts(fotos,'Foto')+'</select><input id="arte-reffoto-man" placeholder="Cole o link da foto" style="width:100%;margin-top:6px;display:none"></div>'
     +'<div class="fg"><label>📐 Modelo de estilo</label><select id="arte-refmodelo-sel" onchange="_arteRefToggle(\'modelo\')">'+refOpts(modelos,'Modelo')+'</select><input id="arte-refmodelo-man" placeholder="Cole o link do modelo" style="width:100%;margin-top:6px;display:none"></div></div>'
     +((fotos.length||modelos.length)?'':'<div style="font-size:11px;color:#94A3B8">💡 Dica: salve fotos e modelos fixos na <b>Ficha</b> do cliente para não colar link toda vez.</div>')
+    +'<label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#475569;cursor:pointer;background:#F8FAFC;border-radius:8px;padding:8px 10px"><input type="checkbox" id="arte-ia-texto" style="margin-top:2px"><span>Deixar a <b>IA</b> escrever o texto dentro da arte (mais integrado ao design, mas pode ter erro de português)</span></label>'
     +'<div style="font-size:11px;color:#94A3B8">A arte sai quadrada (feed do LinkedIn e Instagram), seguindo a linha editorial do cliente.</div>'
     +'</div>'
     +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'arte-pregen\').remove()">Cancelar</button><button class="btn btn-p" style="background:linear-gradient(135deg,#EC4899,#7C3AED);border:none" onclick="contArteGo(\''+cid+'\',\''+cardId+'\')">🎨 Gerar arte</button></div>'
@@ -2183,11 +2227,12 @@ function contArteGo(cid,cardId){
   var fmt=(document.getElementById('arte-formato')||{}).value||'';
   var obs=(document.getElementById('arte-obs')||{}).value||'';
   var texto=((document.getElementById('arte-texto')||{}).value||'').trim();
+  var iaTexto=!!(document.getElementById('arte-ia-texto')||{}).checked;
   var refFoto=_arteRefVal('foto'),refModelo=_arteRefVal('modelo');
   var ov=document.getElementById('arte-pregen');if(ov)ov.remove();
-  _contAIGenArte(cid,cardId,{formato:fmt,obs:obs,textoArte:texto,refFoto:refFoto,refModelo:refModelo,items:[]});
+  _contAIGenArte(cid,cardId,{formato:fmt,obs:obs,textoArte:texto,iaTexto:iaTexto,refFoto:refFoto,refModelo:refModelo,style:_artDefStyle(),items:[]});
 }
-// gera (nova / mais uma / edição) e devolve pro modal de revisão
+// gera (nova / trocar fundo / editar / próxima página) e volta pro modal de revisão
 function _contAIGenArte(cid,cardId,opts){
   var c=_findClient(cid);if(!c)return;
   var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
@@ -2195,72 +2240,107 @@ function _contAIGenArte(cid,cardId,opts){
   var msg=opts.replaceLast?'Refazendo a arte':(opts.slide?'Criando a próxima página do carrossel':'Criando a arte de "'+(card.title||'').slice(0,26)+'"');
   _aiLoading(true,msg+' (pode levar até 1 min)');
   var ctx=_contClientAICtx(c);
-  var payload={mode:'arte',theme:card.title||'',textoArte:opts.textoArte||card.title||'',editorialLine:ctx.editorialLine,niche:ctx.niche,formato:opts.formato||'',obs:opts.obs||''};
+  var payload={mode:'arte',theme:card.title||'',textoArte:opts.textoArte||card.title||'',editorialLine:ctx.editorialLine,niche:ctx.niche,formato:opts.formato||'',obs:opts.obs||'',comTexto:!!opts.iaTexto};
   if(opts.slide)payload.slide=true;
   if(opts.refFoto)payload.refFoto=opts.refFoto;
   if(opts.refModelo)payload.refModelo=opts.refModelo;
   if(opts.refEdit)payload.refEdit=opts.refEdit;
   _aiRequest(payload).then(function(v){
     _aiLoading(false);
-    var warn=(v.refsReq&&v.refsOk<v.refsReq)?('⚠️ Não consegui abrir '+(v.refsReq-v.refsOk)+' referência(s) — provavelmente o arquivo não está público. No Drive: Compartilhar → "Qualquer pessoa com o link". A arte foi gerada SEM essa referência.'):'';
+    var warn=(v.refsReq&&v.refsOk<v.refsReq)?('⚠️ Não consegui abrir '+(v.refsReq-v.refsOk)+' referência(s) — provavelmente o arquivo/pasta não está público. No Drive: Compartilhar → "Qualquer pessoa com o link". A arte foi gerada SEM essa referência.'):'';
     if(warn&&typeof toast==='function')toast('⚠️ Referência não abriu — veja o aviso na arte');
     var items=(opts.items||[]).slice();
-    var item={url:v.imageUrl,texto:opts.textoArte||card.title||''};
-    if(opts.replaceLast&&items.length)items[items.length-1]=item;else items.push(item);
-    _contArteReview(cid,cardId,{items:items,formato:opts.formato||'',refFoto:opts.refFoto||'',refModelo:opts.refModelo||'',warn:warn},v.custoBRL,(opts.acumCusto||0)+(v.custoBRL||0));
+    var item=opts.iaTexto?{url:v.imageUrl,texto:opts.textoArte||card.title||''}:{bg:v.imageUrl,texto:opts.textoArte||card.title||'',style:opts.style||_artDefStyle()};
+    var idx=(opts._replaceIdx!=null)?opts._replaceIdx:(opts.replaceLast?items.length-1:-1);
+    if(idx>=0&&items.length)items[idx]=item;else{items.push(item);idx=items.length-1;}
+    _contArteReview(cid,cardId,{items:items,formato:opts.formato||'',iaTexto:!!opts.iaTexto,refFoto:opts.refFoto||'',refModelo:opts.refModelo||'',warn:warn,sel:idx},v.custoBRL,(opts.acumCusto||0)+(v.custoBRL||0));
   }).catch(function(e){_aiLoading(false);if(typeof toast==='function')toast('❌ '+e.message);});
 }
-// Modal de revisão — mostra as imagens pendentes (carrossel = várias), editar, gerar próxima, baixar, salvar
+// Modal de revisão com editor de texto (preview ao vivo)
 function _contArteReview(cid,cardId,st,custo,acum){
   var c=_findClient(cid);if(!c)return;
   var card=_conteudos(c).cards.find(function(x){return x.id===cardId;})||{};
-  var items=st.items||[];var isCarr=/carrossel/i.test(st.formato||'')||items.length>1;
-  var slug=_slug(card.title);
+  var items=st.items||[];
   var ov=document.getElementById('ai-review');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='ai-review';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
-  var imgsHtml=items.map(function(it,i){return '<div style="margin-bottom:14px">'
-    +'<img src="'+escH(it.url)+'" style="width:100%;border-radius:10px;border:1px solid #EEE;display:block">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">'
-    +'<span style="font-size:11px;color:#94A3B8">'+(isCarr?('Página '+(i+1)+' de '+items.length):'Imagem')+'</span>'
-    +'<button class="btn btn-o btn-s" style="font-size:11px" onclick="_arteDLItem('+i+')">📥 Baixar imagem</button>'
-    +'</div></div>';}).join('');
-  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:560px;max-height:94vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
     +'<div style="background:linear-gradient(135deg,#EC4899,#7C3AED);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🎨 Arte — '+escH(card.title||'')+'</h3><button onclick="document.getElementById(\'ai-review\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
-    +'<div style="padding:18px 20px">'
-    +(st.warn?'<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#92400E;line-height:1.45">'+escH(st.warn)+'</div>':'')
-    +imgsHtml
-    +'<div style="margin-top:6px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:700;color:#EC4899;margin-bottom:6px">✏️ Ajustar a última imagem (a IA edita)</div>'
-    +'<div style="display:flex;gap:6px"><input id="arte-edit" placeholder="Ex: deixe mais azul, tire o cofrinho, corrija o texto..." style="flex:1;font-size:12px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px"><button class="btn btn-o btn-s" style="white-space:nowrap" onclick="contArteEdit(\''+cid+'\',\''+cardId+'\')">🔄 Refazer</button></div></div>'
-    +'<div style="margin-top:12px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:700;color:#7C3AED;margin-bottom:6px">➕ Gerar mais uma imagem deste tema (carrossel)</div>'
-    +'<div style="display:flex;gap:6px"><input id="arte-next" placeholder="Texto da próxima página. Ex: Dica 1: revise seus gastos" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px"><button class="btn btn-o btn-s" style="white-space:nowrap" onclick="contArteMore(\''+cid+'\',\''+cardId+'\')">➕ Gerar página</button></div></div>'
-    +'</div>'
+    +(st.warn?'<div style="margin:14px 20px 0;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;font-size:12px;color:#92400E;line-height:1.45">'+escH(st.warn)+'</div>':'')
+    +'<div id="arte-review-body" style="padding:16px 20px"></div>'
     +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap">'
     +'<span style="font-size:11px;color:#94A3B8">custo desta sessão: R$ '+((acum!=null?acum:custo)||0).toFixed(3)+'</span>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    +(items.length>1?'<button class="btn btn-o" onclick="contArtePDF()">📄 Baixar PDF</button>':'')
-    +'<button class="btn btn-o" onclick="document.getElementById(\'ai-review\').remove()">Descartar</button>'
+    +'<button class="btn btn-o" id="arte-pdf-btn" style="display:none" onclick="contArtePDF()">📄 Baixar PDF</button>'
+    +'<button class="btn btn-o" onclick="document.getElementById(\'ai-review\').remove()">Fechar</button>'
     +'<button class="btn btn-p" style="background:linear-gradient(135deg,#EC4899,#7C3AED);border:none" onclick="contArteSave(\''+cid+'\',\''+cardId+'\')">💾 Salvar no card</button></div></div>'
     +'</div>';
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
   document.body.appendChild(ov);
-  ov._arte={items:items,formato:st.formato||'',refFoto:st.refFoto||'',refModelo:st.refModelo||'',slug:slug,acum:(acum!=null?acum:custo)||0};
+  ov._arte={items:items,formato:st.formato||'',iaTexto:!!st.iaTexto,refFoto:st.refFoto||'',refModelo:st.refModelo||'',slug:_slug(card.title),acum:(acum!=null?acum:custo)||0,cid:cid,cardId:cardId,sel:(st.sel!=null?st.sel:items.length-1)};
+  _arteRenderReview();
 }
-function _arteDLItem(i){var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var it=ov._arte.items[i];if(!it)return;_arteDL(it.url,ov._arte.slug+'-'+(i+1)+'.png');}
-function contArtePDF(){var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;_artePDF(ov._arte.items.map(function(x){return x.url;}),ov._arte.slug+'-carrossel.pdf');}
+// (re)desenha o corpo do modal de revisão a partir de ov._arte
+function _arteRenderReview(){
+  var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var a=ov._arte;
+  var body=document.getElementById('arte-review-body');if(!body)return;
+  var isCarr=a.items.length>1||/carrossel/i.test(a.formato||'');
+  var sel=a.sel;var it=a.items[sel]||{};var editavel=!!it.bg;
+  var so=function(v,cur,l){return '<option value="'+v+'" '+(cur===v?'selected':'')+'>'+l+'</option>';};
+  var stl=it.style||_artDefStyle();
+  var thumbs=isCarr?('<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:12px">'+a.items.map(function(t,i){return '<div onclick="_arteSel('+i+')" style="flex:0 0 auto;cursor:pointer;border:2px solid '+(i===sel?'#EC4899':'transparent')+';border-radius:8px;padding:1px"><img data-thumbidx="'+i+'" style="width:54px;height:54px;object-fit:cover;border-radius:6px;display:block;background:#F1F5F9"><div style="text-align:center;font-size:9px;color:#94A3B8">'+(i+1)+'</div></div>';}).join('')+'</div>'):'';
+  var pgLabel=isCarr?('<div style="font-size:11px;color:#94A3B8;margin-bottom:5px">Página '+(sel+1)+' de '+a.items.length+'</div>'):'';
+  var editor=editavel?('<div style="margin-top:12px;padding:12px;background:#FDF2F8;border:1px solid #FBCFE8;border-radius:10px">'
+    +'<div style="font-size:11px;font-weight:800;color:#EC4899;margin-bottom:8px">✍️ TEXTO NA ARTE (o sistema escreve — grafia certa)</div>'
+    +'<input id="arte-txt" value="'+escH(it.texto||'')+'" oninput="_arteApply()" style="width:100%;font-size:13px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:8px" placeholder="Texto que aparece na arte">'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +'<select id="arte-font" onchange="_arteApply()" style="flex:1;min-width:110px;font-size:12px;padding:6px">'+so('elegante',stl.font,'Fonte elegante')+so('moderna',stl.font,'Fonte moderna')+so('clean',stl.font,'Fonte fina')+'</select>'
+    +'<select id="arte-cor" onchange="_arteApply()" style="flex:1;min-width:100px;font-size:12px;padding:6px">'+so('claro',stl.cor,'Texto claro')+so('escuro',stl.cor,'Texto escuro')+so('dourado',stl.cor,'Texto dourado')+'</select>'
+    +'<select id="arte-pos" onchange="_arteApply()" style="flex:1;min-width:100px;font-size:12px;padding:6px">'+so('cima',stl.pos,'Em cima')+so('centro',stl.pos,'No centro')+so('baixo',stl.pos,'Embaixo')+'</select>'
+    +'<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" id="arte-faixa" '+(stl.faixa!==false?'checked':'')+' onchange="_arteApply()">faixa</label>'
+    +'</div></div>'):'<div style="margin-top:10px;font-size:11px;color:#94A3B8">✍️ Texto escrito pela IA. Para trocar o texto, gere de novo.</div>';
+  body.innerHTML=thumbs+pgLabel
+    +'<img id="arte-prev" style="width:100%;border-radius:10px;border:1px solid #EEE;display:block;background:#F1F5F9;min-height:120px">'
+    +'<div style="text-align:right;margin-top:6px"><button class="btn btn-o btn-s" style="font-size:11px" onclick="_arteDLItem('+sel+')">📥 Baixar esta imagem</button></div>'
+    +editor
+    +'<div style="margin-top:12px;padding-top:12px;border-top:1px solid #F1F5F9;display:flex;gap:6px;flex-wrap:wrap">'
+    +'<button class="btn btn-o btn-s" onclick="contArteTrocaFundo()" title="Gera outro fundo (troca a foto/variação)">🔄 Trocar fundo</button>'
+    +'</div>'
+    +'<div style="margin-top:8px;padding-top:10px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:700;color:#7C3AED;margin-bottom:5px">✏️ Ajustar o fundo com a IA</div>'
+    +'<div style="display:flex;gap:6px"><input id="arte-edit" placeholder="Ex: mais azul, tira o objeto, fundo mais clean..." style="flex:1;font-size:12px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px"><button class="btn btn-o btn-s" style="white-space:nowrap" onclick="contArteEdit(\''+a.cid+'\',\''+a.cardId+'\')">🔄 Refazer</button></div></div>'
+    +'<div style="margin-top:10px;padding-top:10px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:700;color:#7C3AED;margin-bottom:5px">➕ Adicionar página (carrossel)</div>'
+    +'<div style="display:flex;gap:6px"><input id="arte-next" placeholder="Texto da próxima página. Ex: Dica 1: revise seus gastos" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px"><button class="btn btn-o btn-s" style="white-space:nowrap" onclick="contArteMore(\''+a.cid+'\',\''+a.cardId+'\')">➕ Gerar página</button></div></div>';
+  var pdfBtn=document.getElementById('arte-pdf-btn');if(pdfBtn)pdfBtn.style.display=a.items.length>1?'inline-flex':'none';
+  _artCompose(a.items[sel]).then(function(u){var p=document.getElementById('arte-prev');if(p&&u)p.src=u;});
+  if(isCarr)a.items.forEach(function(t,i){_artCompose(t).then(function(u){var tv=document.querySelector('#arte-review-body img[data-thumbidx="'+i+'"]');if(tv&&u)tv.src=u;});});
+}
+function _arteSel(i){var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;ov._arte.sel=i;_arteRenderReview();}
+// aplica as mudanças do editor de texto ao item selecionado (preview ao vivo)
+function _arteApply(){
+  var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var a=ov._arte;var it=a.items[a.sel];if(!it||!it.bg)return;
+  it.texto=((document.getElementById('arte-txt')||{}).value)||'';
+  it.style={font:(document.getElementById('arte-font')||{}).value||'elegante',cor:(document.getElementById('arte-cor')||{}).value||'claro',pos:(document.getElementById('arte-pos')||{}).value||'baixo',faixa:!!(document.getElementById('arte-faixa')||{}).checked};
+  _artCompose(it).then(function(u){var p=document.getElementById('arte-prev');if(p&&u)p.src=u;var tv=document.querySelector('#arte-review-body img[data-thumbidx="'+a.sel+'"]');if(tv&&u)tv.src=u;});
+}
+function _arteDLItem(i){var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var it=ov._arte.items[i];if(!it)return;_artCompose(it).then(function(u){_arteDL(u,ov._arte.slug+'-'+(i+1)+'.png');});}
+function contArtePDF(){var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var a=ov._arte;Promise.all(a.items.map(_artCompose)).then(function(ds){_artePDF(ds,a.slug+'-carrossel.pdf');});}
+function contArteTrocaFundo(){
+  var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;var a=ov._arte;var it=a.items[a.sel]||{};ov.remove();
+  _contAIGenArte(a.cid,a.cardId,{formato:a.formato,iaTexto:a.iaTexto,textoArte:it.texto,style:it.style,refFoto:a.refFoto,refModelo:a.refModelo,items:a.items.slice(),acumCusto:a.acum,_replaceIdx:a.sel});
+}
 function contArteEdit(cid,cardId){
   var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;
   var instr=((document.getElementById('arte-edit')||{}).value||'').trim();
   if(!instr){if(typeof toast==='function')toast('Escreva o ajuste que você quer');return;}
-  var a=ov._arte;var last=a.items[a.items.length-1]||{};ov.remove();
-  _contAIGenArte(cid,cardId,{formato:a.formato,obs:instr,textoArte:last.texto,refFoto:a.refFoto,refModelo:a.refModelo,refEdit:last.url,items:a.items,replaceLast:true,acumCusto:a.acum});
+  var a=ov._arte;var it=a.items[a.sel]||{};ov.remove();
+  _contAIGenArte(cid,cardId,{formato:a.formato,iaTexto:a.iaTexto,obs:instr,textoArte:it.texto,style:it.style,refFoto:a.refFoto,refModelo:a.refModelo,refEdit:it.bg||it.url,items:a.items,acumCusto:a.acum,_replaceIdx:a.sel});
 }
 function contArteMore(cid,cardId){
   var ov=document.getElementById('ai-review');if(!ov||!ov._arte)return;
   var txt=((document.getElementById('arte-next')||{}).value||'').trim();
   if(!txt){if(typeof toast==='function')toast('Escreva o texto da próxima página');return;}
-  var a=ov._arte;var cover=(a.items[0]||{}).url||'';ov.remove();
-  _contAIGenArte(cid,cardId,{formato:'Carrossel',slide:true,textoArte:txt,refModelo:cover||a.refModelo,refFoto:'',items:a.items,acumCusto:a.acum});
+  var a=ov._arte;var cover=(a.items[0]||{});var coverUrl=cover.bg||cover.url||'';ov.remove();
+  _contAIGenArte(cid,cardId,{formato:'Carrossel',slide:true,iaTexto:a.iaTexto,textoArte:txt,style:_artDefStyle(),refModelo:coverUrl||a.refModelo,refFoto:'',items:a.items,acumCusto:a.acum});
 }
 function contArteSave(cid,cardId){
   var ov=document.getElementById('ai-review');var items=(ov&&ov._arte&&ov._arte.items)||[];
@@ -2268,24 +2348,11 @@ function contArteSave(cid,cardId){
   if(items.length){card.images=items;delete card.imageUrl;}
   save();if(ov)ov.remove();if(typeof toast==='function')toast('✅ Arte salva no card!');render();
 }
+// Ver arte salva (reabre no editor para ajustar texto e baixar)
 function contArteView(cid,cardId){
   var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
-  var items=_cardImgs(card);if(!items.length)return;var isCarr=items.length>1;var slug=_slug(card.title);
-  var ov=document.getElementById('ai-review');if(ov)ov.remove();
-  ov=document.createElement('div');ov.id='ai-review';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
-  var imgsHtml=items.map(function(it,i){return '<div style="margin-bottom:14px"><img src="'+escH(it.url)+'" style="width:100%;border-radius:10px;border:1px solid #EEE;display:block"><div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px"><span style="font-size:11px;color:#94A3B8">'+(isCarr?('Página '+(i+1)+' de '+items.length):'Imagem')+'</span><button class="btn btn-o btn-s" style="font-size:11px" onclick="_arteDLItem('+i+')">📥 Baixar imagem</button></div></div>';}).join('');
-  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
-    +'<div style="background:linear-gradient(135deg,#EC4899,#7C3AED);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🎨 Arte — '+escH(card.title||'')+'</h3><button onclick="document.getElementById(\'ai-review\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
-    +'<div style="padding:18px 20px">'+imgsHtml+'</div>'
-    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">'
-    +(items.length>1?'<button class="btn btn-o" onclick="contArtePDF()">📄 Baixar PDF</button>':'')
-    +'<button class="btn btn-o" onclick="contArtePreGen(\''+cid+'\',\''+cardId+'\')">🎨 Gerar nova</button>'
-    +'<button class="btn btn-o" style="border-color:var(--red);color:var(--red)" onclick="contArteRemove(\''+cid+'\',\''+cardId+'\')">🗑 Remover</button></div>'
-    +'</div>';
-  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
-  document.body.appendChild(ov);
-  ov._arte={items:items,slug:slug};
+  var items=_cardImgs(card);if(!items.length)return;
+  _contArteReview(cid,cardId,{items:items.map(function(x){return Object.assign({},x);}),formato:(items.length>1?'Carrossel':(card.formato||'')),iaTexto:!items[0].bg,sel:0},0,0);
 }
 function contArteRemove(cid,cardId){
   var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
@@ -7053,7 +7120,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072803; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072804; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){

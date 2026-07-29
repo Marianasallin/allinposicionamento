@@ -35,10 +35,11 @@ function buildArtPrompt(body) {
     p += "ESCREVA na arte, como título/chamada em destaque, EXATAMENTE este texto e NADA MAIS, mantendo a grafia e a acentuação corretas do português brasileiro, SEM erros e SEM cortar palavras: \"" + textoArte + "\". ";
     p += "REGRA ABSOLUTA: a ÚNICA palavra ou frase escrita na imagem deve ser exatamente esse texto. É PROIBIDO adicionar qualquer outro texto — nada de subtítulos, chamadas como 'deslize', 'arraste', 'saiba mais', números de página, marca d'água, assinatura ou legenda. Sem texto em outro idioma. O texto deve ficar bem legível, com boa hierarquia e integrado ao design.\n";
   } else {
-    p += "NÃO escreva textos, palavras nem letras dentro da imagem.\n";
+    p += "NÃO escreva NENHUM texto, palavra, letra ou número dentro da imagem — nem título, nem assinatura, nem marca d'água. A imagem é só o fundo/visual; o texto será colocado por cima depois. ";
+    p += "Deixe uma ÁREA LIMPA e mais uniforme (no topo OU na base) com espaço de respiro, sem elementos importantes, para receber o texto depois.\n";
   }
   if (linha) p += "Identidade e linha editorial do cliente (siga estilo, cores e tom): " + linha + ".\n";
-  if (temModelo) p += "Siga fielmente o ESTILO VISUAL (cores, tipografia, composição) da imagem de referência enviada, para manter a identidade da marca.\n";
+  if (temModelo) p += "MUITO IMPORTANTE: siga FIELMENTE o ESTILO VISUAL da imagem de referência de estilo — mesma PALETA DE CORES, mesmo clima, mesmos elementos gráficos e mesmo nível de acabamento profissional. A arte deve claramente pertencer à mesma identidade visual daquela referência.\n";
   if (obs) p += "Instruções específicas (siga à risca): " + obs + ".\n";
   p += "Arte limpa, moderna e profissional, sem marcas d'água, sem logos de terceiros e sem texto embaralhado.";
   return p;
