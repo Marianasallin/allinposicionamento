@@ -1762,11 +1762,11 @@ function _contCard(c,card){
     +'<div style="font-size:13px;font-weight:600;color:#1E293B;line-height:1.4;overflow-wrap:break-word">'+escH(card.title||'(sem título)')+'</div>'
     +((fmtBadge||badge||rede)?'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px">'+fmtBadge+badge+(rede?'<span style="font-size:11px;color:#64748B">'+rede+'</span>':'')+'</div>':'')
     +(link?'<div style="margin-top:7px"><a href="'+escH(link)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">🔗 Abrir material</a></div>':'')
-    +(function(){var im=_cardImgs(card);if(!im.length)return '';return '<div style="margin-top:8px;position:relative"><img data-artref="'+c.id+'~'+card.id+'~0" src="'+escH(im[0].bg||im[0].url||'')+'" onclick="contArteView(\''+c.id+'\',\''+card.id+'\')" style="width:100%;max-height:170px;object-fit:cover;border-radius:8px;cursor:pointer;display:block;border:1px solid #EEE" title="Ver / editar arte">'+(im.length>1?'<span style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:2px 8px">📚 '+im.length+' páginas</span>':'')+'</div>';})()
+    +(function(){var im=_cardImgs(card);if(!im.length)return '';return '<div style="margin-top:8px;position:relative"><img src="'+escH(im[0].url||im[0].bg||'')+'" onclick="contArteView(\''+c.id+'\',\''+card.id+'\')" style="width:100%;max-height:170px;object-fit:cover;border-radius:8px;cursor:pointer;display:block;border:1px solid #EEE" title="Ver arte">'+(im.length>1?'<span style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:2px 8px">📚 '+im.length+'</span>':'')+'</div>';})()
     +(card.caption?'<div onclick="contAIViewLegenda(\''+c.id+'\',\''+card.id+'\')" style="margin-top:7px;font-size:11px;color:#7C3AED;cursor:pointer;text-decoration:underline" title="Ver a legenda salva">📝 ver legenda salva</div>':'')
     +'<div style="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:4px;margin-top:10px;padding-top:8px;border-top:1px solid #F1F5F9">'
     +'<button class="btn btn-s" style="font-size:11px;padding:3px 9px;background:linear-gradient(135deg,#7C3AED,#0D3D9B);color:#fff;border:none" title="Gerar legenda com a IA" onclick="contAIPreGen(\''+c.id+'\',\'legenda\',\''+card.id+'\')">✨ Legenda</button>'
-    +'<button class="btn btn-s" style="font-size:11px;padding:3px 9px;background:linear-gradient(135deg,#EC4899,#7C3AED);color:#fff;border:none" title="Gerar arte com a IA" onclick="contArtePreGen(\''+c.id+'\',\''+card.id+'\')">🎨 '+(_cardImgs(card).length?'Nova arte':'Arte')+'</button>'
+    +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 9px" title="Anexar a arte (link ou arquivo)" onclick="contArteAdd(\''+c.id+'\',\''+card.id+'\')">🖼️ Arte</button>'
     +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 8px" onclick="contCardOpen(\''+c.id+'\',\''+card.id+'\')" title="Editar">✏️</button>'
     +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 8px;border-color:var(--red);color:var(--red)" onclick="contDelete(\''+c.id+'\',\''+card.id+'\')" title="Excluir">🗑</button>'
     +'</div>'
@@ -2572,10 +2572,45 @@ function contArteSave(cid,cardId){
   save();if(ov)ov.remove();if(typeof toast==='function')toast('✅ Arte salva no card!');render();
 }
 // Ver arte salva (reabre no editor para ajustar texto e baixar)
+// Anexar a arte pronta (feita pelo designer) — por link(s), um por linha para carrossel
+function contArteAdd(cid,cardId){
+  var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
+  var atuais=_cardImgs(card).map(function(x){return x.url||x.bg||'';}).filter(Boolean);
+  var ov=document.createElement('div');ov.id='arte-add';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🖼️ Arte — '+escH(card.title||'')+'</h3><button onclick="document.getElementById(\'arte-add\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:20px;display:flex;flex-direction:column;gap:10px">'
+    +'<div class="fg"><label>Link(s) da arte <span style="font-weight:400;color:#94A3B8">(um por linha — várias = carrossel)</span></label><textarea id="arte-add-links" rows="4" style="width:100%;resize:vertical" placeholder="Cole o link direto da imagem (ex: Drive público, Storage). Para carrossel, um link por linha.">'+escH(atuais.join('\n'))+'</textarea></div>'
+    +'<div style="font-size:11px;color:#94A3B8">💡 Use o link direto da imagem. O upload de arquivo direto entra assim que a gente publicar essa parte nova.</div>'
+    +'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'arte-add\').remove()">Cancelar</button><button class="btn btn-p" onclick="contArteAddSave(\''+cid+'\',\''+cardId+'\')">💾 Salvar arte</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+function contArteAddSave(cid,cardId){
+  var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
+  var el=document.getElementById('arte-add-links');
+  var links=(el?el.value:'').split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  if(links.length){card.images=links.map(function(u){return {url:u};});}else{delete card.images;}
+  delete card.imageUrl;
+  save();var ov=document.getElementById('arte-add');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Arte salva!');render();
+}
+// Visualizador simples da arte (sem IA)
 function contArteView(cid,cardId){
   var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
-  var items=_cardImgs(card);if(!items.length)return;
-  _contArteReview(cid,cardId,{items:items.map(function(x){return Object.assign({},x);}),formato:(items.length>1?'Carrossel':(card.formato||'')),iaTexto:!items[0].bg,sel:0},0,0);
+  var items=_cardImgs(card);if(!items.length)return;var isCarr=items.length>1;
+  var ov=document.createElement('div');ov.id='ai-review';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  var imgs=items.map(function(it,i){var u=it.url||it.bg||'';return '<div style="margin-bottom:12px"><img src="'+escH(u)+'" style="width:100%;border-radius:10px;border:1px solid #EEE;display:block">'+(isCarr?'<div style="font-size:11px;color:#94A3B8;margin-top:4px">Página '+(i+1)+' de '+items.length+'</div>':'')+'<div style="text-align:right;margin-top:4px"><a href="'+escH(u)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">📥 abrir</a></div></div>';}).join('');
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🖼️ Arte — '+escH(card.title||'')+'</h3><button onclick="document.getElementById(\'ai-review\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:18px 20px">'+imgs+'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btn-o" onclick="document.getElementById(\'ai-review\').remove();contArteAdd(\''+cid+'\',\''+cardId+'\')">✏️ Trocar link</button><button class="btn btn-o" style="border-color:var(--red);color:var(--red)" onclick="contArteRemove(\''+cid+'\',\''+cardId+'\')">🗑 Remover</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
 }
 function contArteRemove(cid,cardId){
   var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
@@ -7395,7 +7430,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072905; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072906; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
