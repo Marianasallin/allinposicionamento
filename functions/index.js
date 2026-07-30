@@ -176,6 +176,22 @@ async function useTemplate(body, reqId) {
   return { imageUrl, custoBRL: 0 };
 }
 
+// Recebe uma imagem em base64 e sobe pro Storage (admin, sem depender de regras). Custo zero.
+async function uploadImage(body, reqId) {
+  const b64 = (body.data || "").replace(/^data:[^;]+;base64,/, "");
+  if (!b64) throw new Error("Sem imagem para subir.");
+  const buf = Buffer.from(b64, "base64");
+  if (!buf.length || buf.length > 20 * 1024 * 1024) throw new Error("Arquivo inválido ou grande demais.");
+  const mime = (body.mime || "image/png").split(";")[0];
+  const ext = mime === "image/jpeg" ? "jpg" : mime === "image/webp" ? "webp" : "png";
+  const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const path = "artes/up" + reqId + "." + ext;
+  const bucket = admin.storage().bucket("allin-sistema-artes");
+  await bucket.file(path).save(buf, { contentType: mime, metadata: { metadata: { firebaseStorageDownloadTokens: token } } });
+  const imageUrl = "https://firebasestorage.googleapis.com/v0/b/" + bucket.name + "/o/" + encodeURIComponent(path) + "?alt=media&token=" + token;
+  return { imageUrl };
+}
+
 function systemPrompt() {
   return [
     "Você é ALL IN TEMA, a IA de conteúdo da agência ALL IN, especialista em LinkedIn.",
@@ -244,6 +260,12 @@ exports.allintema = onValueCreated(
     const body = (event.data && event.data.val()) || {};
     const resRef = admin.database().ref("/_ai/res/" + reqId);
     try {
+      if (body.mode === "upload") {
+        const out = await uploadImage(body, reqId);
+        await resRef.set({ imageUrl: out.imageUrl, mode: "upload", custoBRL: 0, ts: Date.now() });
+        await event.data.ref.remove();
+        return;
+      }
       if (body.mode === "template") {
         const out = await useTemplate(body, reqId);
         await resRef.set({ imageUrl: out.imageUrl, mode: "template", custoBRL: 0, ts: Date.now() });

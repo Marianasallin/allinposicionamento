@@ -1952,8 +1952,9 @@ function contCardSave(cid,editId){
   var redes=[];var _li=document.getElementById('cont-rede-li'),_ig=document.getElementById('cont-rede-ig');if(_li&&_li.checked)redes.push('LinkedIn');if(_ig&&_ig.checked)redes.push('Instagram');
   var data={title:title,status:g('cont-status')||'ideias',date:g('cont-date'),formato:g('cont-formato'),redes:redes,rede:'',link:g('cont-link')};
   var cards=_conteudos(c).cards;
-  if(editId){var card=cards.find(function(x){return x.id===editId;});if(card)Object.assign(card,data);else cards.push(Object.assign({id:'ct'+Date.now(),createdAt:new Date().toISOString()},data));}
-  else cards.push(Object.assign({id:'ct'+Date.now(),createdAt:new Date().toISOString()},data));
+  var _by=(S.currentUser&&S.currentUser.name)||'';
+  if(editId){var card=cards.find(function(x){return x.id===editId;});if(card)Object.assign(card,data);else cards.push(Object.assign({id:'ct'+Date.now(),createdAt:new Date().toISOString(),createdBy:_by},data));}
+  else cards.push(Object.assign({id:'ct'+Date.now(),createdAt:new Date().toISOString(),createdBy:_by},data));
   save();var ov=document.getElementById('cont-overlay');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Conteúdo salvo!');render();
 }
 
@@ -2102,7 +2103,8 @@ function contAIAddTitles(cid,n){
   var c=_findClient(cid);if(!c)return;
   var ov=document.getElementById('ai-review');var titles=(ov&&ov._titles)||[];
   var add=0;
-  for(var i=0;i<n;i++){var chk=document.getElementById('ait-'+i);if(chk&&chk.checked&&titles[i]){_conteudos(c).cards.push({id:'ct'+Date.now()+i,createdAt:new Date().toISOString(),title:titles[i],status:'ideias'});add++;}}
+  var _by=(S.currentUser&&S.currentUser.name)||'';
+  for(var i=0;i<n;i++){var chk=document.getElementById('ait-'+i);if(chk&&chk.checked&&titles[i]){_conteudos(c).cards.push({id:'ct'+Date.now()+i,createdAt:new Date().toISOString(),createdBy:_by,title:titles[i],status:'ideias'});add++;}}
   if(!add){if(typeof toast==='function')toast('Selecione ao menos um tema');return;}
   save();if(ov)ov.remove();if(typeof toast==='function')toast('✅ '+add+' tema(s) adicionado(s)!');render();
 }
@@ -2572,30 +2574,77 @@ function contArteSave(cid,cardId){
   save();if(ov)ov.remove();if(typeof toast==='function')toast('✅ Arte salva no card!');render();
 }
 // Ver arte salva (reabre no editor para ajustar texto e baixar)
-// Anexar a arte pronta (feita pelo designer) — por link(s), um por linha para carrossel
-function contArteAdd(cid,cardId){
+// Redimensiona um arquivo de imagem e sobe pelo cofre; devolve a URL
+function _arteUploadFile(file){
+  return new Promise(function(resolve,reject){
+    var rd=new FileReader();
+    rd.onload=function(){
+      var img=new Image();
+      img.onload=function(){
+        var max=1600,w=img.width,h=img.height;
+        if(w>max||h>max){var s=Math.min(max/w,max/h);w=Math.round(w*s);h=Math.round(h*s);}
+        var cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);
+        var data;try{data=cv.toDataURL('image/jpeg',0.9);}catch(e){reject(e);return;}
+        _aiRequest({mode:'upload',data:data,mime:'image/jpeg'}).then(function(v){resolve(v.imageUrl);}).catch(reject);
+      };
+      img.onerror=function(){reject(new Error('arquivo inválido'));};img.src=rd.result;
+    };
+    rd.onerror=function(){reject(new Error('erro ao ler'));};rd.readAsDataURL(file);
+  });
+}
+// registra o envio de arte (pra pagamento do designer)
+function _artLogRecord(c,card,qty,by){
+  D.artLog=D.artLog||[];
+  D.artLog.push({at:Date.now(),by:by||((S.currentUser&&S.currentUser.name)||'equipe'),clientId:c.id,client:c.name,cardId:card.id,cardTitle:card.title||'',qty:qty||0,requestedBy:card.createdBy||((c.contentOwners||[])[0])||'',formato:card.formato||''});
+}
+// Anexar a arte pronta (upload de arquivo e/ou link). by = quem enviou (designer no portal)
+function contArteAdd(cid,cardId,by){
   var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
   var atuais=_cardImgs(card).map(function(x){return x.url||x.bg||'';}).filter(Boolean);
   var ov=document.createElement('div');ov.id='arte-add';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
-  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
-    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🖼️ Arte — '+escH(card.title||'')+'</h3><button onclick="document.getElementById(\'arte-add\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
-    +'<div style="padding:20px;display:flex;flex-direction:column;gap:10px">'
-    +'<div class="fg"><label>Link(s) da arte <span style="font-weight:400;color:#94A3B8">(um por linha — várias = carrossel)</span></label><textarea id="arte-add-links" rows="4" style="width:100%;resize:vertical" placeholder="Cole o link direto da imagem (ex: Drive público, Storage). Para carrossel, um link por linha.">'+escH(atuais.join('\n'))+'</textarea></div>'
-    +'<div style="font-size:11px;color:#94A3B8">💡 Use o link direto da imagem. O upload de arquivo direto entra assim que a gente publicar essa parte nova.</div>'
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2001;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:460px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🖼️ Subir arte — '+escH(card.title||'')+'</h3><button onclick="document.getElementById(\'arte-add\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:20px;display:flex;flex-direction:column;gap:12px">'
+    +'<div class="fg"><label>📤 Subir arquivo(s) da arte <span style="font-weight:400;color:#94A3B8">(carrossel: selecione várias)</span></label><input type="file" id="arte-add-file" accept="image/*" multiple style="width:100%"></div>'
+    +'<div style="text-align:center;font-size:11px;color:#94A3B8">— ou —</div>'
+    +'<div class="fg"><label>Link(s) da arte <span style="font-weight:400;color:#94A3B8">(um por linha)</span></label><textarea id="arte-add-links" rows="3" style="width:100%;resize:vertical" placeholder="Cole o link direto da imagem, se preferir">'+escH(atuais.join('\n'))+'</textarea></div>'
+    +'<div id="arte-add-status" style="font-size:12px;color:#0891B2"></div>'
     +'</div>'
-    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'arte-add\').remove()">Cancelar</button><button class="btn btn-p" onclick="contArteAddSave(\''+cid+'\',\''+cardId+'\')">💾 Salvar arte</button></div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'arte-add\').remove()">Cancelar</button><button class="btn btn-p" id="arte-add-btn" onclick="contArteAddSave(\''+cid+'\',\''+cardId+'\',\''+(by||'')+'\')">💾 Salvar arte</button></div>'
     +'</div>';
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
   document.body.appendChild(ov);
 }
-function contArteAddSave(cid,cardId){
+function contArteAddSave(cid,cardId,by){
   var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
   var el=document.getElementById('arte-add-links');
   var links=(el?el.value:'').split('\n').map(function(s){return s.trim();}).filter(Boolean);
-  if(links.length){card.images=links.map(function(u){return {url:u};});}else{delete card.images;}
-  delete card.imageUrl;
-  save();var ov=document.getElementById('arte-add');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Arte salva!');render();
+  var fileInput=document.getElementById('arte-add-file');
+  var files=fileInput&&fileInput.files?Array.prototype.slice.call(fileInput.files):[];
+  var btn=document.getElementById('arte-add-btn');var st=document.getElementById('arte-add-status');
+  var finalize=function(urls){
+    var wasEmpty=!_cardImgs(card).length;
+    if(urls.length){card.images=urls.map(function(u){return {url:u};});delete card.imageUrl;}else{delete card.images;delete card.imageUrl;}
+    // registra pra pagamento só quando ADICIONA arte (não quando remove)
+    if(urls.length){_artLogRecord(c,card,urls.length,by);card.artBy=by||((S.currentUser&&S.currentUser.name)||'equipe');card.artAt=Date.now();
+      if(card.status==='ideias'||card.status==='arte')card.status='cliente';
+    }
+    save();var ov=document.getElementById('arte-add');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Arte salva!');render();
+  };
+  if(files.length){
+    if(btn){btn.disabled=true;btn.textContent='Subindo...';}
+    if(st)st.textContent='Subindo '+files.length+' arquivo(s)...';
+    var uploaded=[];var i=0;
+    var nxt=function(){
+      if(i>=files.length){finalize(links.concat(uploaded));return;}
+      if(st)st.textContent='Subindo '+(i+1)+' de '+files.length+'...';
+      _arteUploadFile(files[i]).then(function(u){uploaded.push(u);i++;nxt();}).catch(function(e){if(st)st.textContent='';if(btn){btn.disabled=false;btn.textContent='💾 Salvar arte';}if(typeof toast==='function')toast('❌ Falha no upload: '+(e.message||e));});
+    };
+    nxt();
+  }else{
+    finalize(links);
+  }
 }
 // Visualizador simples da arte (sem IA)
 function contArteView(cid,cardId){
@@ -7430,7 +7479,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072906; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072907; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
