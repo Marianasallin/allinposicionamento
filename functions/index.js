@@ -156,6 +156,26 @@ async function generateArt(body, reqId) {
   return { imageUrl, custoBRL: Number((0.039 * 5.5).toFixed(3)), refsReq, refsOk, refsFail };
 }
 
+// Usa um MODELO/TEMPLATE do cliente como fundo — SEM chamar a IA (custo zero).
+// Resolve o link (Drive/pasta), baixa a imagem e sobe pro Storage (com CORS) pra o canvas usar.
+async function useTemplate(body, reqId) {
+  const raw = body.templateUrl || body.refModelo || body.refFoto;
+  if (!raw) throw new Error("Nenhum modelo/template informado.");
+  let img;
+  try {
+    const resolved = await resolveRefUrl(raw, "modelo");
+    img = await fetchRefImage(resolved);
+  } catch (e) { throw new Error("Não consegui abrir o modelo. Deixe o arquivo/pasta público no Drive."); }
+  const buf = Buffer.from(img.data, "base64");
+  const ext = img.mime === "image/png" ? "png" : "jpg";
+  const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const path = "artes/tpl" + reqId + "." + ext;
+  const bucket = admin.storage().bucket("allin-sistema-artes");
+  await bucket.file(path).save(buf, { contentType: img.mime, metadata: { metadata: { firebaseStorageDownloadTokens: token } } });
+  const imageUrl = "https://firebasestorage.googleapis.com/v0/b/" + bucket.name + "/o/" + encodeURIComponent(path) + "?alt=media&token=" + token;
+  return { imageUrl, custoBRL: 0 };
+}
+
 function systemPrompt() {
   return [
     "Você é ALL IN TEMA, a IA de conteúdo da agência ALL IN, especialista em LinkedIn.",
@@ -224,6 +244,12 @@ exports.allintema = onValueCreated(
     const body = (event.data && event.data.val()) || {};
     const resRef = admin.database().ref("/_ai/res/" + reqId);
     try {
+      if (body.mode === "template") {
+        const out = await useTemplate(body, reqId);
+        await resRef.set({ imageUrl: out.imageUrl, mode: "template", custoBRL: 0, ts: Date.now() });
+        await event.data.ref.remove();
+        return;
+      }
       if (body.mode === "arte") {
         const out = await generateArt(body, reqId);
         await resRef.set({ imageUrl: out.imageUrl, mode: "arte", custoBRL: out.custoBRL, refsReq: out.refsReq || 0, refsOk: out.refsOk || 0, ts: Date.now() });
