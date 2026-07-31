@@ -6860,7 +6860,7 @@ function _plContract(cid,p){
       +'<label style="font-size:11px;font-weight:700;color:#92400E;display:block;margin:12px 0 4px">📅 Data em que fechou o contrato</label>'
       +'<input type="date" value="'+(p.closedDate||'')+'" onchange="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'closedDate\',this.value)" style="width:100%;border:2px solid #F59E0B;border-radius:8px;padding:9px 12px;font-size:14px;color:#92400E;background:white;box-sizing:border-box"></div>'
     :'<div style="margin-bottom:10px"><label style="font-size:11px;color:#6B7280;display:block;margin-bottom:4px">❌ Motivo de não fechar (se aplicável)</label>'
-      +'<input value="'+(p.reasonNotClosed||'')+'" placeholder="Ex: sem budget, sem interesse..." onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'reasonNotClosed\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px;font-size:12px"></div>');
+      +'<textarea rows="3" placeholder="Ex: sem budget, sem interesse..." onblur="portalUpdateProspect(\''+cid+'\',\''+p.id+'\',\'reasonNotClosed\',this.value)" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:8px 10px;font-size:13px;resize:vertical;box-sizing:border-box">'+escH(p.reasonNotClosed||'')+'</textarea></div>');
 }
 function _plDetail(cid,p){
   return '<div style="padding:14px 18px;border-top:1px solid #F1F5F9;background:#FAFBFF">'
@@ -7485,7 +7485,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072908; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072909; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
