@@ -1349,22 +1349,18 @@ function renderLeadGoalBar(current,goal,clientName,monthKey,compact){
   </div>`;
 }
 function calcResultados(c){
-  // Agrupa prospects por mês e calcula métricas automaticamente
+  // Agrupa prospects por mês. Leads/reuniões pela ENTRADA; FECHAMENTO pela DATA DE FECHAMENTO
+  // (igual ao portal — evita divergência 2 x 3). Sem data de fechamento, cai no mês de entrada.
   const pros=c.prospects||[];
   const byMonth={};
   const ptMonths=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const keyOf=function(ds){if(!ds)return null;var d=new Date(ds+'T12:00:00');if(isNaN(d))return null;return {key:ptMonths[d.getMonth()]+' '+d.getFullYear(),d:d};};
+  const ensure=function(k){if(!byMonth[k.key])byMonth[k.key]={month:k.key,year:k.d.getFullYear(),monthNum:k.d.getMonth(),prospects:0,leads:0,meetings:0,sales:0,revenue:0};return byMonth[k.key];};
   pros.forEach(function(p){
-    if(!p.date)return;
-    const d=new Date(p.date+'T12:00:00');
-    const key=ptMonths[d.getMonth()]+' '+d.getFullYear();
-    if(!byMonth[key])byMonth[key]={month:key,year:d.getFullYear(),monthNum:d.getMonth(),prospects:0,leads:0,meetings:0,sales:0,revenue:0};
-    byMonth[key].prospects++;
-    if(p.replied)byMonth[key].leads++;
-    if(p.hadMeeting)byMonth[key].meetings++;
-    // Interno (meta): conta pelo mês de ENTRADA do lead. Fechamento por data de fechamento fica no portal (comissão).
-    if(p.contractClosed){byMonth[key].sales++;byMonth[key].revenue+=_parseMoney(p.contractValue);}
+    const ent=keyOf(p.date);
+    if(ent){var b=ensure(ent);b.prospects++;if(p.replied)b.leads++;if(p.hadMeeting)b.meetings++;}
+    if(p.contractClosed){var ck=keyOf(p.closedDate)||ent;if(ck){var b2=ensure(ck);b2.sales++;b2.revenue+=_parseMoney(p.contractValue);}}
   });
-  // Ordenar por data (mais recente primeiro)
   return Object.values(byMonth).sort(function(a,b){
     return b.year!==a.year?b.year-a.year:b.monthNum-a.monthNum;
   });
@@ -1718,7 +1714,7 @@ var CONT_ST=[
 function _contStMeta(s){for(var i=0;i<CONT_ST.length;i++)if(CONT_ST[i][0]===s)return CONT_ST[i];return CONT_ST[0];}
 function _conteudos(c){if(!c.conteudos)c.conteudos={ficha:{},cards:[]};if(!c.conteudos.ficha)c.conteudos.ficha={};if(!Array.isArray(c.conteudos.cards))c.conteudos.cards=[];return c.conteudos;}
 function _isGP(c){return (c.products||[]).includes('Gestão de Perfil');}
-function _gpClients(){return D.clients.filter(function(c){return _isGP(c)&&c.contractStatus!=='inativo';}).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});}
+function _gpClients(){return D.clients.filter(function(c){return _isGP(c)&&c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado';}).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});}
 function _validUrl(u){u=(u||'').trim();if(!u)return '';return /^https?:\/\//i.test(u)?u:('https://'+u);}
 
 // ── Card de conteúdo (arrastável) ──
@@ -1977,11 +1973,6 @@ function contFichaOpen(cid){
     +'<div class="fg"><label>✍️ Linha editorial <span style="font-weight:400;color:#94A3B8">(link do arquivo — Drive/Dropbox)</span></label><input id="fc-linha" value="'+escH(f.linhaEditorial||'')+'" placeholder="Cole o link do documento"></div>'
     +'<div class="fg"><label>🧭 Linha editorial — resumo para a IA <span style="font-weight:400;color:#7C3AED">(tom de voz, temas, o que pode/não pode)</span></label><textarea id="fc-linha-txt" rows="4" style="width:100%;resize:vertical" placeholder="Ex: Tom profissional e acolhedor. Temas: liderança, RH, cultura. Evitar: política, humor forçado. Público: gestores de RH.">'+escH(f.linhaEditorialTexto||'')+'</textarea></div>'
     +'<div class="fg"><label>📁 Pasta de artes e materiais <span style="font-weight:400;color:#94A3B8">(link)</span></label><input id="fc-pasta" value="'+escH(f.pastaArtes||'')+'" placeholder="Cole o link da pasta"></div>'
-    +'<div style="margin-top:4px;padding-top:12px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:800;color:#EC4899;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">🎨 Recursos para a IA de arte</div>'
-    +'<div style="font-size:11px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:7px 10px;margin-bottom:10px">Pode ser o link de uma <b>imagem</b> ou de uma <b>pasta</b> do Google Drive (a IA pega as imagens de dentro). ⚠️ O arquivo/pasta precisa estar <b>público</b>: Compartilhar → "Qualquer pessoa com o link". Link do Trello não funciona (não é imagem).</div>'
-    +'<div class="fg"><label>🖼️ Fotos do cliente <span style="font-weight:400;color:#94A3B8">(um link por linha)</span></label><textarea id="fc-fotos" rows="3" style="width:100%;resize:vertical" placeholder="Link de uma foto OU de uma pasta do Drive com as fotos">'+escH((f.fotosCliente||[]).join('\n'))+'</textarea></div>'
-    +'<div class="fg"><label>📐 Modelos / referências de estilo <span style="font-weight:400;color:#94A3B8">(um link por linha)</span></label><textarea id="fc-modelos" rows="3" style="width:100%;resize:vertical" placeholder="Link de uma imagem-modelo OU pasta do Drive com os modelos">'+escH((f.modelosArte||[]).join('\n'))+'</textarea></div>'
-    +'<div class="fg"><label>🔷 Logo do cliente <span style="font-weight:400;color:#94A3B8">(link de UMA imagem, de preferência PNG com fundo transparente)</span></label><input id="fc-logo" value="'+escH(f.logoLink||'')+'" placeholder="Cole o link da logo (público)"></div></div>'
     +'<div class="fg"><label>📝 Observações gerais</label><textarea id="fc-obs" rows="3" style="width:100%;resize:vertical" placeholder="Qualquer detalhe importante do cliente">'+escH(f.obs||'')+'</textarea></div>'
     +'</div>'
     +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'ficha-overlay\').remove()">Cancelar</button><button class="btn btn-p" onclick="contFichaSave(\''+cid+'\')">💾 Salvar ficha</button></div>'
@@ -1994,7 +1985,7 @@ function contFichaSave(cid){
   var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
   var redes=[];if(document.getElementById('fc-linkedin').checked)redes.push('LinkedIn');if(document.getElementById('fc-instagram').checked)redes.push('Instagram');
   var parseLinks=function(id){return g(id).split('\n').map(function(s){return s.trim();}).filter(Boolean);};
-  _conteudos(c).ficha={horarioDias:g('fc-horario'),frequencia:g('fc-freq'),redes:redes,linhaEditorial:g('fc-linha'),linhaEditorialTexto:g('fc-linha-txt'),pastaArtes:g('fc-pasta'),fotosCliente:parseLinks('fc-fotos'),modelosArte:parseLinks('fc-modelos'),logoLink:g('fc-logo'),obs:g('fc-obs')};
+  _conteudos(c).ficha={horarioDias:g('fc-horario'),frequencia:g('fc-freq'),redes:redes,linhaEditorial:g('fc-linha'),linhaEditorialTexto:g('fc-linha-txt'),pastaArtes:g('fc-pasta'),obs:g('fc-obs')};
   save();var ov=document.getElementById('ficha-overlay');if(ov)ov.remove();if(typeof toast==='function')toast('✅ Ficha salva!');render();
 }
 
@@ -4503,6 +4494,8 @@ function saveWeekMsg(cid,wk){
 function _campAgg(c,match){
   const rS=[],aS=[],ins=[];
   (c.campaigns||[]).forEach(function(cp){
+    // não contar campanhas pausadas/encerradas/inativas na média de taxas
+    if(/pausad|encerrad|inativ|finaliz|arquivad/i.test(((cp.status||'')+' '+(cp.name||''))))return;
     _campHist(cp).forEach(function(m){
       if(!m.date||!match(m.date))return;
       const r=parseFloat(m.respRate);if(!isNaN(r))rS.push(r);
@@ -7485,7 +7478,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072909; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072910; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
