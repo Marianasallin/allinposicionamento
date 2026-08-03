@@ -1429,12 +1429,12 @@ function _relResultadosForm(c){
     +'<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🎯 Prospecção — '+mk+' <span style="font-weight:400;text-transform:none">(automático — leads + medição da aba Campanhas'+(pm.measDate?', última em '+(function(d){var x=new Date(d+"T12:00:00");return isNaN(x)?d:x.toLocaleDateString("pt-BR");})(pm.measDate):'')+')</span></div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px;margin-bottom:18px">'
     +stat('Leads',pm.leads)
-    +stat('Mensagens',pm.mensagens!=null?pm.mensagens:'—')
     +stat('Taxa resp. média',pm.respAvg!=null?pm.respAvg+'%':'—')
     +stat('Taxa aceit. média',pm.accAvg!=null?pm.accAvg+'%':'—')
     +'</div>'
-    +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">📈 Seguidores — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Social Seller)</span></div>'
-    +'<div class="fg" style="max-width:240px;margin-bottom:16px"><label>Nº de seguidores no mês</label><input type="number" id="rr-followers" value="'+val(mm.followers)+'" placeholder="ex.: 16124"></div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">📈 Seguidores e mensagens — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Social Seller — aparece pro cliente)</span></div>'
+    +'<div class="fgrid" style="max-width:480px;margin-bottom:16px"><div class="fg"><label>Nº de seguidores no mês</label><input type="number" id="rr-followers" value="'+val(mm.followers)+'" placeholder="ex.: 16124"></div>'
+    +'<div class="fg"><label>Nº de mensagens enviadas</label><input type="number" id="rr-mensagens" value="'+val(mm.mensagensEnviadas)+'" placeholder="ex.: 320"></div></div>'
     +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">✍️ Conteúdo — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Conteúdo — Gabi/Naiara)</span></div>'
     +'<div class="fgrid" style="margin-bottom:12px">'
     +'<div class="fg"><label>Publicações</label><input type="number" id="rr-pub" value="'+val(mm.publicacoes)+'"></div>'
@@ -1455,7 +1455,7 @@ function saveMonthlyMetrics(cid,mk){
   const c=D.clients.find(x=>x.id===cid);if(!c)return;
   if(!c.monthlyMetrics)c.monthlyMetrics={};
   const num=function(id){var el=$(id);if(!el)return null;var v=(el.value||'').trim();if(v==='')return null;v=v.replace(/\./g,'').replace(',','.');var n=parseFloat(v);return isNaN(n)?null:n;};
-  c.monthlyMetrics[mk]={followers:num('rr-followers'),publicacoes:num('rr-pub'),impressoes:num('rr-imp'),alcance:num('rr-alc'),visualizacoes:num('rr-vis')};
+  c.monthlyMetrics[mk]={followers:num('rr-followers'),mensagensEnviadas:num('rr-mensagens'),publicacoes:num('rr-pub'),impressoes:num('rr-imp'),alcance:num('rr-alc'),visualizacoes:num('rr-vis')};
   save();if(typeof toast==='function')toast('💾 Métricas de '+mk+' salvas — já subiram pro portal!');render();
 }
 function rDetailResultados(c){
@@ -1523,8 +1523,10 @@ function showFechamentos(cid,monthKey){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
   document.body.appendChild(ov);
 }
-// ── COMISSÕES (só Gestão): fechamentos + marcar se já foi faturado ──
+// ── COMISSÕES (só Gestão): fechamentos, % da comissão, aplica ou não, e faturado ──
 function markFaturado(cid,pid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var p=(c.prospects||[]).find(function(x){return x.id===pid;});if(!p)return;p.faturado=!!val;if(val)p.faturadoAt=Date.now();else delete p.faturadoAt;save();render();}
+function markComissaoAplica(cid,pid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var p=(c.prospects||[]).find(function(x){return x.id===pid;});if(!p)return;p.comAplica=!!val;save();render();}
+function setComissaoPct(cid,pid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var p=(c.prospects||[]).find(function(x){return x.id===pid;});if(!p)return;var n=parseFloat((''+val).replace(',','.'));p.comPct=isNaN(n)?null:n;save();render();}
 function rComissoes(){
   const ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const mkOf=function(ds){if(!ds)return'';var d=new Date(ds+'T12:00:00');return isNaN(d)?'':ptM[d.getMonth()]+' '+d.getFullYear();};
@@ -1533,7 +1535,8 @@ function rComissoes(){
   D.clients.forEach(function(c){
     if(c.contractStatus==='inativo')return;
     (c.prospects||[]).forEach(function(p){
-      if(p.contractClosed){items.push({cid:c.id,client:c.name,pid:p.id,lead:p.name||'—',valor:_parseMoney(p.contractValue),valorStr:p.contractValue||'',closed:p.closedDate||p.date||'',mk:mkOf(p.closedDate||p.date),faturado:!!p.faturado});}
+      if(p.contractClosed){var aplica=p.comAplica!==false;var pct=(p.comPct!=null&&p.comPct!=='')?Number(p.comPct):null;var valor=_parseMoney(p.contractValue);
+        items.push({cid:c.id,client:c.name,pid:p.id,lead:p.name||'—',valor:valor,closed:p.closedDate||p.date||'',mk:mkOf(p.closedDate||p.date),faturado:!!p.faturado,aplica:aplica,pct:pct,comissao:aplica&&pct!=null?valor*pct/100:0});}
     });
   });
   const meses=['todos'].concat([...new Set(items.map(function(i){return i.mk;}).filter(Boolean))].sort(function(a,b){var A=a.split(' '),B=b.split(' ');return (parseInt(B[1])*12+ptM.indexOf(B[0]))-(parseInt(A[1])*12+ptM.indexOf(A[0]));}));
@@ -1541,36 +1544,45 @@ function rComissoes(){
   const fSt=S.comStatus||'todos';
   let list=items.slice();
   if(fMes!=='todos')list=list.filter(function(i){return i.mk===fMes;});
-  if(fSt==='faturado')list=list.filter(function(i){return i.faturado;});
-  else if(fSt==='afaturar')list=list.filter(function(i){return !i.faturado;});
+  if(fSt==='faturado')list=list.filter(function(i){return i.aplica&&i.faturado;});
+  else if(fSt==='afaturar')list=list.filter(function(i){return i.aplica&&!i.faturado;});
+  else if(fSt==='naoaplica')list=list.filter(function(i){return !i.aplica;});
   list.sort(function(a,b){return (''+b.closed).localeCompare(''+a.closed);});
-  const totV=list.reduce(function(s,i){return s+i.valor;},0);
-  const fat=list.filter(function(i){return i.faturado;});const afat=list.filter(function(i){return !i.faturado;});
-  const fatV=fat.reduce(function(s,i){return s+i.valor;},0);const afatV=afat.reduce(function(s,i){return s+i.valor;},0);
   const money=function(v){return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  const comAll=list.filter(function(i){return i.aplica;});
+  const comTot=comAll.reduce(function(s,i){return s+i.comissao;},0);
+  const comFat=comAll.filter(function(i){return i.faturado;}).reduce(function(s,i){return s+i.comissao;},0);
+  const comAfat=comAll.filter(function(i){return !i.faturado;}).reduce(function(s,i){return s+i.comissao;},0);
   const mChips=meses.map(function(m){return '<span class="fc '+(fMes===m?'active':'')+'" onclick="S.comMonth=\''+m+'\';render()" style="font-size:11px">'+(m==='todos'?'Todos os meses':m)+'</span>';}).join('');
-  const sChips=[['todos','Todos'],['afaturar','⏳ A faturar'],['faturado','✅ Faturados']].map(function(o){return '<span class="fc '+(fSt===o[0]?'active':'')+'" onclick="S.comStatus=\''+o[0]+'\';render()" style="font-size:11px">'+o[1]+'</span>';}).join('');
+  const sChips=[['todos','Todos'],['afaturar','⏳ A faturar'],['faturado','✅ Faturados'],['naoaplica','🚫 Sem comissão']].map(function(o){return '<span class="fc '+(fSt===o[0]?'active':'')+'" onclick="S.comStatus=\''+o[0]+'\';render()" style="font-size:11px">'+o[1]+'</span>';}).join('');
   const rows=list.map(function(i){
-    return '<tr>'
-      +'<td style="padding:8px 10px;border-bottom:1px solid #eee;font-weight:600">'+escH(i.client)+'</td>'
-      +'<td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px">'+escH(i.lead)+'</td>'
-      +'<td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;text-align:right;color:#16A34A;font-weight:600">'+(i.valor?money(i.valor):'—')+'</td>'
-      +'<td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px">'+fd(i.closed)+'</td>'
-      +'<td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:'+(i.faturado?'#16A34A':'#B45309')+'"><input type="checkbox" '+(i.faturado?'checked':'')+' onchange="markFaturado(\''+i.cid+'\',\''+i.pid+'\',this.checked)" style="width:16px;height:16px"> '+(i.faturado?'Faturado':'A faturar')+'</label></td>'
+    const tdb='padding:8px 10px;border-bottom:1px solid #eee';
+    return '<tr style="'+(i.aplica?'':'opacity:.55')+'">'
+      +'<td style="'+tdb+';font-weight:600">'+escH(i.client)+'</td>'
+      +'<td style="'+tdb+';font-size:13px">'+escH(i.lead)+'</td>'
+      +'<td style="'+tdb+';font-size:13px;text-align:right;color:#16A34A;font-weight:600">'+(i.valor?money(i.valor):'—')+'</td>'
+      +'<td style="'+tdb+';font-size:12px">'+fd(i.closed)+'</td>'
+      +'<td style="'+tdb+';text-align:center"><label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:'+(i.aplica?'#0D3D9B':'#94A3B8')+'"><input type="checkbox" '+(i.aplica?'checked':'')+' onchange="markComissaoAplica(\''+i.cid+'\',\''+i.pid+'\',this.checked)" style="width:15px;height:15px"> '+(i.aplica?'Aplica':'Não')+'</label></td>'
+      +'<td style="'+tdb+';text-align:center">'+(i.aplica?'<input type="number" value="'+(i.pct!=null?i.pct:'')+'" onchange="setComissaoPct(\''+i.cid+'\',\''+i.pid+'\',this.value)" placeholder="%" style="width:56px;padding:5px 6px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;text-align:center">':'—')+'</td>'
+      +'<td style="'+tdb+';font-size:13px;text-align:right;font-weight:700;color:#7C3AED">'+(i.aplica&&i.pct!=null?money(i.comissao):'—')+'</td>'
+      +'<td style="'+tdb+';text-align:center">'+(i.aplica?'<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:'+(i.faturado?'#16A34A':'#B45309')+'"><input type="checkbox" '+(i.faturado?'checked':'')+' onchange="markFaturado(\''+i.cid+'\',\''+i.pid+'\',this.checked)" style="width:15px;height:15px"> '+(i.faturado?'Faturado':'A faturar')+'</label>':'—')+'</td>'
       +'</tr>';
   }).join('');
   return '<div class="sh" style="margin-bottom:14px"><h2>🤝 Comissões</h2></div>'
-    +'<div style="font-size:12px;color:var(--muted);margin-bottom:14px">Todos os fechamentos. Marque o que a Mari já faturou para acompanhar a comissão.</div>'
-    +'<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">'
-    +'<div class="res-card"><div class="res-num" style="color:#0D3D9B">'+list.length+'</div><div class="res-lbl">Fechamentos '+(fMes==='todos'?'(total)':'('+fMes+')')+'</div></div>'
-    +'<div class="res-card"><div class="res-num" style="color:#16A34A;font-size:20px">'+money(fatV)+'</div><div class="res-lbl">✅ Faturado ('+fat.length+')</div></div>'
-    +'<div class="res-card"><div class="res-num" style="color:#B45309;font-size:20px">'+money(afatV)+'</div><div class="res-lbl">⏳ A faturar ('+afat.length+')</div></div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:14px">Marque quais fechamentos têm comissão (<b>Aplica</b>), coloque a <b>%</b> da Mari, e vá marcando o que já foi <b>faturado</b>.</div>'
+    +'<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">'
+    +'<div class="res-card"><div class="res-num" style="color:#0D3D9B">'+comAll.length+'</div><div class="res-lbl">Com comissão '+(fMes==='todos'?'':'('+fMes+')')+'</div></div>'
+    +'<div class="res-card"><div class="res-num" style="color:#7C3AED;font-size:19px">'+money(comTot)+'</div><div class="res-lbl">Comissão total</div></div>'
+    +'<div class="res-card"><div class="res-num" style="color:#16A34A;font-size:19px">'+money(comFat)+'</div><div class="res-lbl">✅ Faturada</div></div>'
+    +'<div class="res-card"><div class="res-num" style="color:#B45309;font-size:19px">'+money(comAfat)+'</div><div class="res-lbl">⏳ A faturar</div></div>'
     +'</div>'
     +'<div class="filter-bar" style="margin-bottom:8px"><strong style="font-size:11px;color:var(--muted);align-self:center">Mês:</strong>'+mChips+'</div>'
     +'<div class="filter-bar" style="margin-bottom:14px"><strong style="font-size:11px;color:var(--muted);align-self:center">Status:</strong>'+sChips+'</div>'
     +'<div class="card"><div class="tw"><table style="width:100%;border-collapse:collapse">'
-    +'<thead><tr><th style="text-align:left;padding:8px 10px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B">Cliente</th><th style="text-align:left;padding:8px 10px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B">Lead</th><th style="text-align:right;padding:8px 10px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B">Valor</th><th style="text-align:left;padding:8px 10px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B">Fechamento</th><th style="text-align:center;padding:8px 10px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B">Faturado?</th></tr></thead>'
-    +'<tbody>'+(rows||'<tr><td colspan="5" style="padding:24px;text-align:center;color:#94A3B8">Nenhum fechamento neste filtro.</td></tr>')+'</tbody></table></div></div>';
+    +'<thead><tr>'
+    +['Cliente','Lead','Valor','Fechamento','Aplica?','%','Comissão','Faturado?'].map(function(h,idx){return '<th style="text-align:'+(idx===2||idx===6?'right':(idx>=4?'center':'left'))+';padding:8px 10px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B">'+h+'</th>';}).join('')
+    +'</tr></thead>'
+    +'<tbody>'+(rows||'<tr><td colspan="8" style="padding:24px;text-align:center;color:#94A3B8">Nenhum fechamento neste filtro.</td></tr>')+'</tbody></table></div></div>';
 }
 function rDetailProspeccao(c){
   try{
@@ -7338,7 +7350,7 @@ function rPortalRelatorios(c){
   const chrono=months.slice().reverse();
   const evoDefs=[
     {lbl:'Seguidores',get:function(r){var mm=mmOf(r.month);return has(mm.followers)?Number(mm.followers).toLocaleString('pt-BR'):'—';}},
-    {lbl:'Mensagens',get:function(r){var p=_prospMetricsMonth(c,r.month);return p.mensagens!=null?Number(p.mensagens).toLocaleString('pt-BR'):'—';}},
+    {lbl:'Mensagens enviadas',get:function(r){var mm=mmOf(r.month);return has(mm.mensagensEnviadas)?Number(mm.mensagensEnviadas).toLocaleString('pt-BR'):'—';}},
     {lbl:'Leads',get:function(r){return r.prospects||0;}},
     {lbl:'SSI',get:function(r){var p=_prospMetricsMonth(c,r.month);return p.ssi!=null?p.ssi:'—';}}
   ];
@@ -7354,14 +7366,10 @@ function rPortalRelatorios(c){
       +mini(r.prospects,'👥 Leads','#0D3D9B','#F8FAFF')
       +mini(r.leads,'💬 Responderam','#7C3AED','#F5F3FF')
       +mini(r.meetings,'🤝 Reuniões','#EA580C','#FFF7ED')
-      +mini(r.sales,'✅ Fechamentos','#16A34A','#F0FDF4')
+      +(r.sales>0?'<div onclick="showFechamentos(\''+c.id+'\',\''+mk+'\')" style="cursor:pointer" title="Ver quais fecharam">'+mini(r.sales,'✅ Fechamentos ↗','#16A34A','#F0FDF4')+'</div>':mini(r.sales,'✅ Fechamentos','#16A34A','#F0FDF4'))
       +mini(pm.accAvg!=null?pm.accAvg+'%':'—','Taxa aceitação média','#0D3D9B','#F8FAFF')
       +mini(pm.respAvg!=null?pm.respAvg+'%':'—','Taxa resposta média','#0D3D9B','#F8FAFF')
-      +(pm.mensagens!=null?mini(Number(pm.mensagens).toLocaleString('pt-BR'),'Mensagens','#0D3D9B','#F8FAFF'):'')
-      +(pm.convites!=null?mini(Number(pm.convites).toLocaleString('pt-BR'),'Convites','#0D3D9B','#F8FAFF'):'')
-      +(pm.seguir!=null?mini(Number(pm.seguir).toLocaleString('pt-BR'),'Seguir','#0D3D9B','#F8FAFF'):'')
-      +(pm.visitas!=null?mini(Number(pm.visitas).toLocaleString('pt-BR'),'Visitar','#0D3D9B','#F8FAFF'):'')
-      +(pm.ssi!=null?mini(pm.ssi,'SSI','#0D3D9B','#F8FAFF'):'')
+      +(has(mm.mensagensEnviadas)?mini(Number(mm.mensagensEnviadas).toLocaleString('pt-BR'),'✉️ Mensagens enviadas','#0D3D9B','#F8FAFF'):'')
       +'</div>';
     const contHtml=temConteudo?('<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin:4px 0 8px">✍️ Conteúdo e alcance</div>'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px;margin-bottom:14px">'
@@ -7547,7 +7555,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072911; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072912; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
