@@ -6971,7 +6971,7 @@ function rPortalProspeccao(c){
   const pros=(c.prospects||[]).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
   const total=pros.length;
   const _mn=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  const monthsSet={};pros.forEach(function(p){if(p.date)monthsSet[p.date.slice(0,7)]=true;});
+  const monthsSet={};pros.forEach(function(p){if(p.date)monthsSet[p.date.slice(0,7)]=true;if(p.contractClosed&&p.closedDate)monthsSet[p.closedDate.slice(0,7)]=true;});
   const monthOpts=['<option value="">Todos os meses</option>'].concat(Object.keys(monthsSet).sort().reverse().map(function(ym){var pa=ym.split('-');return '<option value="'+ym+'">'+(_mn[(+pa[1])-1]||'')+' '+pa[0]+'</option>';})).join('');
   const cnt=_plCounts(c);
   function _chip(stage,label,n,active){return '<span class="pl-chip'+(active?' pl-chip-active':'')+'" data-stage="'+stage+'" onclick="portalSetLeadStage(\''+stage+'\',this)" style="cursor:pointer;font-size:12px;padding:5px 11px;border-radius:99px;background:'+(active?'#0D3D9B':'#F1F5F9')+';color:'+(active?'#fff':'#475569')+'">'+label+' <span id="plcnt-'+stage+'">'+n+'</span></span>';}
@@ -6979,7 +6979,7 @@ function rPortalProspeccao(c){
   const rows=pros.map(function(p){
     var dateStr=p.date?new Date(p.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}):'';
     var ini=(p.name||'?').split(' ').filter(function(x){return x;}).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();
-    return '<div class="pl-row-wrap" id="plw-'+p.id+'" data-name="'+escH((p.name||'').toLowerCase())+'" data-month="'+(p.date?p.date.slice(0,7):'')+'" data-replied="'+(p.replied?1:0)+'" data-noreply="'+(p.noReply?1:0)+'" data-fu1="'+(p.followUp1?1:0)+'" data-fu2="'+(p.followUp2?1:0)+'" data-meeting="'+(p.hadMeeting?1:0)+'" data-closed="'+(p.contractClosed?1:0)+'" style="border-bottom:1px solid #F1F5F9">'
+    return '<div class="pl-row-wrap" id="plw-'+p.id+'" data-name="'+escH((p.name||'').toLowerCase())+'" data-month="'+(p.date?p.date.slice(0,7):'')+'" data-fechmonth="'+((p.contractClosed&&(p.closedDate||p.date))?(p.closedDate||p.date).slice(0,7):'')+'" data-replied="'+(p.replied?1:0)+'" data-noreply="'+(p.noReply?1:0)+'" data-fu1="'+(p.followUp1?1:0)+'" data-fu2="'+(p.followUp2?1:0)+'" data-meeting="'+(p.hadMeeting?1:0)+'" data-closed="'+(p.contractClosed?1:0)+'" style="border-bottom:1px solid #F1F5F9">'
       +'<div onclick="portalToggleLead(\''+p.id+'\')" style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer">'
         +'<div style="width:34px;height:34px;border-radius:50%;background:#EEF2FF;color:#0D3D9B;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">'+ini+'</div>'
         +'<div style="flex:1;min-width:0">'
@@ -7025,7 +7025,7 @@ function portalApplyLeadFilters(){
   for(var i=0;i<rows.length;i++){
     var w=rows[i];
     var okS = stage==='todos'?true:stage==='aguardando'?(w.dataset.replied==='0'&&w.dataset.noreply==='0'&&w.dataset.closed==='0'&&w.dataset.meeting==='0'):stage==='semresposta'?(w.dataset.noreply==='1'&&w.dataset.replied==='0'&&w.dataset.closed==='0'&&w.dataset.meeting==='0'):stage==='responderam'?(w.dataset.replied==='1'):stage==='fup1'?(w.dataset.fu1==='1'):stage==='fup2'?(w.dataset.fu2==='1'):stage==='reuniao'?(w.dataset.meeting==='1'):stage==='fechados'?(w.dataset.closed==='1'):true;
-    var okM = !month||w.dataset.month===month;
+    var okM = !month||(stage==='fechados'?w.dataset.fechmonth===month:w.dataset.month===month);
     var okQ = !q||(w.dataset.name||'').indexOf(q)>-1;
     var show=okS&&okM&&okQ;w.style.display=show?'':'none';if(show)vis++;
   }
@@ -7558,7 +7558,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072913; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072914; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
