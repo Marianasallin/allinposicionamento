@@ -872,6 +872,13 @@ function nav(view,extra={}){
   render();
 }
 function render(){
+  // Portal do Designer (login separado)
+  if(S.isDesignerPortal){
+    var _sb=document.getElementById('sidebar');if(_sb)_sb.style.display='none';
+    var _tb=document.querySelector('.topbar');if(_tb)_tb.style.display='none';
+    var _mn=document.getElementById('main');if(_mn){_mn.style.marginLeft='0';_mn.style.minHeight='100vh';}
+    return $('view').innerHTML=(S.designerUser?rDesignerPortal():rDesignerLogin());
+  }
   // Handle client portal authentication
   if(S.isClientPortal){
     if(S.authenticatedClientId){return $('view').innerHTML=rClientPortalAuth();}
@@ -1799,6 +1806,78 @@ function _contStMeta(s){for(var i=0;i<CONT_ST.length;i++)if(CONT_ST[i][0]===s)re
 function _conteudos(c){if(!c.conteudos)c.conteudos={ficha:{},cards:[]};if(!c.conteudos.ficha)c.conteudos.ficha={};if(!Array.isArray(c.conteudos.cards))c.conteudos.cards=[];return c.conteudos;}
 function _isGP(c){return (c.products||[]).includes('Gestão de Perfil');}
 function _gpClients(){return D.clients.filter(function(c){return _isGP(c)&&c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado';}).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});}
+// ══════════ PORTAL DO DESIGNER (login separado) ══════════
+function _designerSenha(name){var s=(D.designerSenhas||{})[name];return (s&&(''+s).trim())?(''+s).trim():({'Marcos':'marcos','Karine':'karine'}[name]||'');}
+function designerLogin(name){var el=document.getElementById('dlog-senha');var senha=el?el.value:'';if((''+senha).trim()!==_designerSenha(name)){S.dlogErr='Senha incorreta.';render();return;}S.designerUser=name;S.dlogErr='';try{sessionStorage.setItem('designerAuth',name);}catch(e){}render();}
+function designerLogout(){S.designerUser=null;S.dlogPick='';try{sessionStorage.removeItem('designerAuth');}catch(e){}render();}
+function rDesignerLogin(){
+  var wrap=function(inner){return '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#F1F5F9;font-family:system-ui,sans-serif"><div style="background:#fff;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.12);width:100%;max-width:380px;overflow:hidden">'
+    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:26px 24px;text-align:center;color:#fff"><div style="font-size:34px">🎨</div><div style="font-size:17px;font-weight:700;margin-top:6px">Portal do Designer</div><div style="font-size:12px;opacity:.85">ALL IN</div></div>'
+    +'<div style="padding:24px">'+inner+'</div></div></div>';};
+  if(!S.dlogPick){
+    return wrap('<div style="font-size:13px;color:#475569;text-align:center;margin-bottom:16px">Quem é você?</div>'
+      +_DESIGNERS.map(function(n){return '<button onclick="S.dlogPick=\''+n+'\';S.dlogErr=\'\';render()" style="width:100%;display:flex;align-items:center;gap:12px;padding:14px 16px;margin-bottom:10px;border:1px solid #E5E7EB;border-radius:12px;background:#F8FAFC;cursor:pointer;font-size:15px;font-weight:600;color:#0D3D9B"><span style="width:36px;height:36px;border-radius:50%;background:#0D3D9B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px">'+escH(n.slice(0,2).toUpperCase())+'</span>'+escH(n)+'</button>';}).join(''));
+  }
+  return wrap('<div style="text-align:center;margin-bottom:14px"><div style="width:52px;height:52px;border-radius:50%;background:#0D3D9B;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:18px;font-weight:700">'+escH(S.dlogPick.slice(0,2).toUpperCase())+'</div><div style="font-size:15px;font-weight:700;margin-top:8px;color:#1E293B">Olá, '+escH(S.dlogPick)+'!</div><div style="font-size:12px;color:#64748B">Digite sua senha</div></div>'
+    +'<input id="dlog-senha" type="password" placeholder="Senha" onkeydown="if(event.key===\'Enter\')designerLogin(\''+escH(S.dlogPick)+'\')" style="width:100%;padding:12px 14px;border:1px solid #E5E7EB;border-radius:10px;font-size:15px;box-sizing:border-box;margin-bottom:'+(S.dlogErr?'6px':'12px')+'">'
+    +(S.dlogErr?'<div style="font-size:12px;color:#DC2626;margin-bottom:12px">'+escH(S.dlogErr)+'</div>':'')
+    +'<button onclick="designerLogin(\''+escH(S.dlogPick)+'\')" style="width:100%;padding:12px;border:none;border-radius:10px;background:#0D3D9B;color:#fff;font-size:15px;font-weight:600;cursor:pointer">Entrar</button>'
+    +'<div onclick="S.dlogPick=\'\';S.dlogErr=\'\';render()" style="text-align:center;margin-top:12px;font-size:12px;color:#64748B;cursor:pointer">← trocar de pessoa</div>');
+}
+function rDesignerPortal(){
+  var name=S.designerUser;
+  var items=[];
+  _gpClients().forEach(function(c){(_conteudos(c).cards||[]).forEach(function(card){if(card.designer===name)items.push({c:c,card:card});});});
+  // contadores do artLog
+  var hoje=new Date();var hojeKey=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
+  var log=(D.artLog||[]).filter(function(l){return l.by===name;});
+  var artesHoje=log.filter(function(l){var d=new Date(l.at);var k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');return k===hojeKey;}).reduce(function(s,l){return s+(l.qty||0);},0);
+  var artesTotal=log.reduce(function(s,l){return s+(l.qty||0);},0);
+  // filtros
+  var fCli=S.dpClient||'todos';var fSt=S.dpStatus||'todos';
+  var clientes=['todos'].concat([...new Set(items.map(function(i){return i.c.name;}))].sort());
+  var list=items.filter(function(i){
+    if(fCli!=='todos'&&i.c.name!==fCli)return false;
+    var tem=_cardImgs(i.card).length>0;
+    if(fSt==='afazer'&&tem)return false;
+    if(fSt==='feitas'&&!tem)return false;
+    return true;
+  });
+  // pendentes primeiro, depois por data
+  list.sort(function(a,b){var ta=_cardImgs(a.card).length>0?1:0,tb=_cardImgs(b.card).length>0?1:0;if(ta!==tb)return ta-tb;return (''+(a.card.date||'9999')).localeCompare(''+(b.card.date||'9999'));});
+  var pend=items.filter(function(i){return !_cardImgs(i.card).length;}).length;
+  var chip=function(v,l,cur,key){return '<span onclick="S.'+key+'=\''+v+'\';render()" style="cursor:pointer;font-size:12px;padding:5px 12px;border-radius:99px;background:'+(cur===v?'#0D3D9B':'#F1F5F9')+';color:'+(cur===v?'#fff':'#475569')+'">'+l+'</span>';};
+  var cards=list.map(function(i){
+    var c=i.c,card=i.card;var f=_conteudos(c).ficha||{};
+    var imgs=_cardImgs(card);var tem=imgs.length>0;
+    var dateStr=card.date?fmtDate(card.date+'T12:00:00'):'';
+    var fmt=_contFmtBadge(card.formato);
+    var pasta=_validUrl(f.pastaArtes);
+    var linha=(f.linhaEditorialTexto||'').trim();
+    return '<div style="background:#fff;border:1px solid '+(tem?'#BBF7D0':'#E5E7EB')+';border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:11px;font-weight:700;background:#EFF6FF;color:#0D3D9B;border-radius:99px;padding:3px 10px">'+escH(c.name)+'</span>'+(tem?'<span style="font-size:11px;color:#16A34A;font-weight:700">✅ enviada</span>':'<span style="font-size:11px;color:#B45309;font-weight:700">⏳ pendente</span>')+'</div>'
+      +'<div style="font-size:15px;font-weight:600;color:#1E293B;line-height:1.35;margin-bottom:8px">'+escH(card.title||'(sem título)')+'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">'+fmt+(dateStr?'<span style="font-size:12px;font-weight:700;color:#0D3D9B;background:#EFF6FF;border-radius:8px;padding:3px 9px">📅 '+dateStr+'</span>':'')+'</div>'
+      +(linha?'<div style="font-size:11px;font-weight:700;color:#7C3AED;margin-bottom:2px">🧭 Linha editorial</div><div style="font-size:12px;color:#475569;white-space:pre-wrap;background:#FAFAFF;border:1px solid #EEF;border-radius:8px;padding:8px 10px;margin-bottom:10px;max-height:120px;overflow:auto">'+escH(linha)+'</div>':'')
+      +(card.caption?'<div style="font-size:11px;font-weight:700;color:#0891B2;margin-bottom:2px">📝 Legenda</div><div style="font-size:12px;color:#334155;white-space:pre-wrap;background:#F0FDFF;border:1px solid #CFF;border-radius:8px;padding:8px 10px;margin-bottom:10px;max-height:140px;overflow:auto">'+escH(card.caption)+'</div>':'')
+      +(pasta?'<div style="margin-bottom:10px"><a href="'+escH(pasta)+'" target="_blank" style="font-size:12px;color:#0369A1;text-decoration:none;font-weight:600">📁 Materiais e fotos do cliente ↗</a></div>':'')
+      +(tem?'<div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:10px">'+imgs.map(function(it){return '<img src="'+escH(it.url||it.bg||'')+'" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid #E5E7EB;flex:0 0 auto">';}).join('')+'</div>':'')
+      +'<button onclick="contArteAdd(\''+c.id+'\',\''+card.id+'\',\''+escH(name)+'\')" style="width:100%;padding:11px;border:none;border-radius:10px;background:'+(tem?'#F1F5F9;color:#0D3D9B':'linear-gradient(135deg,#0D3D9B,#0891B2);color:#fff')+';font-size:14px;font-weight:600;cursor:pointer">'+(tem?'🔄 Trocar / adicionar arte':'📤 Subir arte')+'</button>'
+      +'</div>';
+  }).join('');
+  return '<div style="min-height:100vh;background:#F1F5F9;font-family:system-ui,sans-serif">'
+    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:16px;font-weight:700">🎨 Portal do Designer</div><div style="font-size:12px;opacity:.9">Olá, '+escH(name)+'</div></div><button onclick="designerLogout()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer">Sair</button></div>'
+    +'<div style="max-width:720px;margin:0 auto;padding:16px 16px 60px">'
+    +'<div style="display:flex;gap:10px;margin-bottom:16px">'
+    +'<div style="flex:1;background:#fff;border-radius:12px;padding:12px;text-align:center;border:1px solid #E5E7EB"><div style="font-size:22px;font-weight:800;color:#B45309">'+pend+'</div><div style="font-size:11px;color:#64748B">Artes pendentes</div></div>'
+    +'<div style="flex:1;background:#fff;border-radius:12px;padding:12px;text-align:center;border:1px solid #E5E7EB"><div style="font-size:22px;font-weight:800;color:#0D3D9B">'+artesHoje+'</div><div style="font-size:11px;color:#64748B">Enviadas hoje</div></div>'
+    +'<div style="flex:1;background:#fff;border-radius:12px;padding:12px;text-align:center;border:1px solid #E5E7EB"><div style="font-size:22px;font-weight:800;color:#16A34A">'+artesTotal+'</div><div style="font-size:11px;color:#64748B">Total enviadas</div></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><span style="font-size:11px;color:#94A3B8;align-self:center">Status:</span>'+chip('todos','Todos',fSt,'dpStatus')+chip('afazer','⏳ A fazer',fSt,'dpStatus')+chip('feitas','✅ Feitas',fSt,'dpStatus')+'</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"><span style="font-size:11px;color:#94A3B8;align-self:center">Cliente:</span>'+clientes.map(function(cl){return chip(cl,cl==='todos'?'Todos':cl,fCli,'dpClient');}).join('')+'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:12px">'+(cards||'<div style="text-align:center;color:#94A3B8;padding:40px;background:#fff;border-radius:12px">Nenhum tema atribuído a você neste filtro.</div>')+'</div>'
+    +'</div></div>';
+}
 function _validUrl(u){u=(u||'').trim();if(!u)return '';return /^https?:\/\//i.test(u)?u:('https://'+u);}
 
 // ── Card de conteúdo (arrastável) ──
@@ -1925,9 +2004,28 @@ function contFichaToggle(){S.contFichaOpen=!S.contFichaOpen;render();}
 function contFichaLinhaToggle(){S.contFichaLinhaOpen=!S.contFichaLinhaOpen;render();}
 
 // ── View principal ──
+function saveDesignerSenha(name,val){if(!D.designerSenhas)D.designerSenhas={};D.designerSenhas[name]=(''+val).trim();save();}
+function openDesignersModal(){
+  var link=window.location.origin+window.location.pathname+'#designer';
+  var ov=document.createElement('div');ov.id='desg-modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🎨 Designers</h3><button onclick="document.getElementById(\'desg-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:20px">'
+    +'<div style="font-size:12px;color:#475569;margin-bottom:14px">Cada designer entra com o próprio nome e senha. Marque o designer no tema (campo 🎨) para o trabalho aparecer pra ele.</div>'
+    +_DESIGNERS.map(function(n){return '<div class="fg" style="margin-bottom:10px"><label>Senha de '+escH(n)+'</label><input value="'+escH(_designerSenha(n))+'" onchange="saveDesignerSenha(\''+escH(n)+'\',this.value)" placeholder="senha"></div>';}).join('')
+    +'<div style="margin-top:6px;padding-top:14px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🔗 Link do portal do designer</div>'
+    +'<div style="display:flex;gap:6px"><input readonly value="'+escH(link)+'" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#F8FAFC"><button class="btn btn-p btn-s" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+escH(link)+'\');toast(\'📋 Link copiado!\')">Copiar</button></div>'
+    +'<div style="font-size:11px;color:#94A3B8;margin-top:6px">Envie esse link pro Marcos e pra Karine. Eles escolhem o nome e digitam a senha.</div></div>'
+    +'</div>'
+    +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end"><button class="btn btn-p" onclick="document.getElementById(\'desg-modal\').remove();render()">Pronto</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
 function rConteudos(){
   var gp=_gpClients();
-  var head='<div style="margin-bottom:16px"><h2 style="font-size:19px;margin:0">🎬 Conteúdos</h2><div style="font-size:12px;color:var(--muted)">Planejamento editorial dos clientes de Gestão de Perfil</div></div>';
+  var head='<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px"><div><h2 style="font-size:19px;margin:0">🎬 Conteúdos</h2><div style="font-size:12px;color:var(--muted)">Planejamento editorial dos clientes de Gestão de Perfil</div></div>'+(_isGestao(S.currentUser)?'<button class="btn btn-o btn-s" onclick="openDesignersModal()">🎨 Designers</button>':'')+'</div>';
   if(!gp.length)return head+'<div style="text-align:center;padding:50px;color:#94A3B8">Nenhum cliente de Gestão de Perfil cadastrado ainda.</div>';
 
   // Responsáveis vêm da carteira (aba Contrato → contentOwners). Filtro mostra os clientes de cada uma.
@@ -7478,6 +7576,17 @@ function handleNavigation(){
     if(adminAuth==='true') S.adminAuth=true;
     if(currentUser){try{S.currentUser=JSON.parse(currentUser);}catch(e){}}
   }
+  // Portal do Designer: sessão persistida ou hash #designer
+  var _dSess=sessionStorage.getItem('designerAuth');
+  if(hash==='#designer'||_dSess){
+    S.isDesignerPortal=true;
+    if(_dSess)S.designerUser=_dSess;
+    var _sb=document.getElementById('sidebar');if(_sb)_sb.style.display='none';
+    var _tb=document.querySelector('.topbar');if(_tb)_tb.style.display='none';
+    var _mn=document.getElementById('main');if(_mn){_mn.style.marginLeft='0';_mn.style.minHeight='100vh';}
+    render();
+    return;
+  }
   // Check for persisted client session FIRST
   const sessionAuth=sessionStorage.getItem('clientPortalAuth');
   if(sessionAuth){
@@ -7558,7 +7667,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072914; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026072915; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
