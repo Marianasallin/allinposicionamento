@@ -1443,6 +1443,9 @@ function _relResultadosForm(c){
     +'<div class="fg"><label>Nº de mensagens enviadas</label><input type="number" id="rr-mensagens" value="'+val(mm.mensagensEnviadas)+'" placeholder="ex.: 320"></div>'
     +'<div class="fg"><label>Taxa de resposta (%) <span style="font-weight:400;color:#94A3B8">(do Waalaxy)</span></label><input type="number" step="0.1" id="rr-taxaresp" value="'+val(mm.taxaResposta)+'" placeholder="ex.: 15"></div>'
     +'<div class="fg"><label>Taxa de aceitação (%) <span style="font-weight:400;color:#94A3B8">(do Waalaxy)</span></label><input type="number" step="0.1" id="rr-taxaacei" value="'+val(mm.taxaAceitacao)+'" placeholder="ex.: 40"></div>'
+    +'<div class="fg"><label>SSI <span style="font-weight:400;color:#94A3B8">(LinkedIn)</span></label><input type="number" step="0.1" id="rr-ssi" value="'+val(mm.ssi)+'" placeholder="ex.: 62"></div>'
+    +'<div class="fg"><label>Convites enviados</label><input type="number" id="rr-convenv" value="'+val(mm.convitesEnviados)+'" placeholder="ex.: 400"></div>'
+    +'<div class="fg"><label>Convites aceitos</label><input type="number" id="rr-convace" value="'+val(mm.convitesAceitos)+'" placeholder="ex.: 160"></div>'
     +'</div>'
     +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">✍️ Conteúdo — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Conteúdo — Gabi/Naiara)</span></div>'
     +'<div class="fgrid" style="margin-bottom:12px">'
@@ -1465,7 +1468,7 @@ function saveMonthlyMetrics(cid,mk){
   if(!c.monthlyMetrics)c.monthlyMetrics={};
   const num=function(id){var el=$(id);if(!el)return null;var v=(el.value||'').trim();if(v==='')return null;v=v.replace(/\./g,'').replace(',','.');var n=parseFloat(v);return isNaN(n)?null:n;};
   const numDec=function(id){var el=$(id);if(!el)return null;var v=(el.value||'').trim();if(v==='')return null;var n=parseFloat(v.replace(',','.'));return isNaN(n)?null:n;};
-  c.monthlyMetrics[mk]={followers:num('rr-followers'),mensagensEnviadas:num('rr-mensagens'),taxaResposta:numDec('rr-taxaresp'),taxaAceitacao:numDec('rr-taxaacei'),publicacoes:num('rr-pub'),impressoes:num('rr-imp'),alcance:num('rr-alc'),visualizacoes:num('rr-vis')};
+  c.monthlyMetrics[mk]={followers:num('rr-followers'),mensagensEnviadas:num('rr-mensagens'),taxaResposta:numDec('rr-taxaresp'),taxaAceitacao:numDec('rr-taxaacei'),ssi:numDec('rr-ssi'),convitesEnviados:num('rr-convenv'),convitesAceitos:num('rr-convace'),publicacoes:num('rr-pub'),impressoes:num('rr-imp'),alcance:num('rr-alc'),visualizacoes:num('rr-vis')};
   save();if(typeof toast==='function')toast('💾 Métricas de '+mk+' salvas — já subiram pro portal!');render();
 }
 function rDetailResultados(c){
@@ -7468,9 +7471,12 @@ function rPortalRelatorios(c){
       +mini(r.leads,'💬 Responderam','#7C3AED','#F5F3FF')
       +mini(r.meetings,'🤝 Reuniões','#EA580C','#FFF7ED')
       +(r.sales>0?'<div onclick="showFechamentos(\''+c.id+'\',\''+mk+'\')" style="cursor:pointer" title="Ver quais fecharam">'+mini(r.sales,'✅ Fechamentos ↗','#16A34A','#F0FDF4')+'</div>':mini(r.sales,'✅ Fechamentos','#16A34A','#F0FDF4'))
+      +(has(mm.convitesEnviados)?mini(Number(mm.convitesEnviados).toLocaleString('pt-BR'),'📨 Convites enviados','#0D3D9B','#F8FAFF'):'')
+      +(has(mm.convitesAceitos)?mini(Number(mm.convitesAceitos).toLocaleString('pt-BR'),'✅ Convites aceitos','#0D3D9B','#F8FAFF'):'')
       +(has(mm.taxaAceitacao)?mini(mm.taxaAceitacao+'%','Taxa de aceitação','#0D3D9B','#F8FAFF'):'')
       +(has(mm.taxaResposta)?mini(mm.taxaResposta+'%','Taxa de resposta','#0D3D9B','#F8FAFF'):'')
       +(has(mm.mensagensEnviadas)?mini(Number(mm.mensagensEnviadas).toLocaleString('pt-BR'),'✉️ Mensagens enviadas','#0D3D9B','#F8FAFF'):'')
+      +(has(mm.ssi)?mini(mm.ssi,'📊 SSI (LinkedIn)','#0077B5','#EFF6FF'):'')
       +'</div>';
     const contHtml=temConteudo?('<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin:4px 0 8px">✍️ Conteúdo e alcance</div>'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px;margin-bottom:14px">'
@@ -7667,7 +7673,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026072915; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080401; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
