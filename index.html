@@ -1536,10 +1536,9 @@ function showFechamentos(cid,monthKey){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
   document.body.appendChild(ov);
 }
-// ── COMISSÕES (só Gestão): fechamentos, % da comissão, aplica ou não, e faturado ──
-function markFaturado(cid,pid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var p=(c.prospects||[]).find(function(x){return x.id===pid;});if(!p)return;p.faturado=!!val;if(val)p.faturadoAt=Date.now();else delete p.faturadoAt;save();render();}
-function markComissaoAplica(cid,pid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var p=(c.prospects||[]).find(function(x){return x.id===pid;});if(!p)return;p.comAplica=!!val;save();render();}
-function setComissaoPct(cid,pid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var p=(c.prospects||[]).find(function(x){return x.id===pid;});if(!p)return;var n=parseFloat((''+val).replace(',','.'));p.comPct=isNaN(n)?null:n;save();render();}
+// ── COMISSÕES (só Gestão): fechamentos dos clientes com comissão (valor-base × %), faturado + data ──
+function markFaturado(cid,pid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var p=(c.prospects||[]).find(function(x){return x.id===pid;});if(!p)return;p.faturado=!!val;if(val){p.faturadoAt=Date.now();if(!p.faturadoData)p.faturadoData=new Date().toISOString().slice(0,10);}else{delete p.faturadoAt;}save();render();}
+function setFaturadoData(cid,pid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var p=(c.prospects||[]).find(function(x){return x.id===pid;});if(!p)return;p.faturadoData=val||'';if(val&&!p.faturado){p.faturado=true;p.faturadoAt=Date.now();}save();render();}
 function rComissoes(){
   const ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const mkOf=function(ds){if(!ds)return'';var d=new Date(ds+'T12:00:00');return isNaN(d)?'':ptM[d.getMonth()]+' '+d.getFullYear();};
@@ -1547,9 +1546,13 @@ function rComissoes(){
   let items=[];
   D.clients.forEach(function(c){
     if(c.contractStatus==='inativo')return;
+    if(!c.comissaoAplica)return;
+    var baseLbl=(c.comissaoBase==='contrato')?'Contrato':'Mensalidade';
+    var valorBase=_parseMoney(c.comissaoValor||c.contractValue);
+    var pct=(c.comissaoPct!=null&&c.comissaoPct!=='')?Number(c.comissaoPct):null;
     (c.prospects||[]).forEach(function(p){
-      if(p.contractClosed){var aplica=p.comAplica!==false;var pct=(p.comPct!=null&&p.comPct!=='')?Number(p.comPct):null;var valor=_parseMoney(p.contractValue);
-        items.push({cid:c.id,client:c.name,pid:p.id,lead:p.name||'—',valor:valor,closed:p.closedDate||p.date||'',mk:mkOf(p.closedDate||p.date),faturado:!!p.faturado,aplica:aplica,pct:pct,comissao:aplica&&pct!=null?valor*pct/100:0});}
+      if(p.contractClosed){
+        items.push({cid:c.id,client:c.name,pid:p.id,lead:p.name||'—',baseLbl:baseLbl,valorBase:valorBase,pct:pct,closed:p.closedDate||p.date||'',mk:mkOf(p.closedDate||p.date),faturado:!!p.faturado,faturadoData:p.faturadoData||'',comissao:(valorBase!=null&&pct!=null)?valorBase*pct/100:0});}
     });
   });
   const meses=['todos'].concat([...new Set(items.map(function(i){return i.mk;}).filter(Boolean))].sort(function(a,b){var A=a.split(' '),B=b.split(' ');return (parseInt(B[1])*12+ptM.indexOf(B[0]))-(parseInt(A[1])*12+ptM.indexOf(A[0]));}));
@@ -1557,32 +1560,32 @@ function rComissoes(){
   const fSt=S.comStatus||'todos';
   let list=items.slice();
   if(fMes!=='todos')list=list.filter(function(i){return i.mk===fMes;});
-  if(fSt==='faturado')list=list.filter(function(i){return i.aplica&&i.faturado;});
-  else if(fSt==='afaturar')list=list.filter(function(i){return i.aplica&&!i.faturado;});
-  else if(fSt==='naoaplica')list=list.filter(function(i){return !i.aplica;});
+  if(fSt==='faturado')list=list.filter(function(i){return i.faturado;});
+  else if(fSt==='afaturar')list=list.filter(function(i){return !i.faturado;});
   list.sort(function(a,b){return (''+b.closed).localeCompare(''+a.closed);});
   const money=function(v){return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
-  const comAll=list.filter(function(i){return i.aplica;});
+  const comAll=list.slice();
   const comTot=comAll.reduce(function(s,i){return s+i.comissao;},0);
   const comFat=comAll.filter(function(i){return i.faturado;}).reduce(function(s,i){return s+i.comissao;},0);
   const comAfat=comAll.filter(function(i){return !i.faturado;}).reduce(function(s,i){return s+i.comissao;},0);
   const mChips=meses.map(function(m){return '<span class="fc '+(fMes===m?'active':'')+'" onclick="S.comMonth=\''+m+'\';render()" style="font-size:11px">'+(m==='todos'?'Todos os meses':m)+'</span>';}).join('');
-  const sChips=[['todos','Todos'],['afaturar','⏳ A faturar'],['faturado','✅ Faturados'],['naoaplica','🚫 Sem comissão']].map(function(o){return '<span class="fc '+(fSt===o[0]?'active':'')+'" onclick="S.comStatus=\''+o[0]+'\';render()" style="font-size:11px">'+o[1]+'</span>';}).join('');
+  const sChips=[['todos','Todos'],['afaturar','⏳ A faturar'],['faturado','✅ Faturados']].map(function(o){return '<span class="fc '+(fSt===o[0]?'active':'')+'" onclick="S.comStatus=\''+o[0]+'\';render()" style="font-size:11px">'+o[1]+'</span>';}).join('');
   const rows=list.map(function(i){
     const tdb='padding:8px 10px;border-bottom:1px solid #eee';
-    return '<tr style="'+(i.aplica?'':'opacity:.55')+'">'
+    return '<tr>'
       +'<td style="'+tdb+';font-weight:600">'+escH(i.client)+'</td>'
+      +'<td style="'+tdb+';text-align:center"><span style="background:#F5F3FF;color:#7C3AED;border-radius:99px;padding:2px 8px;font-size:11px;font-weight:700">'+i.baseLbl+'</span></td>'
       +'<td style="'+tdb+';font-size:13px">'+escH(i.lead)+'</td>'
-      +'<td style="'+tdb+';font-size:13px;text-align:right;color:#16A34A;font-weight:600">'+(i.valor?money(i.valor):'—')+'</td>'
+      +'<td style="'+tdb+';font-size:13px;text-align:right;color:#16A34A;font-weight:600">'+(i.valorBase?money(i.valorBase):'—')+'</td>'
+      +'<td style="'+tdb+';text-align:center;font-size:13px">'+(i.pct!=null?i.pct+'%':'—')+'</td>'
+      +'<td style="'+tdb+';font-size:13px;text-align:right;font-weight:700;color:#7C3AED">'+(i.pct!=null?money(i.comissao):'—')+'</td>'
       +'<td style="'+tdb+';font-size:12px">'+fd(i.closed)+'</td>'
-      +'<td style="'+tdb+';text-align:center"><label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:'+(i.aplica?'#0D3D9B':'#94A3B8')+'"><input type="checkbox" '+(i.aplica?'checked':'')+' onchange="markComissaoAplica(\''+i.cid+'\',\''+i.pid+'\',this.checked)" style="width:15px;height:15px"> '+(i.aplica?'Aplica':'Não')+'</label></td>'
-      +'<td style="'+tdb+';text-align:center">'+(i.aplica?'<input type="number" value="'+(i.pct!=null?i.pct:'')+'" onchange="setComissaoPct(\''+i.cid+'\',\''+i.pid+'\',this.value)" placeholder="%" style="width:56px;padding:5px 6px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;text-align:center">':'—')+'</td>'
-      +'<td style="'+tdb+';font-size:13px;text-align:right;font-weight:700;color:#7C3AED">'+(i.aplica&&i.pct!=null?money(i.comissao):'—')+'</td>'
-      +'<td style="'+tdb+';text-align:center">'+(i.aplica?'<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:'+(i.faturado?'#16A34A':'#B45309')+'"><input type="checkbox" '+(i.faturado?'checked':'')+' onchange="markFaturado(\''+i.cid+'\',\''+i.pid+'\',this.checked)" style="width:15px;height:15px"> '+(i.faturado?'Faturado':'A faturar')+'</label>':'—')+'</td>'
+      +'<td style="'+tdb+';text-align:center"><label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:'+(i.faturado?'#16A34A':'#B45309')+'"><input type="checkbox" '+(i.faturado?'checked':'')+' onchange="markFaturado(\''+i.cid+'\',\''+i.pid+'\',this.checked)" style="width:15px;height:15px"> '+(i.faturado?'Faturado':'A faturar')+'</label></td>'
+      +'<td style="'+tdb+';text-align:center"><input type="date" value="'+(i.faturadoData||'')+'" onchange="setFaturadoData(\''+i.cid+'\',\''+i.pid+'\',this.value)" style="padding:4px 6px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px"></td>'
       +'</tr>';
   }).join('');
   return '<div class="sh" style="margin-bottom:14px"><h2>🤝 Comissões</h2></div>'
-    +'<div style="font-size:12px;color:var(--muted);margin-bottom:14px">Marque quais fechamentos têm comissão (<b>Aplica</b>), coloque a <b>%</b> da Mari, e vá marcando o que já foi <b>faturado</b>.</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:14px">Aparecem só os clientes marcados com <b>comissão</b> no cadastro (aba Contrato). A comissão é <b>valor-base × %</b> por fechamento. Marque o que já foi <b>faturado</b> e registre a <b>data do faturamento</b>.</div>'
     +'<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">'
     +'<div class="res-card"><div class="res-num" style="color:#0D3D9B">'+comAll.length+'</div><div class="res-lbl">Com comissão '+(fMes==='todos'?'':'('+fMes+')')+'</div></div>'
     +'<div class="res-card"><div class="res-num" style="color:#7C3AED;font-size:19px">'+money(comTot)+'</div><div class="res-lbl">Comissão total</div></div>'
@@ -1593,9 +1596,9 @@ function rComissoes(){
     +'<div class="filter-bar" style="margin-bottom:14px"><strong style="font-size:11px;color:var(--muted);align-self:center">Status:</strong>'+sChips+'</div>'
     +'<div class="card"><div class="tw"><table style="width:100%;border-collapse:collapse">'
     +'<thead><tr>'
-    +['Cliente','Lead','Valor','Fechamento','Aplica?','%','Comissão','Faturado?'].map(function(h,idx){return '<th style="text-align:'+(idx===2||idx===6?'right':(idx>=4?'center':'left'))+';padding:8px 10px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B">'+h+'</th>';}).join('')
+    +['Cliente','Base','Lead','Valor-base','%','Comissão','Fechamento','Faturado?','Data faturamento'].map(function(h,idx){return '<th style="text-align:'+([3,5].indexOf(idx)>=0?'right':([1,4,7,8].indexOf(idx)>=0?'center':'left'))+';padding:8px 10px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B">'+h+'</th>';}).join('')
     +'</tr></thead>'
-    +'<tbody>'+(rows||'<tr><td colspan="8" style="padding:24px;text-align:center;color:#94A3B8">Nenhum fechamento neste filtro.</td></tr>')+'</tbody></table></div></div>';
+    +'<tbody>'+(rows||'<tr><td colspan="9" style="padding:24px;text-align:center;color:#94A3B8">Nenhum cliente com comissão marcada, ou nenhum fechamento neste filtro. Marque a comissão no cadastro do cliente (aba Contrato).</td></tr>')+'</tbody></table></div></div>';
 }
 function rDetailProspeccao(c){
   try{
@@ -3249,6 +3252,20 @@ function rDetail(){
             <option value="atrasado" ${c.paymentStatus==='atrasado'?'selected':''}>Atrasado</option>
             <option value="cancelado" ${c.paymentStatus==='cancelado'?'selected':''}>Cancelado</option>
           </select>
+        </div>
+        <div class="fg" style="grid-column:1/-1;margin-top:4px;padding:12px 14px;border:1px dashed #C4B5FD;border-radius:10px;background:#FAF5FF">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;text-transform:none;font-weight:600"><input type="checkbox" id="ct-com-aplica" ${c.comissaoAplica?'checked':''} style="width:16px;height:16px;cursor:pointer"> <span style="color:#7C3AED">🤝 Este cliente tem comissão da Mari</span></label>
+          <div class="fgrid" style="margin-top:10px">
+            <div class="fg"><label>Base da comissão</label>
+              <select id="ct-com-base">
+                <option value="mensalidade" ${(c.comissaoBase||'mensalidade')==='mensalidade'?'selected':''}>Valor da mensalidade</option>
+                <option value="contrato" ${c.comissaoBase==='contrato'?'selected':''}>Valor do contrato</option>
+              </select>
+            </div>
+            <div class="fg"><label>Valor-base (R$)</label><input id="ct-com-valor" value="${c.comissaoValor||c.contractValue||''}" placeholder="Ex: 1997,00"></div>
+            <div class="fg"><label>% da comissão</label><input id="ct-com-pct" type="number" step="0.1" value="${c.comissaoPct!=null?c.comissaoPct:''}" placeholder="Ex: 5"></div>
+          </div>
+          <div style="font-size:11px;color:#7C3AED;margin-top:6px">A cada fechamento desse cliente, a comissão = <b>valor-base × %</b>. Aparece na tela 🤝 Comissões.</div>
         </div>`:''}
         <div class="fg"><label>Social Seller Responsável 👤</label>
           <select id="ct-asgn">
@@ -5087,6 +5104,10 @@ function saveContrato(cid){
   if($('ct-val'))c.contractValue=$('ct-val').value;
   if($('ct-pm'))c.paymentMethod=$('ct-pm').value;
   if($('ct-ps'))c.paymentStatus=$('ct-ps').value;
+  if($('ct-com-aplica'))c.comissaoAplica=$('ct-com-aplica').checked;
+  if($('ct-com-base'))c.comissaoBase=$('ct-com-base').value;
+  if($('ct-com-valor'))c.comissaoValor=$('ct-com-valor').value;
+  if($('ct-com-pct')){const _cp=$('ct-com-pct').value;c.comissaoPct=(_cp===''||_cp==null)?null:parseFloat((''+_cp).replace(',','.'));}
   const newAsgn=$('ct-asgn').value;
   c.assignees=newAsgn?[newAsgn]:[];
   c.mainOwner=newAsgn;
@@ -7675,7 +7696,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080403; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080404; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
