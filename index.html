@@ -7210,16 +7210,14 @@ function _icCrmStMeta(s){for(var i=0;i<IC_CRM_ST.length;i++)if(IC_CRM_ST[i][0]==
 function _icLeads(c){if(!Array.isArray(c.icLeads))c.icLeads=[];return c.icLeads;}
 function _icReunioesCount(c){return _icLeads(c).filter(function(l){return l.stage==='reuniao'||l.stage==='fechado';}).length;}
 function _icCrmCard(c,l){
-  var meta=[];
-  if(l.empresa)meta.push('🏢 '+escH(l.empresa));
-  if(l.date)meta.push('📅 '+fmtDate(l.date+'T12:00:00'));
-  var chips=IC_CRM_ST.map(function(s){var on=(l.stage||'novo')===s[0];return '<span onclick="icCrmSetStage(\''+c.id+'\',\''+l.id+'\',\''+s[0]+'\')" style="cursor:pointer;font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;background:'+(on?s[3]:'#fff')+';color:'+(on?s[2]:'#94A3B8')+';border:1px solid '+(on?s[4]:'#E5E7EB')+'">'+s[1]+'</span>';}).join(' ');
-  return '<div draggable="true" ondragstart="icCrmDragStart(event,\''+c.id+'\',\''+l.id+'\')" style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.04)">'
-    +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="font-size:13px;font-weight:600;color:#1E293B;word-break:break-word">'+escH(l.name||'(sem nome)')+'</div>'
-    +'<div style="display:flex;gap:3px;flex-shrink:0"><button onclick="icCrmOpen(\''+c.id+'\',\''+l.id+'\')" style="border:1px solid #E5E7EB;background:#fff;border-radius:6px;font-size:10px;padding:2px 6px;cursor:pointer">✏️</button><button onclick="icCrmDelete(\''+c.id+'\',\''+l.id+'\')" style="border:1px solid #FCA5A5;color:#DC2626;background:#fff;border-radius:6px;font-size:10px;padding:2px 6px;cursor:pointer">🗑</button></div></div>'
-    +(meta.length?'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:11px;color:#64748B">'+meta.map(function(m){return '<span>'+m+'</span>';}).join('')+'</div>':'')
-    +(l.notes?'<div style="font-size:11px;color:#475569;margin-top:6px;white-space:pre-wrap">'+escH(l.notes)+'</div>':'')
-    +'<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px" title="Toque numa etapa para mover">'+chips+'</div>'
+  var meta='';
+  if(l.empresa)meta+='<div style="font-size:13px;color:#334155;margin-top:8px;line-height:1.45"><span style="color:#94A3B8">🏢 Empresa / cargo:</span> <strong>'+escH(l.empresa)+'</strong></div>';
+  if(l.date)meta+='<div style="font-size:13px;color:#334155;margin-top:4px;line-height:1.45"><span style="color:#94A3B8">📅 Data do contato:</span> <strong>'+fmtDate(l.date+'T12:00:00')+'</strong></div>';
+  return '<div draggable="true" ondragstart="icCrmDragStart(event,\''+c.id+'\',\''+l.id+'\')" style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.04)">'
+    +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="font-size:15px;font-weight:700;color:#1E293B;word-break:break-word">'+escH(l.name||'(sem nome)')+'</div>'
+    +'<div style="display:flex;gap:3px;flex-shrink:0"><button onclick="icCrmOpen(\''+c.id+'\',\''+l.id+'\')" style="border:1px solid #E5E7EB;background:#fff;border-radius:6px;font-size:11px;padding:3px 7px;cursor:pointer">✏️</button><button onclick="icCrmDelete(\''+c.id+'\',\''+l.id+'\')" style="border:1px solid #FCA5A5;color:#DC2626;background:#fff;border-radius:6px;font-size:11px;padding:3px 7px;cursor:pointer">🗑</button></div></div>'
+    +meta
+    +(l.notes?'<div style="font-size:12px;color:#475569;margin-top:8px;white-space:pre-wrap;line-height:1.45">'+escH(l.notes)+'</div>':'')
     +'</div>';
 }
 function rPortalCRM(c){
@@ -7234,7 +7232,7 @@ function rPortalCRM(c){
   return '<div class="portal-hero" style="margin-bottom:20px"><div><h1>🎯 Meus Leads</h1><p>Cadastre seus contatos e acompanhe cada etapa — do primeiro contato até a reunião e o fechamento</p></div></div>'
     +addBtn
     +'<div class="portal-card" style="padding:14px"><div style="display:flex;gap:12px;overflow-x:auto;align-items:flex-start;padding-bottom:6px">'+cols+'</div></div>'
-    +'<div style="font-size:11px;color:#94A3B8;margin-top:10px;text-align:center">💡 No computador, arraste os cards entre as etapas. No celular, toque nas etapas dentro do card pra mover.</div>';
+    +'<div style="font-size:11px;color:#94A3B8;margin-top:10px;text-align:center">💡 No computador, arraste os cards entre as etapas. No celular, toque em ✏️ e mude a etapa.</div>';
 }
 var _icCrmDrag=null;
 function icCrmDragStart(ev,cid,id){_icCrmDrag={cid:cid,id:id};if(ev.dataTransfer){ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',id);}catch(e){}}}
@@ -7677,7 +7675,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080402; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080403; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
