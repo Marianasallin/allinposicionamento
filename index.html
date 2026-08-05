@@ -7696,7 +7696,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080404; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080405; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -7720,6 +7720,7 @@ window.addEventListener('hashchange',handleNavigation);
       if(_fbTimer)clearTimeout(_fbTimer);
       _fbWriting=true;
       _fbTimer=setTimeout(function(){_fbFlush();},800);
+      if(typeof _scheduleEditBackup==='function')_scheduleEditBackup(); // ponto de recuperação a cada edição
     };
     // Gravação de fato — usada pelo save normal E pelo "salvar antes de atualizar a versão"
     function _fbFlush(cb){
@@ -7959,6 +7960,54 @@ window.addEventListener('hashchange',handleNavigation);
         }
         setTimeout(_autoWatchdog,9000);
         setInterval(_autoWatchdog,1800000);
+        // ── Backup por EDIÇÃO: cada save gera um ponto de recuperação (debounce 6s, guarda os últimos 60) ──
+        // Fecha a brecha dos backups de hora em hora: sempre existe uma "foto" do segundo em que a pessoa salvou.
+        var _editBkTimer=null;
+        window._scheduleEditBackup=function(){ if(_editBkTimer)clearTimeout(_editBkTimer); _editBkTimer=setTimeout(_editBackup,6000); };
+        function _editBackup(){
+          try{
+            const cl=D.clients||[];
+            // só grava se a base parecer saudável (nunca salva base vazia/corrompida por cima das boas)
+            const saudavel = cl.length>=25 && cl.some(function(c){return c&&/gabriel weydt/i.test(c.name||'');});
+            if(!saudavel)return;
+            const key='edit-'+Date.now();
+            const by=(S.currentUser&&S.currentUser.name)||(S.authenticatedClientId?('portal:'+S.authenticatedClientId):'(anon)');
+            _db.ref('allin_backups/'+key).set(JSON.parse(JSON.stringify({at:Date.now(),build:APP_BUILD,by:by,clients:cl,team:D.team||[],assignedTasks:D.assignedTasks||[]}))).then(function(){
+              _db.ref('allin_backups').once('value').then(function(all){
+                const keys=Object.keys(all.val()||{}).filter(function(k){return k.indexOf('edit-')===0;}).sort();
+                if(keys.length>60)keys.slice(0,keys.length-60).forEach(function(k){_db.ref('allin_backups/'+k).remove();});
+              }).catch(function(){});
+            }).catch(function(){});
+          }catch(e){}
+        }
+        // ── Ferramentas de recuperação cirúrgica (uso técnico via console) ──
+        // findInBackups('lasm')  → mostra em quais backups a cliente aparece e quantas campanhas tinha
+        window.findInBackups=function(nameRegex){
+          var re=new RegExp(nameRegex,'i');
+          return _db.ref('allin_backups').once('value').then(function(s){
+            var all=s.val()||{};var out=[];
+            Object.keys(all).sort().forEach(function(k){
+              var c=(all[k].clients||[]).find(function(x){return re.test(x.name||'');});
+              if(c)out.push({backup:k,quando:new Date(all[k].at).toLocaleString('pt-BR'),cliente:c.name,campanhas:(c.campaigns||[]).length,por:all[k].by||'—'});
+            });
+            console.table(out);return out;
+          });
+        };
+        // restoreClientFromBackup('lasm','edit-123...','campaigns')  → restaura SÓ um campo de UM cliente (não reverte o resto)
+        window.restoreClientFromBackup=function(nameRegex,backupKey,fieldsCSV){
+          var re=new RegExp(nameRegex,'i');
+          return _db.ref('allin_backups/'+backupKey).once('value').then(function(s){
+            var b=s.val();if(!b){console.warn('Backup não encontrado: '+backupKey);return false;}
+            var src=(b.clients||[]).find(function(x){return re.test(x.name||'');});
+            if(!src){console.warn('Cliente não encontrado nesse backup');return false;}
+            var i=D.clients.findIndex(function(x){return x.id===src.id;});
+            if(i<0)i=D.clients.findIndex(function(x){return re.test(x.name||'');});
+            if(i<0){console.warn('Cliente não encontrado ao vivo');return false;}
+            var fields=fieldsCSV?fieldsCSV.split(','):['campaigns'];
+            var upd={};fields.forEach(function(f){upd['clients/'+i+'/'+f]=(src[f]!==undefined?JSON.parse(JSON.stringify(src[f])):null);});
+            return _db.ref('allin').update(upd).then(function(){console.log('✅ Restaurado '+fields.join(', ')+' de '+src.name+' (backup '+backupKey+')');return true;});
+          });
+        };
         // Restauração manual (uso técnico via console): listBackups() e restoreBackup('AAAA-MM-DD')
         window.listBackups=function(){return _db.ref('allin_backups').once('value').then(function(s){const v=s.val()||{};const o={};Object.keys(v).forEach(function(k){o[k]=(v[k].clients||[]).length+' clientes · '+new Date(v[k].at).toLocaleString('pt-BR');});console.log(o);return o;});};
         window.restoreBackup=function(day){
