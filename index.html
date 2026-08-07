@@ -268,14 +268,16 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
 </div>
   <nav class="sb-nav">
     <div class="ni active" onclick="nav('dash')"><span class="ni-icon">📊</span><span>Dashboard</span></div>
-    <div class="ni" onclick="nav('clients',{clientId:null})"><span class="ni-icon">👥</span><span>Clientes</span></div>
-    <div class="ni" onclick="nav('conteudos')"><span class="ni-icon">🎬</span><span>Conteúdos</span></div>
-    <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Visão da Equipe</span></div>
     <div class="ni" onclick="nav('minhasamana')"><span class="ni-icon">⚡</span><span>Minha Semana</span></div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.38);padding:14px 12px 4px">Gestão</div>
+    <div class="ni" onclick="nav('clients',{clientId:null})"><span class="ni-icon">👥</span><span>Clientes</span></div>
+    <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Visão da Equipe</span></div>
     <div class="ni" onclick="nav('team')"><span class="ni-icon">👩‍💼</span><span>Equipe</span></div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.38);padding:14px 12px 4px">Marketing</div>
+    <div class="ni" onclick="nav('conteudos')"><span class="ni-icon">🎬</span><span>Conteúdos</span></div>
+    <div id="nav-sec-fin" style="display:none;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.38);padding:14px 12px 4px">Financeiro</div>
     <div class="ni" id="ni-financeiro" onclick="nav('financeiro')" style="display:none"><span class="ni-icon">💰</span><span>Financeiro</span></div>
     <div class="ni" id="ni-comissoes" onclick="nav('comissoes')" style="display:none"><span class="ni-icon">🤝</span><span>Comissões</span></div>
-    <div class="ni" id="ni-carteira" onclick="nav('carteira')" style="display:none"><span class="ni-icon">📇</span><span>Carteira Social Selling</span></div>
     <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
       <div class="ni" onclick="window.open(window.location.origin+window.location.pathname+'#portal','_blank')" style="background:rgba(0,160,220,.15);border:1px solid rgba(0,160,220,.3)"><span class="ni-icon">🌐</span><span>Portal do Cliente</span></div>
       <div class="ni" onclick="forcarAtualizacao()" title="Recarrega os dados mais recentes do servidor (resolve tela desatualizada)"><span class="ni-icon">🔄</span><span>Atualizar dados</span></div>
@@ -903,7 +905,7 @@ function render(){
   // Abas Financeiro e Comissões: só a Gestão vê (e acessa)
   var _finNi=document.getElementById('ni-financeiro');if(_finNi)_finNi.style.display=_isGestao(S.currentUser)?'':'none';
   var _comNi=document.getElementById('ni-comissoes');if(_comNi)_comNi.style.display=_isGestao(S.currentUser)?'':'none';
-  var _cartNi=document.getElementById('ni-carteira');if(_cartNi)_cartNi.style.display=_isGestao(S.currentUser)?'':'none';
+  var _finSec=document.getElementById('nav-sec-fin');if(_finSec)_finSec.style.display=_isGestao(S.currentUser)?'':'none';
   if((S.view==='financeiro'||S.view==='comissoes'||S.view==='carteira')&&!_isGestao(S.currentUser)){S.view='dash';}
   // Banner "Vendo como" (impersonação da Gestão)
   var _vb=document.getElementById('veras-banner');if(_vb)_vb.remove();
@@ -1666,17 +1668,16 @@ function rCarteira(){
       var prods=(c.products||[]).map(function(p){return p.replace('Gestão de Perfil','GP').replace('Implementação Comercial','IC').replace('Estruturação de Perfil','EP');}).join(' · ');
       return '<tr style="'+(c.needsMeeting?'background:#FFFBEB':'')+'">'
         +'<td style="'+tdb+';text-align:center"><input type="checkbox" '+(c.needsMeeting?'checked':'')+' onchange="toggleNeedsMeeting(\''+c.id+'\',this.checked)" style="width:16px;height:16px;cursor:pointer"></td>'
-        +'<td style="'+tdb+';text-align:center">'+(c.needsMeeting?'<input type="number" min="1" value="'+(c.meetingPriority!=null?c.meetingPriority:'')+'" onchange="setMeetingPriority(\''+c.id+'\',this.value)" placeholder="ordem" style="width:60px;padding:4px 6px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;text-align:center">':'<span style="color:#CBD5E1">—</span>')+'</td>'
+        +'<td style="'+tdb+';text-align:center">'+(c.needsMeeting?'<input type="number" min="1" value="'+(c.meetingPriority!=null?c.meetingPriority:'')+'" onchange="setMeetingPriority(\''+c.id+'\',this.value)" placeholder="ordem" style="width:88px;padding:9px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:16px;font-weight:700;text-align:center;color:#0D3D9B">':'<span style="color:#CBD5E1">—</span>')+'</td>'
         +'<td style="'+tdb+';font-weight:600;font-size:13px">'+escH(c.name)+'</td>'
         +'<td style="'+tdb+';font-size:11px;color:#64748B">'+prods+'</td>'
-        +'<td style="'+tdb+';font-size:12px;color:#64748B;white-space:nowrap">'+fd(c.contractDue)+'</td>'
         +'</tr>';
     }).join('');
     return '<div class="card" style="margin-bottom:14px"><div style="padding:12px 14px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;background:#F8FAFF;border-radius:12px 12px 0 0">'
       +'<div style="font-weight:700;color:#0D3D9B">👤 '+escH(cs)+' <span style="font-weight:400;color:#94A3B8;font-size:12px">· '+cls.length+' cliente(s)</span></div>'
       +'<div style="font-size:12px;color:#B45309;font-weight:600">'+(marc?('📅 '+marc+' p/ reunião'):'')+'</div></div>'
       +'<div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>'
-      +['','Ordem','Cliente','Produtos','Vencimento'].map(function(h,i){return '<th style="text-align:'+(i<2?'center':'left')+';padding:7px 10px;border-bottom:2px solid #E5E7EB;font-size:10px;color:#94A3B8;text-transform:uppercase">'+h+'</th>';}).join('')
+      +['','Ordem','Cliente','Produtos'].map(function(h,i){return '<th style="text-align:'+(i<2?'center':'left')+';padding:7px 10px;border-bottom:2px solid #E5E7EB;font-size:10px;color:#94A3B8;text-transform:uppercase">'+h+'</th>';}).join('')
       +'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }).join('');
   return '<div class="sh" style="margin-bottom:6px"><h2>📇 Carteira Social Selling</h2></div>'
@@ -4510,7 +4511,17 @@ function rTeam(){
 
   const headerRight=`<div style="display:flex;gap:8px"><button class="btn btn-o btn-s" onclick="S.teamAuth=false;render()">🔒 Bloquear acesso</button><button class="btn btn-p btn-s" onclick="addMember()">+ Adicionar</button></div>`;
 
+  // Abas internas da Equipe: time + (Gestão) Carteira Social Selling
+  const _tt=S.teamTab||'equipe';
+  const _cartTab=_isGestao(S.currentUser);
+  const tabBar=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">`
+    +`<button onclick="S.teamTab='equipe';render()" class="btn ${_tt!=='carteira'?'btn-p':'btn-o'} btn-s">👩‍💼 Equipe</button>`
+    +(_cartTab?`<button onclick="S.teamTab='carteira';render()" class="btn ${_tt==='carteira'?'btn-p':'btn-o'} btn-s">📇 Carteira Social Selling</button>`:'')
+    +`</div>`;
+  if(_tt==='carteira'&&_cartTab) return tabBar+rCarteira();
+
   return`
+  ${tabBar}
   <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
     <div class="stat"><div class="stat-num">${D.team.length}</div><div class="stat-lbl">Pessoas no time</div></div>
     <div class="stat"><div class="stat-num">${assigned}</div><div class="stat-lbl">Clientes Atribuídos</div></div>
@@ -7791,7 +7802,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080407; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080408; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
