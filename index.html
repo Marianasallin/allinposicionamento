@@ -275,6 +275,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
     <div class="ni" onclick="nav('team')"><span class="ni-icon">👩‍💼</span><span>Equipe</span></div>
     <div class="ni" id="ni-financeiro" onclick="nav('financeiro')" style="display:none"><span class="ni-icon">💰</span><span>Financeiro</span></div>
     <div class="ni" id="ni-comissoes" onclick="nav('comissoes')" style="display:none"><span class="ni-icon">🤝</span><span>Comissões</span></div>
+    <div class="ni" id="ni-carteira" onclick="nav('carteira')" style="display:none"><span class="ni-icon">📇</span><span>Carteira por CS</span></div>
     <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
       <div class="ni" onclick="window.open(window.location.origin+window.location.pathname+'#portal','_blank')" style="background:rgba(0,160,220,.15);border:1px solid rgba(0,160,220,.3)"><span class="ni-icon">🌐</span><span>Portal do Cliente</span></div>
       <div class="ni" onclick="forcarAtualizacao()" title="Recarrega os dados mais recentes do servidor (resolve tela desatualizada)"><span class="ni-icon">🔄</span><span>Atualizar dados</span></div>
@@ -902,13 +903,14 @@ function render(){
   // Abas Financeiro e Comissões: só a Gestão vê (e acessa)
   var _finNi=document.getElementById('ni-financeiro');if(_finNi)_finNi.style.display=_isGestao(S.currentUser)?'':'none';
   var _comNi=document.getElementById('ni-comissoes');if(_comNi)_comNi.style.display=_isGestao(S.currentUser)?'':'none';
-  if((S.view==='financeiro'||S.view==='comissoes')&&!_isGestao(S.currentUser)){S.view='dash';}
+  var _cartNi=document.getElementById('ni-carteira');if(_cartNi)_cartNi.style.display=_isGestao(S.currentUser)?'':'none';
+  if((S.view==='financeiro'||S.view==='comissoes'||S.view==='carteira')&&!_isGestao(S.currentUser)){S.view='dash';}
   // Banner "Vendo como" (impersonação da Gestão)
   var _vb=document.getElementById('veras-banner');if(_vb)_vb.remove();
   if(S._realUser){document.body.insertAdjacentHTML('beforeend','<div id="veras-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#7C3AED,#9333EA);color:#fff;padding:9px 14px;text-align:center;font-size:13px;font-weight:600;box-shadow:0 -2px 10px rgba(0,0,0,.2)">👁 Você está vendo como <strong>'+(S.currentUser.name||'').split(' ')[0]+'</strong> (só visualização) <button onclick="voltarMeuPerfil()" style="margin-left:12px;background:#fff;color:#7C3AED;border:none;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer">Voltar ao meu perfil</button></div>');}
   // Normal admin views
   try{
-    const _viewFns={dash:rDash,clients:rClients,conteudos:rConteudos,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rTeam,team:rTeam,clientView:rClientView,financeiro:rFinanceiro,comissoes:rComissoes};
+    const _viewFns={dash:rDash,clients:rClients,conteudos:rConteudos,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rTeam,team:rTeam,clientView:rClientView,financeiro:rFinanceiro,comissoes:rComissoes,carteira:rCarteira};
     const _fn=_viewFns[S.view];
     if(!_fn){
       $('view').innerHTML='<div style="padding:20px;color:var(--muted)">Vista desconhecida: <code>'+S.view+'</code></div>';
@@ -1599,6 +1601,99 @@ function rComissoes(){
     +['Cliente','Base','Lead','Valor-base','%','Comissão','Fechamento','Faturado?','Data faturamento'].map(function(h,idx){return '<th style="text-align:'+([3,5].indexOf(idx)>=0?'right':([1,4,7,8].indexOf(idx)>=0?'center':'left'))+';padding:8px 10px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B">'+h+'</th>';}).join('')
     +'</tr></thead>'
     +'<tbody>'+(rows||'<tr><td colspan="9" style="padding:24px;text-align:center;color:#94A3B8">Nenhum cliente com comissão marcada, ou nenhum fechamento neste filtro. Marque a comissão no cadastro do cliente (aba Contrato).</td></tr>')+'</tbody></table></div></div>';
+}
+// ── CARTEIRA POR CS (só Gestão): clientes ativos por responsável + prioridade de reunião do próximo mês + exportar ──
+function setMeetingPriority(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var n=parseInt((''+val).replace(/\D/g,''));c.meetingPriority=isNaN(n)?null:n;if(c.meetingPriority!=null)c.needsMeeting=true;save();render();}
+function toggleNeedsMeeting(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;c.needsMeeting=!!val;if(!val)c.meetingPriority=null;save();render();}
+function limparPrioridadesReuniao(){if(!confirm('Limpar todas as marcações e ordens de reunião? (para começar um novo mês)'))return;D.clients.forEach(function(c){delete c.needsMeeting;delete c.meetingPriority;});save();if(typeof toast==='function')toast('🧹 Prioridades de reunião limpas');render();}
+function _proxMesLabel(){var ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];var d=new Date();d.setMonth(d.getMonth()+1);return ptM[d.getMonth()]+' '+d.getFullYear();}
+function _carteiraGroups(){
+  var groups={};
+  D.clients.forEach(function(c){
+    if(c.contractStatus==='inativo'||c.contractStatus==='finalizado')return;
+    var r=(c.assignees&&c.assignees[0]&&c.assignees[0]!=='N/A')?c.assignees[0]:'Sem responsável';
+    if(!groups[r])groups[r]=[];
+    groups[r].push(c);
+  });
+  Object.keys(groups).forEach(function(k){
+    groups[k].sort(function(a,b){
+      var pa=(a.needsMeeting&&a.meetingPriority!=null)?a.meetingPriority:9999;
+      var pb=(b.needsMeeting&&b.meetingPriority!=null)?b.meetingPriority:9999;
+      if(pa!==pb)return pa-pb;
+      return (''+a.name).localeCompare(''+b.name,'pt-BR');
+    });
+  });
+  return groups;
+}
+function _fallbackCopy(txt){try{var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);if(typeof toast==='function')toast('📋 Copiado!');}catch(e){alert(txt);}}
+function copiarCarteira(){
+  var groups=_carteiraGroups();var mes=_proxMesLabel();
+  var txt='📇 PRIORIDADE DE REUNIÃO — '+mes+' (ALL IN)\n';
+  Object.keys(groups).sort().forEach(function(cs){
+    var marcados=groups[cs].filter(function(c){return c.needsMeeting;});
+    if(!marcados.length)return;
+    txt+='\n👤 '+cs+'\n';
+    marcados.forEach(function(c,i){txt+=(c.meetingPriority!=null?c.meetingPriority+'º':(i+1)+'.')+' '+c.name+'\n';});
+  });
+  if(txt.indexOf('👤')<0)txt+='\n(nenhum cliente marcado para reunião ainda)';
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){if(typeof toast==='function')toast('📋 Copiado! Cole no WhatsApp.');},function(){_fallbackCopy(txt);});}else _fallbackCopy(txt);
+}
+function baixarCarteiraCSV(){
+  var groups=_carteiraGroups();var rows=[['CS / Responsavel','Prioridade','Precisa reuniao','Cliente','Produtos','Vencimento','Status']];
+  Object.keys(groups).sort().forEach(function(cs){
+    groups[cs].forEach(function(c){
+      rows.push([cs, (c.needsMeeting&&c.meetingPriority!=null)?c.meetingPriority:'', c.needsMeeting?'SIM':'', c.name, (c.products||[]).join(' / '), c.contractDue?new Date(c.contractDue).toLocaleDateString('pt-BR'):'', c.contractStatus||'']);
+    });
+  });
+  var csv=rows.map(function(r){return r.map(function(v){return '"'+(''+v).replace(/"/g,'""')+'"';}).join(';');}).join('\n');
+  var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='carteira-por-cs-'+_proxMesLabel().replace(/ /g,'-')+'.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  if(typeof toast==='function')toast('⬇️ CSV baixado');
+}
+function rCarteira(){
+  if(!_isGestao(S.currentUser))return '<div class="card"><div class="cb" style="padding:30px;text-align:center;color:var(--muted)">🔒 Acesso restrito à Gestão.</div></div>';
+  var groups=_carteiraGroups();
+  var mes=_proxMesLabel();
+  var totalCli=0,totalMarc=0;
+  Object.keys(groups).forEach(function(cs){totalCli+=groups[cs].length;totalMarc+=groups[cs].filter(function(c){return c.needsMeeting;}).length;});
+  var csList=Object.keys(groups).sort(function(a,b){return groups[b].length-groups[a].length;});
+  var fd=function(d){if(!d)return'—';var x=new Date(d);return isNaN(x)?'—':x.toLocaleDateString('pt-BR');};
+  var blocks=csList.map(function(cs){
+    var cls=groups[cs];
+    var marc=cls.filter(function(c){return c.needsMeeting;}).length;
+    var rows=cls.map(function(c){
+      var tdb='padding:7px 10px;border-bottom:1px solid #F1F5F9';
+      var prods=(c.products||[]).map(function(p){return p.replace('Gestão de Perfil','GP').replace('Implementação Comercial','IC').replace('Estruturação de Perfil','EP');}).join(' · ');
+      return '<tr style="'+(c.needsMeeting?'background:#FFFBEB':'')+'">'
+        +'<td style="'+tdb+';text-align:center"><input type="checkbox" '+(c.needsMeeting?'checked':'')+' onchange="toggleNeedsMeeting(\''+c.id+'\',this.checked)" style="width:16px;height:16px;cursor:pointer"></td>'
+        +'<td style="'+tdb+';text-align:center">'+(c.needsMeeting?'<input type="number" min="1" value="'+(c.meetingPriority!=null?c.meetingPriority:'')+'" onchange="setMeetingPriority(\''+c.id+'\',this.value)" placeholder="ordem" style="width:60px;padding:4px 6px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;text-align:center">':'<span style="color:#CBD5E1">—</span>')+'</td>'
+        +'<td style="'+tdb+';font-weight:600;font-size:13px">'+escH(c.name)+'</td>'
+        +'<td style="'+tdb+';font-size:11px;color:#64748B">'+prods+'</td>'
+        +'<td style="'+tdb+';font-size:12px;color:#64748B;white-space:nowrap">'+fd(c.contractDue)+'</td>'
+        +'</tr>';
+    }).join('');
+    return '<div class="card" style="margin-bottom:14px"><div style="padding:12px 14px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;background:#F8FAFF;border-radius:12px 12px 0 0">'
+      +'<div style="font-weight:700;color:#0D3D9B">👤 '+escH(cs)+' <span style="font-weight:400;color:#94A3B8;font-size:12px">· '+cls.length+' cliente(s)</span></div>'
+      +'<div style="font-size:12px;color:#B45309;font-weight:600">'+(marc?('📅 '+marc+' p/ reunião'):'')+'</div></div>'
+      +'<div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>'
+      +['','Ordem','Cliente','Produtos','Vencimento'].map(function(h,i){return '<th style="text-align:'+(i<2?'center':'left')+';padding:7px 10px;border-bottom:2px solid #E5E7EB;font-size:10px;color:#94A3B8;text-transform:uppercase">'+h+'</th>';}).join('')
+      +'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+  }).join('');
+  return '<div class="sh" style="margin-bottom:6px"><h2>📇 Carteira por CS</h2></div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:14px">Clientes ativos por responsável. Marque quem precisa de <b>reunião</b> e defina a <b>ordem de prioridade</b> para <b>'+mes+'</b> — depois é só <b>copiar</b> pras meninas ou <b>baixar</b> a planilha.</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">'
+    +'<button class="btn btn-p btn-s" onclick="copiarCarteira()">📋 Copiar p/ WhatsApp</button>'
+    +'<button class="btn btn-o btn-s" onclick="baixarCarteiraCSV()">⬇️ Baixar planilha (CSV)</button>'
+    +'<button class="btn btn-o btn-s" onclick="window.print()">🖨️ Imprimir / PDF</button>'
+    +'<span style="flex:1"></span>'
+    +'<button class="btn btn-o btn-s" onclick="limparPrioridadesReuniao()" style="color:#DC2626;border-color:#FCA5A5">🧹 Limpar (novo mês)</button>'
+    +'</div>'
+    +'<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">'
+    +'<div class="res-card"><div class="res-num" style="color:#0D3D9B">'+csList.length+'</div><div class="res-lbl">CS / responsáveis</div></div>'
+    +'<div class="res-card"><div class="res-num" style="color:#0D3D9B">'+totalCli+'</div><div class="res-lbl">Clientes ativos</div></div>'
+    +'<div class="res-card"><div class="res-num" style="color:#B45309">'+totalMarc+'</div><div class="res-lbl">📅 Marcados p/ reunião</div></div>'
+    +'</div>'
+    +(blocks||'<div class="card"><div class="cb" style="padding:24px;text-align:center;color:#94A3B8">Nenhum cliente ativo.</div></div>');
 }
 function rDetailProspeccao(c){
   try{
@@ -7696,7 +7791,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080405; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080406; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
