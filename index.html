@@ -275,7 +275,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
     <div class="ni" onclick="nav('team')"><span class="ni-icon">👩‍💼</span><span>Equipe</span></div>
     <div class="ni" id="ni-financeiro" onclick="nav('financeiro')" style="display:none"><span class="ni-icon">💰</span><span>Financeiro</span></div>
     <div class="ni" id="ni-comissoes" onclick="nav('comissoes')" style="display:none"><span class="ni-icon">🤝</span><span>Comissões</span></div>
-    <div class="ni" id="ni-carteira" onclick="nav('carteira')" style="display:none"><span class="ni-icon">📇</span><span>Carteira por CS</span></div>
+    <div class="ni" id="ni-carteira" onclick="nav('carteira')" style="display:none"><span class="ni-icon">📇</span><span>Carteira Social Selling</span></div>
     <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
       <div class="ni" onclick="window.open(window.location.origin+window.location.pathname+'#portal','_blank')" style="background:rgba(0,160,220,.15);border:1px solid rgba(0,160,220,.3)"><span class="ni-icon">🌐</span><span>Portal do Cliente</span></div>
       <div class="ni" onclick="forcarAtualizacao()" title="Recarrega os dados mais recentes do servidor (resolve tela desatualizada)"><span class="ni-icon">🔄</span><span>Atualizar dados</span></div>
@@ -1602,7 +1602,7 @@ function rComissoes(){
     +'</tr></thead>'
     +'<tbody>'+(rows||'<tr><td colspan="9" style="padding:24px;text-align:center;color:#94A3B8">Nenhum cliente com comissão marcada, ou nenhum fechamento neste filtro. Marque a comissão no cadastro do cliente (aba Contrato).</td></tr>')+'</tbody></table></div></div>';
 }
-// ── CARTEIRA POR CS (só Gestão): clientes ativos por responsável + prioridade de reunião do próximo mês + exportar ──
+// ── CARTEIRA SOCIAL SELLING (só Gestão): clientes ativos por Social Seller + prioridade de reunião do próximo mês + exportar ──
 function setMeetingPriority(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var n=parseInt((''+val).replace(/\D/g,''));c.meetingPriority=isNaN(n)?null:n;if(c.meetingPriority!=null)c.needsMeeting=true;save();render();}
 function toggleNeedsMeeting(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;c.needsMeeting=!!val;if(!val)c.meetingPriority=null;save();render();}
 function limparPrioridadesReuniao(){if(!confirm('Limpar todas as marcações e ordens de reunião? (para começar um novo mês)'))return;D.clients.forEach(function(c){delete c.needsMeeting;delete c.meetingPriority;});save();if(typeof toast==='function')toast('🧹 Prioridades de reunião limpas');render();}
@@ -1639,7 +1639,7 @@ function copiarCarteira(){
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){if(typeof toast==='function')toast('📋 Copiado! Cole no WhatsApp.');},function(){_fallbackCopy(txt);});}else _fallbackCopy(txt);
 }
 function baixarCarteiraCSV(){
-  var groups=_carteiraGroups();var rows=[['CS / Responsavel','Prioridade','Precisa reuniao','Cliente','Produtos','Vencimento','Status']];
+  var groups=_carteiraGroups();var rows=[['Social Seller','Prioridade','Precisa reuniao','Cliente','Produtos','Vencimento','Status']];
   Object.keys(groups).sort().forEach(function(cs){
     groups[cs].forEach(function(c){
       rows.push([cs, (c.needsMeeting&&c.meetingPriority!=null)?c.meetingPriority:'', c.needsMeeting?'SIM':'', c.name, (c.products||[]).join(' / '), c.contractDue?new Date(c.contractDue).toLocaleDateString('pt-BR'):'', c.contractStatus||'']);
@@ -1679,8 +1679,8 @@ function rCarteira(){
       +['','Ordem','Cliente','Produtos','Vencimento'].map(function(h,i){return '<th style="text-align:'+(i<2?'center':'left')+';padding:7px 10px;border-bottom:2px solid #E5E7EB;font-size:10px;color:#94A3B8;text-transform:uppercase">'+h+'</th>';}).join('')
       +'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }).join('');
-  return '<div class="sh" style="margin-bottom:6px"><h2>📇 Carteira por CS</h2></div>'
-    +'<div style="font-size:12px;color:var(--muted);margin-bottom:14px">Clientes ativos por responsável. Marque quem precisa de <b>reunião</b> e defina a <b>ordem de prioridade</b> para <b>'+mes+'</b> — depois é só <b>copiar</b> pras meninas ou <b>baixar</b> a planilha.</div>'
+  return '<div class="sh" style="margin-bottom:6px"><h2>📇 Carteira Social Selling</h2></div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:14px">Clientes ativos por Social Seller. Marque quem precisa de <b>reunião</b> e defina a <b>ordem de prioridade</b> para <b>'+mes+'</b> — depois é só <b>copiar</b> pras meninas ou <b>baixar</b> a planilha.</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">'
     +'<button class="btn btn-p btn-s" onclick="copiarCarteira()">📋 Copiar p/ WhatsApp</button>'
     +'<button class="btn btn-o btn-s" onclick="baixarCarteiraCSV()">⬇️ Baixar planilha (CSV)</button>'
@@ -1689,7 +1689,7 @@ function rCarteira(){
     +'<button class="btn btn-o btn-s" onclick="limparPrioridadesReuniao()" style="color:#DC2626;border-color:#FCA5A5">🧹 Limpar (novo mês)</button>'
     +'</div>'
     +'<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">'
-    +'<div class="res-card"><div class="res-num" style="color:#0D3D9B">'+csList.length+'</div><div class="res-lbl">CS / responsáveis</div></div>'
+    +'<div class="res-card"><div class="res-num" style="color:#0D3D9B">'+csList.length+'</div><div class="res-lbl">Social Sellers</div></div>'
     +'<div class="res-card"><div class="res-num" style="color:#0D3D9B">'+totalCli+'</div><div class="res-lbl">Clientes ativos</div></div>'
     +'<div class="res-card"><div class="res-num" style="color:#B45309">'+totalMarc+'</div><div class="res-lbl">📅 Marcados p/ reunião</div></div>'
     +'</div>'
@@ -7791,7 +7791,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080406; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080407; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
