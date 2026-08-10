@@ -1958,6 +1958,9 @@ function _gpClients(){return D.clients.filter(function(c){return _isGP(c)&&c.con
 function _designerSenha(name){var s=(D.designerSenhas||{})[name];return (s&&(''+s).trim())?(''+s).trim():({'Marcos':'marcos','Karine':'karine'}[name]||'');}
 function designerLogin(name){var el=document.getElementById('dlog-senha');var senha=el?el.value:'';if((''+senha).trim()!==_designerSenha(name)){S.dlogErr='Senha incorreta.';render();return;}S.designerUser=name;S.dlogErr='';try{sessionStorage.setItem('designerAuth',name);}catch(e){}render();}
 function designerLogout(){S.designerUser=null;S.dlogPick='';try{sessionStorage.removeItem('designerAuth');}catch(e){}render();}
+// Pré-visualização do portal do designer (só Gestão, dentro do sistema) — sem senha, sem gravar sessão.
+function previewDesigner(name){var ov=document.getElementById('desg-modal');if(ov)ov.remove();S.isDesignerPortal=true;S.designerUser=name;S.designerPreview=true;render();}
+function exitDesignerPreview(){S.isDesignerPortal=false;S.designerUser=null;S.designerPreview=false;var _sb=document.getElementById('sidebar');if(_sb)_sb.style.display='';var _tb=document.querySelector('.topbar');if(_tb)_tb.style.display='';var _mn=document.getElementById('main');if(_mn){_mn.style.marginLeft='';_mn.style.minHeight='';}render();}
 function rDesignerLogin(){
   // Login por NOME + senha digitados — sem lista de nomes, pra um designer nunca ver quem é o outro.
   var wrap=function(inner){return '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#F1F5F9;font-family:system-ui,sans-serif"><div style="background:#fff;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.12);width:100%;max-width:380px;overflow:hidden">'
@@ -2020,7 +2023,8 @@ function rDesignerPortal(){
       +'</div>';
   }).join('');
   return '<div style="min-height:100vh;background:#F1F5F9;font-family:system-ui,sans-serif">'
-    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:16px;font-weight:700">🎨 Portal do Designer</div><div style="font-size:12px;opacity:.9">Olá, '+escH(name)+'</div></div><button onclick="designerLogout()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer">Sair</button></div>'
+    +(S.designerPreview?'<div style="background:#1E293B;color:#fff;padding:8px 16px;text-align:center;font-size:12px">👁 Pré-visualização do portal de <b>'+escH(name)+'</b> (só você vê isto) · <span onclick="exitDesignerPreview()" style="cursor:pointer;text-decoration:underline;font-weight:600">← Voltar ao sistema</span></div>':'')
+    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:16px;font-weight:700">🎨 Portal do Designer</div><div style="font-size:12px;opacity:.9">Olá, '+escH(name)+'</div></div><button onclick="'+(S.designerPreview?'exitDesignerPreview()':'designerLogout()')+'" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer">'+(S.designerPreview?'← Voltar':'Sair')+'</button></div>'
     +'<div style="max-width:720px;margin:0 auto;padding:16px 16px 60px">'
     +'<div style="display:flex;gap:10px;margin-bottom:16px">'
     +'<div style="flex:1;background:#fff;border-radius:12px;padding:12px;text-align:center;border:1px solid #E5E7EB"><div style="font-size:22px;font-weight:800;color:#B45309">'+pend+'</div><div style="font-size:11px;color:#64748B">Artes pendentes</div></div>'
@@ -2167,10 +2171,10 @@ function openDesignersModal(){
     +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🎨 Designers</h3><button onclick="document.getElementById(\'desg-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
     +'<div style="padding:20px">'
     +'<div style="font-size:12px;color:#475569;margin-bottom:14px">Cada designer entra com o próprio nome e senha. Marque o designer no tema (campo 🎨) para o trabalho aparecer pra ele.</div>'
-    +_DESIGNERS.map(function(n){return '<div class="fg" style="margin-bottom:10px"><label>Senha de '+escH(n)+'</label><input value="'+escH(_designerSenha(n))+'" onchange="saveDesignerSenha(\''+escH(n)+'\',this.value)" placeholder="senha"></div>';}).join('')
+    +_DESIGNERS.map(function(n){return '<div style="margin-bottom:12px"><label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase">'+escH(n)+'</label><div style="display:flex;gap:6px;margin-top:4px"><input value="'+escH(_designerSenha(n))+'" onchange="saveDesignerSenha(\''+escH(n)+'\',this.value)" placeholder="senha" style="flex:1"><button class="btn btn-o btn-s" onclick="previewDesigner(\''+escH(n)+'\')" title="Ver o portal como '+escH(n)+'" style="white-space:nowrap">👁 Ver portal</button></div></div>';}).join('')
     +'<div style="margin-top:6px;padding-top:14px;border-top:1px solid #F1F5F9"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🔗 Link do portal do designer</div>'
     +'<div style="display:flex;gap:6px"><input readonly value="'+escH(link)+'" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#F8FAFC"><button class="btn btn-p btn-s" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+escH(link)+'\');toast(\'📋 Link copiado!\')">Copiar</button></div>'
-    +'<div style="font-size:11px;color:#94A3B8;margin-top:6px">Envie esse link pro Marcos e pra Karine. Eles escolhem o nome e digitam a senha.</div></div>'
+    +'<div style="font-size:11px;color:#94A3B8;margin-top:6px">Envie esse link pro Marcos e pra Karine. Cada um digita o próprio nome e a senha (um não vê o outro).</div></div>'
     +'</div>'
     +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end"><button class="btn btn-p" onclick="document.getElementById(\'desg-modal\').remove();render()">Pronto</button></div>'
     +'</div>';
@@ -7726,6 +7730,50 @@ function rPortalRelatorios(c){
     +'</div>';
 }
 
+// === PORTAL DO CLIENTE — CONTEÚDOS: aprovar artes e ver publicadas ===
+function _portalClient(){return D.clients.find(function(c){return c.id===S.authenticatedClientId;});}
+function portalApproveArt(cardId){
+  var c=_portalClient();if(!c)return;
+  var card=(_conteudos(c).cards||[]).find(function(x){return x.id===cardId;});if(!card)return;
+  card.status='aprovado';card.clientApproved=true;card.clientApprovedAt=new Date().toISOString();delete card.clientChangeReq;
+  save();if(typeof toast==='function')toast('✅ Arte aprovada! Obrigado 💙');render();
+}
+function portalRequestArtChange(cardId){
+  var c=_portalClient();if(!c)return;
+  var card=(_conteudos(c).cards||[]).find(function(x){return x.id===cardId;});if(!card)return;
+  var obs=prompt('O que você gostaria de ajustar nesta arte?');
+  if(obs===null)return;
+  card.clientChangeReq=(''+obs).trim();card.clientChangeAt=new Date().toISOString();card.status='arte';
+  save();if(typeof toast==='function')toast('✍️ Pedido de ajuste enviado pra equipe');render();
+}
+function rPortalConteudos(c){
+  var cards=(_conteudos(c).cards||[]).filter(function(k){return _cardImgs(k).length>0;});
+  var fmtLbl=function(k){return k.formato?('· '+escH(k.formato)):'';};
+  var imgsHtml=function(k){var im=_cardImgs(k);return '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">'+im.map(function(it){return '<img src="'+escH(it.url||it.bg||'')+'" style="width:150px;height:150px;object-fit:cover;border-radius:12px;border:1px solid #E5E7EB;flex:0 0 auto">';}).join('')+'</div>';};
+  var legenda=function(k){return k.caption?('<div style="margin-top:10px"><div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:3px">Legenda</div><div style="font-size:13px;color:#334155;white-space:pre-wrap;line-height:1.5;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px">'+escH(k.caption)+'</div></div>'):'';};
+  var aguardando=cards.filter(function(k){return (k.status||'')==='cliente';});
+  var aprovadas=cards.filter(function(k){return (k.status||'')==='aprovado';});
+  var publicadas=cards.filter(function(k){return (k.status||'')==='publicado';});
+  var cardAguard=function(k){return '<div class="portal-card" style="padding:18px 20px">'
+    +'<div style="font-size:16px;font-weight:700;color:#1E293B">'+escH(k.title||'Arte')+' <span style="font-size:12px;font-weight:400;color:#94A3B8">'+fmtLbl(k)+'</span></div>'
+    +'<div style="margin-top:10px">'+imgsHtml(k)+'</div>'
+    +legenda(k)
+    +(k.clientChangeReq?'<div style="margin-top:10px;font-size:12px;color:#B45309;background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:8px 10px">✍️ Ajuste pedido: '+escH(k.clientChangeReq)+'</div>':'')
+    +'<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'
+    +'<button onclick="portalApproveArt(\''+k.id+'\')" style="flex:1;min-width:140px;padding:12px;border:none;border-radius:10px;background:#16A34A;color:#fff;font-size:14px;font-weight:700;cursor:pointer">✅ Aprovar</button>'
+    +'<button onclick="portalRequestArtChange(\''+k.id+'\')" style="flex:1;min-width:140px;padding:12px;border:1px solid #FCA5A5;border-radius:10px;background:#fff;color:#DC2626;font-size:14px;font-weight:600;cursor:pointer">✏️ Pedir ajuste</button>'
+    +'</div></div>';};
+  var cardSimple=function(k,tag,tagColor){return '<div class="portal-card" style="padding:18px 20px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px"><div style="font-size:16px;font-weight:700;color:#1E293B">'+escH(k.title||'Arte')+' <span style="font-size:12px;font-weight:400;color:#94A3B8">'+fmtLbl(k)+'</span></div><span style="font-size:11px;font-weight:700;color:'+tagColor+';background:'+tagColor+'18;padding:3px 10px;border-radius:99px;white-space:nowrap">'+tag+'</span></div>'
+    +imgsHtml(k)+legenda(k)+'</div>';};
+  var sec=function(title,sub,html){return '<div style="margin-bottom:22px"><div style="font-size:14px;font-weight:800;color:#1E293B;margin-bottom:2px">'+title+'</div><div style="font-size:12px;color:#64748B;margin-bottom:12px">'+sub+'</div><div style="display:flex;flex-direction:column;gap:14px">'+html+'</div></div>';};
+  var out='<div class="portal-hero" style="margin-bottom:20px"><div><h1>🎨 Conteúdos</h1><p>Aprove as artes e acompanhe o que já foi publicado</p></div></div>';
+  out+=aguardando.length?sec('🕐 Aguardando sua aprovação','Dê uma olhada e aprove, ou peça um ajuste.',aguardando.map(cardAguard).join('')):'';
+  out+=aprovadas.length?sec('✅ Aprovadas por você','Já aprovadas — a equipe vai publicar.',aprovadas.map(function(k){return cardSimple(k,'✅ Aprovada','#16A34A');}).join('')):'';
+  out+=publicadas.length?sec('📢 Publicadas','Artes que já foram ao ar.',publicadas.map(function(k){return cardSimple(k,'📢 Publicada','#334155');}).join('')):'';
+  if(!aguardando.length&&!aprovadas.length&&!publicadas.length){out+='<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Ainda não há artes por aqui.<br><small>Assim que a equipe subir as artes, elas aparecem aqui pra você aprovar.</small></div>';}
+  return '<div style="max-width:760px;margin:0 auto">'+out+'</div>';
+}
 function rClientPortalAuth(){
   const c=D.clients.find(c=>c.id===S.authenticatedClientId);
   if(!c){logoutClientPortal();return'';}
@@ -7738,6 +7786,7 @@ function rClientPortalAuth(){
   const navItems=[
     {id:'dashboard',icon:'📊',label:'Dashboard'},
     {id:'entregas',icon:'📦',label:'Entregas'},
+    ...((c.products||[]).includes('Gestão de Perfil')?[{id:'conteudos',icon:'🎨',label:'Conteúdos'}]:[]),
     ...(_icOnly?[]:[{id:'prospeccao',icon:'🎯',label:'Leads'}]),
     ...(_isICPortal?[{id:'crm',icon:'🎯',label:'Meus Leads'}]:[]),
     {id:'reunioes',icon:'🤝',label:'Reuniões'},
@@ -7749,8 +7798,9 @@ function rClientPortalAuth(){
   if(!_isICPortal&&pv==='metricas'){pv='dashboard';S.portalView='dashboard';}
   if(!_isICPortal&&pv==='crm'){pv='dashboard';S.portalView='dashboard';}
   if(_icOnly&&pv==='prospeccao'){pv='dashboard';S.portalView='dashboard';}
-  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',prospeccao:'Leads',crm:'Meus Leads',reunioes:'Reuniões',plano:'Plano de Ação',metricas:'Minhas métricas',relatorios:'Relatório de Resultados'};
-  const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,prospeccao:rPortalProspeccao,crm:rPortalCRM,reunioes:rPortalReunioes,plano:rPortalPlano,metricas:rPortalMetricas,relatorios:rPortalRelatorios};
+  if(pv==='conteudos'&&!(c.products||[]).includes('Gestão de Perfil')){pv='dashboard';S.portalView='dashboard';}
+  const headerTitles={dashboard:'Dashboard',entregas:'Entregas',conteudos:'Conteúdos',prospeccao:'Leads',crm:'Meus Leads',reunioes:'Reuniões',plano:'Plano de Ação',metricas:'Minhas métricas',relatorios:'Relatório de Resultados'};
+  const contentMap={dashboard:rPortalDashboard,entregas:rPortalEntregas,conteudos:rPortalConteudos,prospeccao:rPortalProspeccao,crm:rPortalCRM,reunioes:rPortalReunioes,plano:rPortalPlano,metricas:rPortalMetricas,relatorios:rPortalRelatorios};
   const mainContent=(contentMap[pv]||rPortalDashboard)(c);
   return`<div class="portal-wrapper">
     <div class="portal-sidebar">
@@ -7899,7 +7949,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080414; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080415; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
