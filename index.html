@@ -7643,8 +7643,8 @@ function rPortalRelatorios(c){
     var up=d>0;var txt=(up?'▲ +':'▼ ')+(pct?(Math.round(Math.abs(d)/(pn||1)*100)+'%'):Math.abs(d).toLocaleString('pt-BR'));
     return '<span style="'+base+'color:'+(up?'#16A34A':'#DC2626')+';background:'+(up?'#EAF7EF':'#FEF2F2')+'">'+txt+' vs. mês anterior</span>';
   };
-  const kpi=function(v,l,color,delta){return '<div style="background:#fff;border:1px solid #E7ECF5;border-radius:14px;padding:15px 15px 13px;box-shadow:0 4px 14px rgba(15,30,70,.05)"><div style="font-size:30px;font-weight:800;color:'+color+';line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em">'+v+'</div><div style="font-size:12px;color:#64748B;margin-top:5px">'+l+'</div>'+(delta||'')+'</div>';};
-  const chip=function(v,l,color,delta){return '<div style="background:#fff;border:1px solid #E7ECF5;border-radius:12px;padding:12px 14px"><div style="font-size:19px;font-weight:700;color:'+color+';font-variant-numeric:tabular-nums">'+v+'</div><div style="font-size:11px;color:#64748B;margin-top:3px">'+l+'</div>'+(delta||'')+'</div>';};
+  const kpi=function(v,l,color,delta){return '<div style="background:#fff;border:1px solid #E7ECF5;border-radius:16px;padding:22px 20px 18px;box-shadow:0 6px 18px rgba(15,30,70,.06)"><div style="font-size:50px;font-weight:800;color:'+color+';line-height:.95;font-variant-numeric:tabular-nums;letter-spacing:-.03em">'+v+'</div><div style="font-size:14px;color:#64748B;margin-top:8px;font-weight:500">'+l+'</div>'+(delta||'')+'</div>';};
+  const chip=function(v,l,color,delta){return '<div style="background:#fff;border:1px solid #E7ECF5;border-radius:14px;padding:16px 18px"><div style="font-size:28px;font-weight:800;color:'+color+';font-variant-numeric:tabular-nums;letter-spacing:-.02em">'+v+'</div><div style="font-size:12px;color:#64748B;margin-top:4px">'+l+'</div>'+(delta||'')+'</div>';};
   const secLbl=function(t){return '<div style="font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#64748B;margin:18px 0 10px">'+t+'</div>';};
   const anaCard=function(tag,color,border,txt){return '<div style="position:relative;overflow:hidden;background:#fff;border:1px solid '+border+';border-radius:14px;padding:16px 18px 16px 20px;margin-top:6px"><div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:'+color+'"></div><div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:'+color+'">'+tag+'</div><div style="font-size:14px;line-height:1.6;color:#1E293B;margin-top:9px;white-space:pre-wrap">'+(txt||'').replace(/</g,'&lt;')+'</div></div>';};
   // Gráfico de evolução (reuniões por mês)
@@ -7673,7 +7673,7 @@ function rPortalRelatorios(c){
     +'<div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.72);font-weight:700">ALL IN · Relatório de Resultados</div>'
     +'<div style="font-size:23px;font-weight:800;margin-top:5px">'+escH(c.name)+'</div>'
     +'<div style="font-size:13px;color:rgba(255,255,255,.85)">'+(sel==='todos'?'Todos os meses':sel)+'</div>'
-    +((sel!=='todos'&&heroR.month)?'<div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-top:16px"><div style="font-size:48px;font-weight:800;line-height:.9;letter-spacing:-.03em">'+hWinV+'</div><div style="font-size:14px;color:rgba(255,255,255,.9);max-width:360px;line-height:1.4"><b>'+hWinL+'</b> em '+heroR.month+'</div></div>':'')
+    +((sel!=='todos'&&heroR.month)?'<div style="display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;margin-top:18px"><div style="font-size:88px;font-weight:800;line-height:.85;letter-spacing:-.04em">'+hWinV+'</div><div style="font-size:16px;color:rgba(255,255,255,.9);max-width:360px;line-height:1.4"><b>'+hWinL+'</b> em '+heroR.month+'</div></div>':'')
     +'</div>';
   const cards=months.map(function(r,i){
     if(sel!=='todos'&&r.month!==sel)return '';
@@ -7712,7 +7712,7 @@ function rPortalRelatorios(c){
       +kpis+apoioHtml+anaStr+contHtml+contAnaStr+revStr+'</div>';
   }).join('');
   const empty='<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhum resultado ainda.<br><small>Os resultados aparecem automaticamente conforme a equipe atualiza.</small></div>';
-  return '<div style="max-width:900px;margin:0 auto">'
+  return '<div style="max-width:1120px;margin:0 auto">'
     +banner
     +monthChips
     +chartSvg
@@ -7893,7 +7893,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080412; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080413; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
