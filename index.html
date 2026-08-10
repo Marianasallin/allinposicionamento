@@ -1442,7 +1442,7 @@ function _relResultadosForm(c){
     +stat('Leads',pm.leads)
     +'</div>'
     +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">📈 Números do mês — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Social Seller — aparece pro cliente)</span></div>'
-    +'<div class="fgrid" style="max-width:640px;margin-bottom:16px">'
+    +'<div class="fgrid" style="max-width:640px;margin-bottom:16px" oninput="_resAutosave(\''+c.id+'\',\''+mk+'\')">'
     +'<div class="fg"><label>Nº de seguidores no mês</label><input type="number" id="rr-followers" value="'+val(mm.followers)+'" placeholder="ex.: 16124"></div>'
     +'<div class="fg"><label>Nº de mensagens enviadas</label><input type="number" id="rr-mensagens" value="'+val(mm.mensagensEnviadas)+'" placeholder="ex.: 320"></div>'
     +'<div class="fg"><label>Taxa de resposta (%) <span style="font-weight:400;color:#94A3B8">(do Waalaxy)</span></label><input type="number" step="0.1" id="rr-taxaresp" value="'+val(mm.taxaResposta)+'" placeholder="ex.: 15"></div>'
@@ -1452,16 +1452,17 @@ function _relResultadosForm(c){
     +'<div class="fg"><label>Convites aceitos</label><input type="number" id="rr-convace" value="'+val(mm.convitesAceitos)+'" placeholder="ex.: 160"></div>'
     +'</div>'
     +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">✍️ Conteúdo — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Conteúdo — Gabi/Naiara)</span></div>'
-    +'<div class="fgrid" style="margin-bottom:12px">'
+    +'<div class="fgrid" style="margin-bottom:12px" oninput="_resAutosave(\''+c.id+'\',\''+mk+'\')">'
     +'<div class="fg"><label>Publicações</label><input type="number" id="rr-pub" value="'+val(mm.publicacoes)+'"></div>'
     +'<div class="fg"><label>Impressões</label><input type="number" id="rr-imp" value="'+val(mm.impressoes)+'"></div>'
     +'<div class="fg"><label>Alcance</label><input type="number" id="rr-alc" value="'+val(mm.alcance)+'"></div>'
     +'<div class="fg"><label>Visualizações de perfil</label><input type="number" id="rr-vis" value="'+val(mm.visualizacoes)+'"></div>'
     +'</div>'
     +'<button class="btn btn-p btn-s" onclick="saveMonthlyMetrics(\''+c.id+'\',\''+mk+'\')">💾 Salvar métricas de '+mk+'</button>'
+    +'<span id="rr-autosave-ind" style="font-size:11px;color:#16A34A;opacity:.5;margin-left:10px;font-weight:600">✓ salva sozinho enquanto você digita</span>'
     +'<div style="margin-top:16px;padding:12px 14px;border:1px dashed #C4B5FD;border-radius:10px;background:#FAF5FF">'
     +'<div style="font-size:11px;font-weight:700;color:#7C3AED;text-transform:uppercase;margin-bottom:6px">📝 Análise de conteúdo — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(escreve: Gabi/Conteúdo · Mari aprova)</span></div>'
-    +'<textarea id="rr-contanalise" placeholder="Observações da Gabi sobre o conteúdo do mês: destaques, o que performou melhor, aprendizados e próximos passos..." style="width:100%;min-height:90px;padding:10px;border:1px solid #DDD6FE;border-radius:8px;font-size:13px;font-family:inherit;line-height:1.5;resize:vertical;box-sizing:border-box;margin-bottom:8px">'+escH(mr.contentAnalysis||'')+'</textarea>'
+    +'<textarea id="rr-contanalise" oninput="_resAutosave(\''+c.id+'\',\''+mk+'\')" placeholder="Observações da Gabi sobre o conteúdo do mês: destaques, o que performou melhor, aprendizados e próximos passos..." style="width:100%;min-height:90px;padding:10px;border:1px solid #DDD6FE;border-radius:8px;font-size:13px;font-family:inherit;line-height:1.5;resize:vertical;box-sizing:border-box;margin-bottom:8px">'+escH(mr.contentAnalysis||'')+'</textarea>'
     +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
     +'<button class="btn btn-o btn-s" onclick="saveContentAnalysis(\''+c.id+'\',\''+mk+'\')">💾 Salvar análise</button>'
     +(_isGestao(S.currentUser)
@@ -1486,6 +1487,20 @@ function saveMonthlyMetrics(cid,mk){
   c.monthlyMetrics[mk]={followers:num('rr-followers'),mensagensEnviadas:num('rr-mensagens'),taxaResposta:numDec('rr-taxaresp'),taxaAceitacao:numDec('rr-taxaacei'),ssi:numDec('rr-ssi'),convitesEnviados:num('rr-convenv'),convitesAceitos:num('rr-convace'),publicacoes:num('rr-pub'),impressoes:num('rr-imp'),alcance:num('rr-alc'),visualizacoes:num('rr-vis')};
   if($('rr-contanalise')){if(!c.monthlyReports)c.monthlyReports={};if(!c.monthlyReports[mk])c.monthlyReports[mk]={};c.monthlyReports[mk].contentAnalysis=$('rr-contanalise').value;}
   save();if(typeof toast==='function')toast('💾 Métricas de '+mk+' salvas — já subiram pro portal!');render();
+}
+// Auto-save de Resultados: as meninas digitam e já fica salvo (debounce 800ms, sem re-render pra não atrapalhar a digitação).
+var _resAutosaveTimer=null;
+function _resAutosave(cid,mk){ if(_resAutosaveTimer)clearTimeout(_resAutosaveTimer); _resAutosaveTimer=setTimeout(function(){_resAutosaveNow(cid,mk);},800); }
+function _resAutosaveNow(cid,mk){
+  const c=D.clients.find(x=>x.id===cid);if(!c)return;
+  if(!c.monthlyMetrics)c.monthlyMetrics={};
+  const num=function(id){var el=$(id);if(!el)return null;var v=(el.value||'').trim();if(v==='')return null;v=v.replace(/\./g,'').replace(',','.');var n=parseFloat(v);return isNaN(n)?null:n;};
+  const numDec=function(id){var el=$(id);if(!el)return null;var v=(el.value||'').trim();if(v==='')return null;var n=parseFloat(v.replace(',','.'));return isNaN(n)?null:n;};
+  c.monthlyMetrics[mk]={followers:num('rr-followers'),mensagensEnviadas:num('rr-mensagens'),taxaResposta:numDec('rr-taxaresp'),taxaAceitacao:numDec('rr-taxaacei'),ssi:numDec('rr-ssi'),convitesEnviados:num('rr-convenv'),convitesAceitos:num('rr-convace'),publicacoes:num('rr-pub'),impressoes:num('rr-imp'),alcance:num('rr-alc'),visualizacoes:num('rr-vis')};
+  if($('rr-contanalise')){if(!c.monthlyReports)c.monthlyReports={};if(!c.monthlyReports[mk])c.monthlyReports[mk]={};c.monthlyReports[mk].contentAnalysis=$('rr-contanalise').value;}
+  save();
+  var ind=document.getElementById('rr-autosave-ind');
+  if(ind){ind.textContent='✓ salvo';ind.style.opacity='1';clearTimeout(ind._t);ind._t=setTimeout(function(){ind.textContent='✓ salva sozinho enquanto você digita';ind.style.opacity='.5';},1800);}
 }
 // Análise de conteúdo (Gabi escreve → Mari aprova → aparece no portal do cliente). Guardada em monthlyReports[mk].
 function saveContentAnalysis(cid,mk){
@@ -7834,7 +7849,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080409; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080410; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
