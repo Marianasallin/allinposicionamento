@@ -7634,45 +7634,73 @@ function rPortalRelatorios(c){
     {lbl:'SSI',get:function(r){var p=_prospMetricsMonth(c,r.month);return p.ssi!=null?p.ssi:'—';}}
   ];
   const evoTable=chrono.length>1?'<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">Métricas por mês</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:6px 8px;color:#64748B;font-weight:600">Indicador</th>'+chrono.map(function(r){return '<th style="padding:6px 8px;color:#64748B;font-weight:600;white-space:nowrap">'+short(r.month)+'</th>';}).join('')+'</tr></thead><tbody>'+evoDefs.map(function(row){return '<tr style="border-top:1px solid #F1F5F9"><td style="padding:7px 8px;font-weight:600;color:#1E293B">'+row.lbl+'</td>'+chrono.map(function(r){return '<td style="text-align:center;padding:7px 8px;color:#334155">'+row.get(r)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>':'';
+  // === Modo apresentação: KPIs grandes com comparação mês a mês, e análises com destaque ===
+  const deltaBadge=function(cur,prev,pct){
+    if(cur==null||cur===''||prev==null||prev==='')return '';
+    var cn=Number(cur),pn=Number(prev);if(isNaN(cn)||isNaN(pn))return '';
+    var d=cn-pn;var base='font-size:10px;font-weight:700;border-radius:99px;padding:2px 8px;display:inline-block;margin-top:7px;';
+    if(d===0)return '<span style="'+base+'color:#94A3B8;background:#F1F5F9">= igual ao mês anterior</span>';
+    var up=d>0;var txt=(up?'▲ +':'▼ ')+(pct?(Math.round(Math.abs(d)/(pn||1)*100)+'%'):Math.abs(d).toLocaleString('pt-BR'));
+    return '<span style="'+base+'color:'+(up?'#16A34A':'#DC2626')+';background:'+(up?'#EAF7EF':'#FEF2F2')+'">'+txt+' vs. mês anterior</span>';
+  };
+  const kpi=function(v,l,color,delta){return '<div style="background:#fff;border:1px solid #E7ECF5;border-radius:14px;padding:15px 15px 13px;box-shadow:0 4px 14px rgba(15,30,70,.05)"><div style="font-size:30px;font-weight:800;color:'+color+';line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em">'+v+'</div><div style="font-size:12px;color:#64748B;margin-top:5px">'+l+'</div>'+(delta||'')+'</div>';};
+  const chip=function(v,l,color,delta){return '<div style="background:#fff;border:1px solid #E7ECF5;border-radius:12px;padding:12px 14px"><div style="font-size:19px;font-weight:700;color:'+color+';font-variant-numeric:tabular-nums">'+v+'</div><div style="font-size:11px;color:#64748B;margin-top:3px">'+l+'</div>'+(delta||'')+'</div>';};
+  const secLbl=function(t){return '<div style="font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#64748B;margin:18px 0 10px">'+t+'</div>';};
+  const anaCard=function(tag,color,border,txt){return '<div style="position:relative;overflow:hidden;background:#fff;border:1px solid '+border+';border-radius:14px;padding:16px 18px 16px 20px;margin-top:6px"><div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:'+color+'"></div><div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:'+color+'">'+tag+'</div><div style="font-size:14px;line-height:1.6;color:#1E293B;margin-top:9px;white-space:pre-wrap">'+(txt||'').replace(/</g,'&lt;')+'</div></div>';};
+  // Gráfico de evolução (reuniões por mês)
+  const chartSvg=(function(){
+    if(chrono.length<2)return '';
+    var vals=chrono.map(function(r){return r.meetings||0;});var max=Math.max.apply(null,vals.concat([1]));
+    var step=560/chrono.length,bw=Math.min(64,step-16);
+    var bars=chrono.map(function(r,i){
+      var v=r.meetings||0,h=Math.round((v/max)*110),x=20+i*step+(step-bw)/2,y=150-h,last=i===chrono.length-1;
+      return '<rect x="'+x.toFixed(1)+'" y="'+y+'" width="'+bw.toFixed(1)+'" height="'+h+'" rx="6" fill="#EA580C" opacity="'+(last?'1':(0.35+0.45*i/Math.max(chrono.length-1,1)).toFixed(2))+'"/>'
+        +'<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y-6)+'" text-anchor="middle" font-size="12" font-weight="700" fill="'+(last?'#EA580C':'#334155')+'">'+v+'</text>'
+        +'<text x="'+(x+bw/2).toFixed(1)+'" y="168" text-anchor="middle" font-size="10" fill="#94A3B8">'+short(r.month)+'</text>';
+    }).join('');
+    return '<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">Reuniões por mês</div><svg viewBox="0 0 600 180" style="width:100%;height:180px;display:block"><line x1="20" y1="150" x2="580" y2="150" stroke="#E7ECF5"/>'+bars+'</svg></div>';
+  })();
   const cards=months.map(function(r,i){
-    const prv=months[i+1];const isMost=i===0;const mk=r.month;
+    const prv=months[i+1]||{};const pmm=(c.monthlyMetrics||{})[prv.month]||{};const isMost=i===0;const mk=r.month;
     const mm=(c.monthlyMetrics||{})[mk]||{};
-    const pm=_prospMetricsMonth(c,mk);
     const mr=(c.monthlyReports||{})[mk]||{};
-    const temConteudo=[mm.publicacoes,mm.impressoes,mm.alcance,mm.visualizacoes,mm.followers].some(function(v){return v!=null&&v!=='';});
-    const prospHtml='<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin:4px 0 8px">🎯 Prospecção</div>'
-      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px;margin-bottom:14px">'
-      +mini(r.prospects,'👥 Leads','#0D3D9B','#F8FAFF')
-      +mini(r.leads,'💬 Responderam','#7C3AED','#F5F3FF')
-      +mini(r.meetings,'🤝 Reuniões','#EA580C','#FFF7ED')
-      +(r.sales>0?'<div onclick="showFechamentos(\''+c.id+'\',\''+mk+'\')" style="cursor:pointer" title="Ver quais fecharam">'+mini(r.sales,'✅ Fechamentos ↗','#16A34A','#F0FDF4')+'</div>':mini(r.sales,'✅ Fechamentos','#16A34A','#F0FDF4'))
-      +(has(mm.convitesEnviados)?mini(Number(mm.convitesEnviados).toLocaleString('pt-BR'),'📨 Convites enviados','#0D3D9B','#F8FAFF'):'')
-      +(has(mm.convitesAceitos)?mini(Number(mm.convitesAceitos).toLocaleString('pt-BR'),'✅ Convites aceitos','#0D3D9B','#F8FAFF'):'')
-      +(has(mm.taxaAceitacao)?mini(mm.taxaAceitacao+'%','Taxa de aceitação','#0D3D9B','#F8FAFF'):'')
-      +(has(mm.taxaResposta)?mini(mm.taxaResposta+'%','Taxa de resposta','#0D3D9B','#F8FAFF'):'')
-      +(has(mm.mensagensEnviadas)?mini(Number(mm.mensagensEnviadas).toLocaleString('pt-BR'),'✉️ Mensagens enviadas','#0D3D9B','#F8FAFF'):'')
-      +(has(mm.ssi)?mini(mm.ssi,'📊 SSI (LinkedIn)','#0077B5','#EFF6FF'):'')
+    const winV=(r.meetings>0)?r.meetings:((r.sales>0)?r.sales:r.prospects);
+    const winL=(r.meetings>0)?'reuniões agendadas':((r.sales>0)?'fechamentos':'leads gerados');
+    const hero=isMost?'<div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:8px 0 2px"><div style="font-size:46px;font-weight:800;color:#0D3D9B;line-height:.9;letter-spacing:-.03em">'+winV+'</div><div style="font-size:14px;color:#475569;max-width:340px;line-height:1.4"><b>'+winL+'</b> em '+mk+'.</div></div>':'';
+    const kpis=secLbl('Resultado do mês')
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">'
+      +kpi(r.prospects,'👥 Leads','#0D3D9B',deltaBadge(r.prospects,prv.prospects))
+      +kpi(r.leads,'💬 Responderam','#7C3AED',deltaBadge(r.leads,prv.leads))
+      +kpi(r.meetings,'🤝 Reuniões','#EA580C',deltaBadge(r.meetings,prv.meetings))
+      +(r.sales>0?'<div onclick="showFechamentos(\''+c.id+'\',\''+mk+'\')" style="cursor:pointer">'+kpi(r.sales,'✅ Fechamentos ↗','#16A34A',deltaBadge(r.sales,prv.sales))+'</div>':kpi(r.sales,'✅ Fechamentos','#16A34A',deltaBadge(r.sales,prv.sales)))
       +'</div>';
-    const contHtml=temConteudo?('<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin:4px 0 8px">✍️ Conteúdo e alcance</div>'
-      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px;margin-bottom:14px">'
-      +(mm.followers!=null&&mm.followers!==''?mini(Number(mm.followers).toLocaleString('pt-BR'),'Seguidores','#0077B5','#EFF6FF'):'')
-      +(mm.publicacoes!=null&&mm.publicacoes!==''?mini(mm.publicacoes,'Publicações','#0077B5','#EFF6FF'):'')
-      +(mm.impressoes!=null&&mm.impressoes!==''?mini(Number(mm.impressoes).toLocaleString('pt-BR'),'Impressões','#0077B5','#EFF6FF'):'')
-      +(mm.alcance!=null&&mm.alcance!==''?mini(Number(mm.alcance).toLocaleString('pt-BR'),'Alcance','#0077B5','#EFF6FF'):'')
-      +(mm.visualizacoes!=null&&mm.visualizacoes!==''?mini(Number(mm.visualizacoes).toLocaleString('pt-BR'),'Visualizações','#0077B5','#EFF6FF'):'')
-      +'</div>'):'';
-    const revStr=r.revenue>0?'<div style="text-align:center;padding:10px;background:#F0FDF4;border-radius:10px;margin-bottom:14px"><div style="font-size:18px;font-weight:700;color:#16A34A">R$ '+r.revenue.toLocaleString('pt-BR')+'</div><div style="font-size:10px;color:#64748B">💰 Receita dos fechamentos</div></div>':'';
-    const contAnaStr=(mr.contentReleased&&(mr.contentAnalysis||'').trim())?('<div style="border-top:1px solid #F3EEFF;padding-top:12px;margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#7C3AED;text-transform:uppercase;margin-bottom:4px">📝 Análise de conteúdo</div><div style="font-size:13px;color:#334155;line-height:1.5;background:#FAF5FF;border:1px solid #E9D5FF;border-radius:8px;padding:10px 12px;white-space:pre-wrap">'+(mr.contentAnalysis||'').replace(/</g,'&lt;')+'</div></div>'):'';
-    const anaStr=(mr.released&&(mr.analysis||'').trim())?('<div style="border-top:1px solid #EEF2FB;padding-top:12px"><div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px">📝 Análise do mês</div><div style="font-size:13px;color:#334155;line-height:1.5;background:#F8FAFF;border:1px solid #DBEAFE;border-radius:8px;padding:10px 12px;white-space:pre-wrap">'+(mr.analysis||'').replace(/</g,'&lt;')+'</div></div>'):'';
-    return '<div class="portal-card" style="'+(isMost?'border-left:4px solid #0D3D9B;':'')+'">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-      +'<div style="font-size:16px;font-weight:700;color:#1E293B">'+mk+'</div>'
-      +(isMost?'<span style="font-size:11px;background:#EFF6FF;color:#0D3D9B;padding:4px 10px;border-radius:99px;font-weight:600">✨ Mais recente</span>':'')+'</div>'
-      +prospHtml+contHtml+contAnaStr+revStr+anaStr+'</div>';
+    const apoio=[];
+    if(has(mm.convitesEnviados))apoio.push(chip(Number(mm.convitesEnviados).toLocaleString('pt-BR'),'📨 Convites enviados','#0D3D9B',deltaBadge(mm.convitesEnviados,pmm.convitesEnviados)));
+    if(has(mm.convitesAceitos))apoio.push(chip(Number(mm.convitesAceitos).toLocaleString('pt-BR'),'✅ Convites aceitos','#0D3D9B',deltaBadge(mm.convitesAceitos,pmm.convitesAceitos)));
+    if(has(mm.taxaAceitacao))apoio.push(chip(mm.taxaAceitacao+'%','Taxa de aceitação','#0D3D9B',deltaBadge(mm.taxaAceitacao,pmm.taxaAceitacao)));
+    if(has(mm.taxaResposta))apoio.push(chip(mm.taxaResposta+'%','Taxa de resposta','#0D3D9B',deltaBadge(mm.taxaResposta,pmm.taxaResposta)));
+    if(has(mm.mensagensEnviadas))apoio.push(chip(Number(mm.mensagensEnviadas).toLocaleString('pt-BR'),'✉️ Mensagens','#0D3D9B',deltaBadge(mm.mensagensEnviadas,pmm.mensagensEnviadas)));
+    if(has(mm.ssi))apoio.push(chip(mm.ssi,'📊 SSI (LinkedIn)','#7C3AED',deltaBadge(mm.ssi,pmm.ssi)));
+    const apoioHtml=apoio.length?secLbl('Prospecção · números de apoio')+'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">'+apoio.join('')+'</div>':'';
+    const cont=[];
+    if(has(mm.followers))cont.push(chip(Number(mm.followers).toLocaleString('pt-BR'),'Seguidores','#0077B5',deltaBadge(mm.followers,pmm.followers)));
+    if(has(mm.publicacoes))cont.push(chip(mm.publicacoes,'Publicações','#0077B5',deltaBadge(mm.publicacoes,pmm.publicacoes)));
+    if(has(mm.impressoes))cont.push(chip(Number(mm.impressoes).toLocaleString('pt-BR'),'Impressões','#0077B5',deltaBadge(mm.impressoes,pmm.impressoes,true)));
+    if(has(mm.alcance))cont.push(chip(Number(mm.alcance).toLocaleString('pt-BR'),'Alcance','#0077B5',deltaBadge(mm.alcance,pmm.alcance,true)));
+    if(has(mm.visualizacoes))cont.push(chip(Number(mm.visualizacoes).toLocaleString('pt-BR'),'Visualizações de perfil','#0077B5',deltaBadge(mm.visualizacoes,pmm.visualizacoes,true)));
+    const contHtml=cont.length?secLbl('Conteúdo e alcance')+'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">'+cont.join('')+'</div>':'';
+    const anaStr=(mr.released&&(mr.analysis||'').trim())?secLbl('Análise do mês')+anaCard('📊 Análise do mês','#0D3D9B','#DBEAFE',mr.analysis):'';
+    const contAnaStr=(mr.contentReleased&&(mr.contentAnalysis||'').trim())?secLbl('Análise de conteúdo')+anaCard('📝 Análise de conteúdo','#7C3AED','#E9D5FF',mr.contentAnalysis):'';
+    const revStr=r.revenue>0?'<div style="text-align:center;padding:12px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;margin-top:14px"><div style="font-size:20px;font-weight:800;color:#16A34A">R$ '+r.revenue.toLocaleString('pt-BR')+'</div><div style="font-size:11px;color:#64748B">💰 Receita dos fechamentos</div></div>':'';
+    return '<div class="portal-card" style="padding:20px 22px;'+(isMost?'border-top:4px solid #0D3D9B;':'')+'">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<div style="font-size:17px;font-weight:800;color:#1E293B">'+mk+'</div>'
+      +(isMost?'<span style="font-size:11px;background:#EFF6FF;color:#0D3D9B;padding:4px 10px;border-radius:99px;font-weight:700">✨ Mais recente</span>':'')+'</div>'
+      +hero+kpis+apoioHtml+anaStr+contHtml+contAnaStr+revStr+'</div>';
   }).join('');
   const empty='<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhum resultado ainda.<br><small>Os resultados aparecem automaticamente conforme a equipe atualiza.</small></div>';
   return '<div class="portal-hero" style="margin-bottom:20px"><div><h1>📊 Relatório de Resultados</h1><p>'+c.name+' · atualizado automaticamente pelo nosso time</p></div></div>'
-    +evoTable
+    +chartSvg
     +'<div style="display:flex;flex-direction:column;gap:16px">'+(months.length?cards:empty)+'</div>';
 }
 
@@ -7849,7 +7877,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080410; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080411; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
