@@ -1959,18 +1959,24 @@ function _designerSenha(name){var s=(D.designerSenhas||{})[name];return (s&&(''+
 function designerLogin(name){var el=document.getElementById('dlog-senha');var senha=el?el.value:'';if((''+senha).trim()!==_designerSenha(name)){S.dlogErr='Senha incorreta.';render();return;}S.designerUser=name;S.dlogErr='';try{sessionStorage.setItem('designerAuth',name);}catch(e){}render();}
 function designerLogout(){S.designerUser=null;S.dlogPick='';try{sessionStorage.removeItem('designerAuth');}catch(e){}render();}
 function rDesignerLogin(){
+  // Login por NOME + senha digitados — sem lista de nomes, pra um designer nunca ver quem é o outro.
   var wrap=function(inner){return '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#F1F5F9;font-family:system-ui,sans-serif"><div style="background:#fff;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.12);width:100%;max-width:380px;overflow:hidden">'
     +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:26px 24px;text-align:center;color:#fff"><div style="font-size:34px">🎨</div><div style="font-size:17px;font-weight:700;margin-top:6px">Portal do Designer</div><div style="font-size:12px;opacity:.85">ALL IN</div></div>'
     +'<div style="padding:24px">'+inner+'</div></div></div>';};
-  if(!S.dlogPick){
-    return wrap('<div style="font-size:13px;color:#475569;text-align:center;margin-bottom:16px">Quem é você?</div>'
-      +_DESIGNERS.map(function(n){return '<button onclick="S.dlogPick=\''+n+'\';S.dlogErr=\'\';render()" style="width:100%;display:flex;align-items:center;gap:12px;padding:14px 16px;margin-bottom:10px;border:1px solid #E5E7EB;border-radius:12px;background:#F8FAFC;cursor:pointer;font-size:15px;font-weight:600;color:#0D3D9B"><span style="width:36px;height:36px;border-radius:50%;background:#0D3D9B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px">'+escH(n.slice(0,2).toUpperCase())+'</span>'+escH(n)+'</button>';}).join(''));
-  }
-  return wrap('<div style="text-align:center;margin-bottom:14px"><div style="width:52px;height:52px;border-radius:50%;background:#0D3D9B;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:18px;font-weight:700">'+escH(S.dlogPick.slice(0,2).toUpperCase())+'</div><div style="font-size:15px;font-weight:700;margin-top:8px;color:#1E293B">Olá, '+escH(S.dlogPick)+'!</div><div style="font-size:12px;color:#64748B">Digite sua senha</div></div>'
-    +'<input id="dlog-senha" type="password" placeholder="Senha" onkeydown="if(event.key===\'Enter\')designerLogin(\''+escH(S.dlogPick)+'\')" style="width:100%;padding:12px 14px;border:1px solid #E5E7EB;border-radius:10px;font-size:15px;box-sizing:border-box;margin-bottom:'+(S.dlogErr?'6px':'12px')+'">'
+  return wrap('<div style="font-size:13px;color:#475569;text-align:center;margin-bottom:16px">Entre com seu nome e senha</div>'
+    +'<input id="dlog-nome" type="text" placeholder="Seu nome" autocomplete="off" style="width:100%;padding:12px 14px;border:1px solid #E5E7EB;border-radius:10px;font-size:15px;box-sizing:border-box;margin-bottom:10px" onkeydown="if(event.key===\'Enter\'){var s=document.getElementById(\'dlog-senha\');if(s)s.focus();}">'
+    +'<input id="dlog-senha" type="password" placeholder="Senha" onkeydown="if(event.key===\'Enter\')designerLoginForm()" style="width:100%;padding:12px 14px;border:1px solid #E5E7EB;border-radius:10px;font-size:15px;box-sizing:border-box;margin-bottom:'+(S.dlogErr?'6px':'12px')+'">'
     +(S.dlogErr?'<div style="font-size:12px;color:#DC2626;margin-bottom:12px">'+escH(S.dlogErr)+'</div>':'')
-    +'<button onclick="designerLogin(\''+escH(S.dlogPick)+'\')" style="width:100%;padding:12px;border:none;border-radius:10px;background:#0D3D9B;color:#fff;font-size:15px;font-weight:600;cursor:pointer">Entrar</button>'
-    +'<div onclick="S.dlogPick=\'\';S.dlogErr=\'\';render()" style="text-align:center;margin-top:12px;font-size:12px;color:#64748B;cursor:pointer">← trocar de pessoa</div>');
+    +'<button onclick="designerLoginForm()" style="width:100%;padding:12px;border:none;border-radius:10px;background:#0D3D9B;color:#fff;font-size:15px;font-weight:600;cursor:pointer">Entrar</button>');
+}
+function designerLoginForm(){
+  var ne=document.getElementById('dlog-nome'),se=document.getElementById('dlog-senha');
+  var nome=(ne?ne.value:'').trim(),senha=(se?se.value:'').trim();
+  // Encontra o designer pelo nome (sem diferenciar maiúsc/minúsc), sem nunca expor a lista.
+  var match=_DESIGNERS.filter(function(d){return d.toLowerCase()===nome.toLowerCase();})[0];
+  if(!match||senha!==_designerSenha(match)){S.dlogErr='Nome ou senha incorretos.';render();return;}
+  S.designerUser=match;S.dlogErr='';try{sessionStorage.setItem('designerAuth',match);}catch(e){}
+  render();
 }
 function rDesignerPortal(){
   var name=S.designerUser;
@@ -7893,7 +7899,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080413; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080414; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
