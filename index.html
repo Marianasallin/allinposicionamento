@@ -7676,10 +7676,22 @@ function rPortalRelatorios(c){
     }).join('');
     return '<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">Reuniões por mês</div><svg viewBox="0 0 600 180" style="width:100%;height:180px;display:block"><line x1="20" y1="150" x2="580" y2="150" stroke="#E7ECF5"/>'+bars+'</svg></div>';
   })();
-  // Filtro de mês (padrão = mês mais recente) + banner degradê com o número-herói
+  // Filtro de mês + banner degradê. Padrão = mês mais recente COM conteúdo (análise liberada,
+  // métricas preenchidas ou resultados) — assim a análise recém-aprovada aparece sozinha,
+  // sem cair no mês corrente ainda vazio.
   const monthList=months.map(function(r){return r.month;});
-  let sel=(S.portalRelMonth==null)?(monthList[0]||'todos'):S.portalRelMonth;
-  if(sel!=='todos'&&monthList.indexOf(sel)<0)sel=monthList[0]||'todos';
+  const _mmFields=['followers','mensagensEnviadas','taxaResposta','taxaAceitacao','ssi','convitesEnviados','convitesAceitos','publicacoes','impressoes','alcance','visualizacoes'];
+  const _mesTemConteudo=function(mk){
+    var rr=months.filter(function(x){return x.month===mk;})[0]||{};
+    var mmm=(c.monthlyMetrics||{})[mk]||{};var mrr=(c.monthlyReports||{})[mk]||{};
+    var metrica=_mmFields.some(function(k){return mmm[k]!=null&&mmm[k]!=='';});
+    var ana=(mrr.released&&(''+(mrr.analysis||'')).trim())||(mrr.contentReleased&&(''+(mrr.contentAnalysis||'')).trim());
+    return metrica||ana||(rr.prospects>0)||(rr.leads>0)||(rr.meetings>0)||(rr.sales>0);
+  };
+  const _mesTemAnalise=function(mk){var mrr=(c.monthlyReports||{})[mk]||{};return (mrr.released&&(''+(mrr.analysis||'')).trim())||(mrr.contentReleased&&(''+(mrr.contentAnalysis||'')).trim());};
+  const _defaultMonth=monthList.filter(_mesTemAnalise)[0]||monthList.filter(_mesTemConteudo)[0]||monthList[0]||'todos';
+  let sel=(S.portalRelMonth==null)?_defaultMonth:S.portalRelMonth;
+  if(sel!=='todos'&&monthList.indexOf(sel)<0)sel=_defaultMonth;
   const chipBtn=function(val,label){var a=sel===val;return '<span onclick="S.portalRelMonth=\''+val+'\';render()" style="cursor:pointer;font-size:12px;font-weight:600;padding:6px 13px;border-radius:99px;border:1px solid '+(a?'#0D3D9B':'#D8E0EE')+';background:'+(a?'#0D3D9B':'#fff')+';color:'+(a?'#fff':'#475569')+'">'+label+'</span>';};
   const monthChips=monthList.length?('<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center"><span style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-right:2px">Mês:</span>'+monthList.map(function(m){return chipBtn(m,m);}).join('')+chipBtn('todos','Todos')+'</div>'):'';
   const heroR=(sel!=='todos')?(months.filter(function(r){return r.month===sel;})[0]||{}):(months[0]||{});
@@ -7955,7 +7967,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080417; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080418; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
