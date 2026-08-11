@@ -7955,7 +7955,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080416; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080417; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -8127,13 +8127,15 @@ window.addEventListener('hashchange',handleNavigation);
         window.addEventListener('beforeunload',function(e){
           if(_localDirty&&!_fbWriting){e.preventDefault();e.returnValue='';return '';}
         });
+        // Marca o último toque de tecla — só adia o reload se a pessoa REALMENTE digitou nos últimos 5s.
+        document.addEventListener('keydown',function(){window._lastTypeAt=Date.now();},true);
         function _maybeReload(b){
           if(!(b>APP_BUILD))return;
           const ae=document.activeElement;
-          const digitando=ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable);
-          // Enquanto a pessoa digita, a aba CONTINUA salvando normalmente (não bloqueia) —
-          // bloquear antes de subir o trabalho fazia o que ela digitou se perder no reload.
-          if(digitando){_showUpdateBanner();setTimeout(function(){_maybeReload(b);},4000);return;}
+          const emCampo=ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable);
+          // Só adia se ela digitou de verdade há menos de 5s. Campo só selecionado (sem digitar) NÃO adia.
+          const digitandoAgora=emCampo&&((Date.now()-(window._lastTypeAt||0))<5000);
+          if(digitandoAgora){_showUpdateBanner();setTimeout(function(){_maybeReload(b);},2500);return;}
           // Antes de bloquear e recarregar: sobe o que ainda não foi salvo.
           if(_fbReady&&_localDirty&&!_fbBlocked){
             if(_fbTimer)clearTimeout(_fbTimer);
