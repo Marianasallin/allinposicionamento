@@ -7967,7 +7967,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080418; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080419; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -7997,6 +7997,17 @@ window.addEventListener('hashchange',handleNavigation);
     function _fbFlush(cb){
       {
         const done=()=>{_resnap();_localDirty=false;setTimeout(()=>{_fbWriting=false;},1000);if(cb)cb();};
+        // Conflito detectado: gravou só o seguro e agora traz a versão REAL da nuvem pra tela (sem perder o que era dos outros)
+        const doneResync=()=>{
+          _localDirty=false;setTimeout(()=>{_fbWriting=false;},1200);
+          setTimeout(function(){
+            try{_db.ref('allin').get().then(function(s){
+              if(s.exists()&&typeof applyFbUpdate==='function'&&!(typeof _isTyping==='function'&&_isTyping()))applyFbUpdate(s.val());
+              else _resnap();
+            }).catch(function(){_resnap();});}catch(_e){_resnap();}
+          },1300);
+          if(cb)cb();
+        };
         const fail=()=>{_fbWriting=false;if(cb)cb();};
         const _nr=(_dataRev=(_dataRev||0)+1); // novo carimbo de versão para esta gravação
         try{
@@ -8009,18 +8020,16 @@ window.addEventListener('hashchange',handleNavigation);
             return;
           }
           const updates={};
+          const guards=[]; // BLINDAGEM: sobrescritas de objeto/lista que já existiam → confere na nuvem antes de gravar
           D.clients.forEach((c,i)=>{
-            const prev=_fbSnap.clients[i]||{};const seen={};
+            const prev=_fbSnap.clients[i]||{};
             // grava só os CAMPOS que mudaram (ex.: só clients/5/campaigns), sem regravar o cliente inteiro
             for(const k in c){
               if(!Object.prototype.hasOwnProperty.call(c,k)||c[k]===undefined)continue;
-              seen[k]=1;const j=JSON.stringify(c[k]);
+              const j=JSON.stringify(c[k]);
               if(prev[k]===j)continue;
               const cur=c[k];let pv;try{pv=prev[k]!=null?JSON.parse(prev[k]):undefined;}catch(_e){pv=undefined;}
-              // Listas (leads/prospects, campanhas, entregas...): quando a lista só cresceu ou teve
-              // itens editados, grava SÓ os índices que mudaram — sem reescrever a lista inteira.
-              // Isso evita que uma aba com a lista antiga apague um item que outra aba acabou de adicionar.
-              // (Em remoção, a lista encolhe → grava a lista toda, como antes, pra não deixar buraco no array.)
+              // Listas que só cresceram/editaram: grava SÓ os índices novos/alterados (aditivo, seguro).
               if(Array.isArray(cur)&&Array.isArray(pv)&&cur.length>=pv.length){
                 for(let ix=0;ix<cur.length;ix++){
                   const cj=JSON.stringify(cur[ix]);
@@ -8029,17 +8038,43 @@ window.addEventListener('hashchange',handleNavigation);
                 }
               }else{
                 updates['clients/'+i+'/'+k]=JSON.parse(j);
+                // Sobrescrever/encurtar um OBJETO ou LISTA que já existia pode apagar o que outra aba criou.
+                // → marca pra conferir na nuvem antes de gravar (só objetos/listas; escalares não são catastróficos).
+                if(prev[k]!==undefined && cur!==null && typeof cur==='object') guards.push({i:i,field:k,expected:prev[k]});
               }
             }
-            // campo removido localmente → apaga na nuvem
-            for(const k in prev){if(!seen[k])updates['clients/'+i+'/'+k]=null;}
+            // (REMOVIDO de propósito) — não apagamos mais um CAMPO INTEIRO só porque sumiu do local.
+            // Era isso que apagava conteudos/campanhas que outra aba tinha criado.
           });
           const tj=JSON.stringify(D.team||[]);if(_fbSnap.team!==tj)updates['team']=JSON.parse(tj);
           const aj=JSON.stringify(D.assignedTasks||[]);if(_fbSnap.assignedTasks!==aj)updates['assignedTasks']=JSON.parse(aj);
           const fj=JSON.stringify(D.finance||null);if(_fbSnap.finance!==fj)updates['finance']=D.finance?JSON.parse(fj):null;
           if(!Object.keys(updates).length){done();return;}
-          updates['_rev']=_nr; // carimba a gravação granular
-          _db.ref('allin').update(updates).then(done).catch(fail);
+          const commit=(resync)=>{
+            if(!Object.keys(updates).length){if(resync)doneResync();else done();return;}
+            updates['_rev']=_nr;
+            _db.ref('allin').update(updates).then(function(){if(resync)doneResync();else done();}).catch(fail);
+          };
+          if(!guards.length){commit(false);return;}
+          // Confere na nuvem os campos "arriscados" antes de sobrescrever
+          const idxNeeded=[...new Set(guards.map(g=>g.i))];
+          Promise.all(idxNeeded.map(function(i){return _db.ref('allin/clients/'+i).once('value').then(function(s){return {i:i,val:s.val()};});}))
+            .then(function(res){
+              const cloudById={};res.forEach(function(r){cloudById[r.i]=r.val||{};});
+              // comparação estável (ignora ordem das chaves, que o Firebase reordena) — evita conflito falso
+              const _ss=function(v){if(v===null||typeof v!=='object')return JSON.stringify(v);if(Array.isArray(v))return '['+v.map(_ss).join(',')+']';return '{'+Object.keys(v).sort().map(function(k){return JSON.stringify(k)+':'+_ss(v[k]);}).join(',')+'}';};
+              let conflito=false;
+              guards.forEach(function(g){
+                const cf=cloudById[g.i]?cloudById[g.i][g.field]:undefined;
+                if(cf===undefined||cf===null)return; // nuvem não tem esse campo → nosso write re-adiciona, sem apagar nada
+                let expParsed;try{expParsed=JSON.parse(g.expected);}catch(_e){expParsed=undefined;}
+                // Se a nuvem ainda é IGUAL ao nosso último sync → a mudança é nossa → pode gravar.
+                // Se a nuvem MUDOU (outra aba mexeu) → NÃO sobrescreve → protege o trabalho do outro.
+                if(_ss(cf)!==_ss(expParsed)){delete updates['clients/'+g.i+'/'+g.field];conflito=true;}
+              });
+              commit(conflito);
+            })
+            .catch(function(){commit(false);}); // se não deu pra conferir, mantém o fluxo (não trava a gravação)
         }catch(e){
           console.warn('save granular falhou, gravando tudo:',e);
           const _p=JSON.parse(JSON.stringify(D));_p._rev=_nr;
@@ -8332,16 +8367,31 @@ window.addEventListener('hashchange',handleNavigation);
       });
     }
 
-    // Login automático com conta de serviço — invisível para o usuário
-    _auth.signInWithEmailAndPassword(
-      'sistema@allinposicionamento.com.br',
-      'allin@time'
-    ).then(()=>{
-      startSync();
-    }).catch(e=>{
-      console.warn('Firebase auth falhou, usando localStorage:',e);
-      _fbReady=true;
-    });
+    // Login automático com conta de serviço — invisível para o usuário.
+    // Se falhar (ex.: limite de tentativas), AVISA na tela e TENTA DE NOVO — pra nunca ficar salvando só local sem avisar.
+    var _authTries=0, _syncOk=false;
+    function _offlineWarn(show){
+      var el=document.getElementById('offline-banner');
+      if(!show){if(el)el.remove();return;}
+      if(el)return;
+      var b=document.createElement('div');b.id='offline-banner';
+      b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:100000;background:#DC2626;color:#fff;padding:11px 16px;text-align:center;font-size:13px;font-weight:800;box-shadow:0 2px 12px rgba(0,0,0,.35)';
+      b.innerHTML='⚠️ SEM CONEXÃO COM O SERVIDOR — o que você fizer agora pode NÃO estar sendo salvo. Reconectando… <u style="cursor:pointer" onclick="location.reload()">recarregar</u>';
+      document.body.appendChild(b);
+    }
+    function _startAuth(){
+      _authTries++;
+      _auth.signInWithEmailAndPassword('sistema@allinposicionamento.com.br','allin@time')
+        .then(function(){ _syncOk=true; _offlineWarn(false); startSync(); })
+        .catch(function(e){
+          console.warn('Firebase auth falhou (tentativa '+_authTries+'):',(e&&e.code)||e);
+          _fbReady=true;              // app funciona local
+          if(!_syncOk)_offlineWarn(true); // mas AVISA que não está salvando na nuvem
+          var delay=Math.min(30000, 4000*_authTries); // tenta de novo com espera crescente (limite/rede é temporário)
+          setTimeout(_startAuth, delay);
+        });
+    }
+    _startAuth();
 
   }catch(e){
     console.warn('Firebase não disponível:',e);
