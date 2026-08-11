@@ -1424,6 +1424,9 @@ function _relResultadosForm(c){
   const mkOf=function(d){try{var x=new Date(d+'T12:00:00');return isNaN(x)?'':ptM[x.getMonth()]+' '+x.getFullYear();}catch(e){return'';}};
   const setM=new Set((c.prospects||[]).map(function(p){return p.date&&mkOf(p.date);}).filter(Boolean));
   setM.add(currentTrackingMonthKey());setM.add(_relMonthKey());
+  // inclui meses que têm métricas ou análise (mesmo sem prospect no mês) — senão o mês some dos chips
+  Object.keys(c.monthlyMetrics||{}).forEach(function(k){if(k)setM.add(k);});
+  Object.keys(c.monthlyReports||{}).forEach(function(k){if(k)setM.add(k);});
   const months=[...setM].sort(function(a,b){var A=a.split(' '),B=b.split(' ');return (parseInt(B[1])*12+ptM.indexOf(B[0]))-(parseInt(A[1])*12+ptM.indexOf(A[0]));});
   if(!S.relMetricMonth||months.indexOf(S.relMetricMonth)<0)S.relMetricMonth=_relMonthKey();
   const mk=S.relMetricMonth;
@@ -1451,7 +1454,7 @@ function _relResultadosForm(c){
     +'<div class="fg"><label>Convites enviados</label><input type="number" id="rr-convenv" value="'+val(mm.convitesEnviados)+'" placeholder="ex.: 400"></div>'
     +'<div class="fg"><label>Convites aceitos</label><input type="number" id="rr-convace" value="'+val(mm.convitesAceitos)+'" placeholder="ex.: 160"></div>'
     +'</div>'
-    +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">✍️ Conteúdo — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: Conteúdo — Gabi/Naiara)</span></div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">✍️ Conteúdo — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: equipe de Conteúdo)</span></div>'
     +'<div class="fgrid" style="margin-bottom:12px" oninput="_resAutosave(\''+c.id+'\',\''+mk+'\')">'
     +'<div class="fg"><label>Publicações</label><input type="number" id="rr-pub" value="'+val(mm.publicacoes)+'"></div>'
     +'<div class="fg"><label>Impressões</label><input type="number" id="rr-imp" value="'+val(mm.impressoes)+'"></div>'
@@ -1461,8 +1464,8 @@ function _relResultadosForm(c){
     +'<button class="btn btn-p btn-s" onclick="saveMonthlyMetrics(\''+c.id+'\',\''+mk+'\')">💾 Salvar métricas de '+mk+'</button>'
     +'<span id="rr-autosave-ind" style="font-size:11px;color:#16A34A;opacity:.5;margin-left:10px;font-weight:600">✓ salva sozinho enquanto você digita</span>'
     +'<div style="margin-top:16px;padding:12px 14px;border:1px dashed #C4B5FD;border-radius:10px;background:#FAF5FF">'
-    +'<div style="font-size:11px;font-weight:700;color:#7C3AED;text-transform:uppercase;margin-bottom:6px">📝 Análise de conteúdo — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(escreve: Gabi/Conteúdo · Mari aprova)</span></div>'
-    +'<textarea id="rr-contanalise" oninput="_resAutosave(\''+c.id+'\',\''+mk+'\')" placeholder="Observações da Gabi sobre o conteúdo do mês: destaques, o que performou melhor, aprendizados e próximos passos..." style="width:100%;min-height:90px;padding:10px;border:1px solid #DDD6FE;border-radius:8px;font-size:13px;font-family:inherit;line-height:1.5;resize:vertical;box-sizing:border-box;margin-bottom:8px">'+escH(mr.contentAnalysis||'')+'</textarea>'
+    +'<div style="font-size:11px;font-weight:700;color:#7C3AED;text-transform:uppercase;margin-bottom:6px">📝 Análise de conteúdo — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(escreve: Conteúdo · Mari aprova)</span></div>'
+    +'<textarea id="rr-contanalise" oninput="_resAutosave(\''+c.id+'\',\''+mk+'\')" placeholder="Observações sobre o conteúdo do mês: destaques, o que performou melhor, aprendizados e próximos passos..." style="width:100%;min-height:90px;padding:10px;border:1px solid #DDD6FE;border-radius:8px;font-size:13px;font-family:inherit;line-height:1.5;resize:vertical;box-sizing:border-box;margin-bottom:8px">'+escH(mr.contentAnalysis||'')+'</textarea>'
     +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
     +'<button class="btn btn-o btn-s" onclick="saveContentAnalysis(\''+c.id+'\',\''+mk+'\')">💾 Salvar análise</button>'
     +(_isGestao(S.currentUser)
@@ -7001,6 +7004,9 @@ function portalMonthlyResults(c){
   const existing={};(c.results||[]).forEach(function(r){if(r&&r.month)existing[r.month]=r;});
   const now=new Date();let minY=now.getFullYear(),minM=now.getMonth();
   P.forEach(function(p){var d=p.date&&new Date(p.date+'T12:00:00');if(d&&!isNaN(d)){if(d.getFullYear()<minY||(d.getFullYear()===minY&&d.getMonth()<minM)){minY=d.getFullYear();minM=d.getMonth();}}});
+  // também recua o início para incluir meses que só têm métricas ou análise (sem prospect) — senão o mês some do relatório
+  const _extendMin=function(mk){var pp=(mk||'').split(' ');var mi=ptM.indexOf(pp[0]);var yy=parseInt(pp[1]);if(mi<0||isNaN(yy))return;if(yy<minY||(yy===minY&&mi<minM)){minY=yy;minM=mi;}};
+  Object.keys(c.monthlyMetrics||{}).forEach(_extendMin);Object.keys(c.monthlyReports||{}).forEach(_extendMin);
   const out=[];let y=minY,m=minM;
   while(y<now.getFullYear()||(y===now.getFullYear()&&m<=now.getMonth())){
     const key=ptM[m]+' '+y;
@@ -7949,7 +7955,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080415; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080416; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
