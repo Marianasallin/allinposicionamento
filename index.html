@@ -7967,7 +7967,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080421; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080422; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -7996,10 +7996,10 @@ window.addEventListener('hashchange',handleNavigation);
     // Gravação de fato — usada pelo save normal E pelo "salvar antes de atualizar a versão"
     function _fbFlush(cb){
       {
-        const done=()=>{_resnap();_localDirty=false;setTimeout(()=>{_fbWriting=false;},1000);if(cb)cb();};
+        const done=()=>{_resnap();_localDirty=false;setTimeout(()=>{_fbWriting=false;},1000);if(typeof _syncPill==='function')_syncPill();if(cb)cb();};
         // Conflito detectado: gravou só o seguro e agora traz a versão REAL da nuvem pra tela (sem perder o que era dos outros)
         const doneResync=()=>{
-          _localDirty=false;setTimeout(()=>{_fbWriting=false;},1200);
+          _localDirty=false;setTimeout(()=>{_fbWriting=false;},1200);if(typeof _syncPill==='function')_syncPill();
           setTimeout(function(){
             try{_db.ref('allin').get().then(function(s){
               if(s.exists()&&typeof applyFbUpdate==='function'&&!(typeof _isTyping==='function'&&_isTyping()))applyFbUpdate(s.val());
@@ -8430,6 +8430,20 @@ window.addEventListener('hashchange',handleNavigation);
     try{ _auth.onAuthStateChanged(function(user){ if(user)_goSync(); }); }catch(_e){}
     // Se em ~2,5s a sessão não foi restaurada, aí sim faz login (uma vez).
     setTimeout(function(){ if(!_syncStarted)_startAuth(); }, 2500);
+
+    // ── Indicador VISÍVEL de "salvo na nuvem" (canto inferior direito) — pra você VER que chegou ──
+    function _syncPill(){
+      try{
+        if(S.isClientPortal||S.isDesignerPortal){var ex=document.getElementById('sync-pill');if(ex)ex.remove();return;}
+        var el=document.getElementById('sync-pill');
+        if(!el){el=document.createElement('div');el.id='sync-pill';el.style.cssText='position:fixed;bottom:12px;right:12px;z-index:99998;font-size:11px;font-weight:700;padding:5px 11px;border-radius:99px;box-shadow:0 2px 8px rgba(0,0,0,.18);font-family:system-ui,sans-serif;pointer-events:none;transition:background .2s';document.body.appendChild(el);}
+        if(!_syncStarted){el.style.background='#FEE2E2';el.style.color='#DC2626';el.textContent='⚠️ sem conexão';}
+        else if(_localDirty){el.style.background='#FEF3C7';el.style.color='#92400E';el.textContent='☁️ salvando…';}
+        else{el.style.background='#DCFCE7';el.style.color='#166534';el.textContent='☁️ tudo salvo';}
+      }catch(e){}
+    }
+    window._syncPill=_syncPill;
+    setInterval(_syncPill,1500); setTimeout(_syncPill,900);
 
   }catch(e){
     console.warn('Firebase não disponível:',e);
