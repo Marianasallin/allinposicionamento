@@ -7967,7 +7967,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080420; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080421; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
@@ -8061,16 +8061,48 @@ window.addEventListener('hashchange',handleNavigation);
           Promise.all(idxNeeded.map(function(i){return _db.ref('allin/clients/'+i).once('value').then(function(s){return {i:i,val:s.val()};});}))
             .then(function(res){
               const cloudById={};res.forEach(function(r){cloudById[r.i]=r.val||{};});
-              // comparação estável (ignora ordem das chaves, que o Firebase reordena) — evita conflito falso
+              // comparação estável (ignora ordem de chave, que o Firebase reordena)
               const _ss=function(v){if(v===null||typeof v!=='object')return JSON.stringify(v);if(Array.isArray(v))return '['+v.map(_ss).join(',')+']';return '{'+Object.keys(v).sort().map(function(k){return JSON.stringify(k)+':'+_ss(v[k]);}).join(',')+'}';};
+              // MERGE 3-vias (nuvem × nosso snapshot × local): junta os dois lados sem perder nada.
+              const _merge3=function(cloud,snap,local){
+                if(local===null||typeof local!=='object'||cloud===null||typeof cloud!=='object')return (_ss(local)!==_ss(snap))?local:cloud;
+                if(Array.isArray(local)&&Array.isArray(cloud)){
+                  const comId=local.concat(cloud).every(function(x){return x&&typeof x==='object'&&x.id!=null;});
+                  if(comId){
+                    const snapArr=Array.isArray(snap)?snap:[];const snapById={};snapArr.forEach(function(x){if(x&&x.id!=null)snapById[x.id]=x;});
+                    const localById={};local.forEach(function(x){if(x&&x.id!=null)localById[x.id]=x;});
+                    const cloudById2={};cloud.forEach(function(x){if(x&&x.id!=null)cloudById2[x.id]=x;});
+                    const out=[],usados={};
+                    cloud.forEach(function(x){const id=x&&x.id;usados[id]=1;const inL=localById.hasOwnProperty(id);
+                      if(!inL){out.push(x);return;}        // nuvem tem, nós não → SEMPRE mantém (em conflito nunca apaga)
+                      out.push(_merge3(x,snapById[id],localById[id]));});
+                    local.forEach(function(x){const id=x&&x.id;if(id!=null&&!usados[id]&&!cloudById2.hasOwnProperty(id))out.push(x);}); // nós adicionamos
+                    return out;
+                  }
+                  const seen={},res=[];cloud.concat(local).forEach(function(x){const s=_ss(x);if(!seen[s]){seen[s]=1;res.push(x);}});return res;
+                }
+                if(!Array.isArray(local)&&!Array.isArray(cloud)){
+                  const merged={};const snapObj=(snap&&typeof snap==='object'&&!Array.isArray(snap))?snap:{};const keys={};for(const a in cloud)keys[a]=1;for(const b in local)keys[b]=1;
+                  for(const k in keys){const inC=cloud.hasOwnProperty(k),inL=local.hasOwnProperty(k),inS=snapObj.hasOwnProperty(k);
+                    if(inL&&!inC){ merged[k]=local[k]; continue; }  // só nós temos → mantém
+                    if(!inL&&inC){ merged[k]=cloud[k]; continue; }  // nuvem tem, nós não → SEMPRE mantém (em conflito nunca apaga)
+                    merged[k]=_merge3(cloud[k],snapObj[k],local[k]);}
+                  return merged;
+                }
+                return (_ss(local)!==_ss(snap))?local:cloud;
+              };
               let conflito=false;
               guards.forEach(function(g){
                 const cf=cloudById[g.i]?cloudById[g.i][g.field]:undefined;
-                if(cf===undefined||cf===null)return; // nuvem não tem esse campo → nosso write re-adiciona, sem apagar nada
+                if(cf===undefined||cf===null)return;                    // nuvem sem o campo → nosso write re-adiciona
                 let expParsed;try{expParsed=JSON.parse(g.expected);}catch(_e){expParsed=undefined;}
-                // Se a nuvem ainda é IGUAL ao nosso último sync → a mudança é nossa → pode gravar.
-                // Se a nuvem MUDOU (outra aba mexeu) → NÃO sobrescreve → protege o trabalho do outro.
-                if(_ss(cf)!==_ss(expParsed)){delete updates['clients/'+g.i+'/'+g.field];conflito=true;}
+                if(_ss(cf)===_ss(expParsed))return;                     // nuvem == snapshot → sem conflito, grava normal
+                // CONFLITO: outra aba mexeu nesse campo → MESCLA (não perde nem o nosso nem o dela)
+                const lv=D.clients[g.i]?D.clients[g.i][g.field]:undefined;
+                const merged=_merge3(cf,expParsed,lv);
+                updates['clients/'+g.i+'/'+g.field]=JSON.parse(JSON.stringify(merged));
+                try{D.clients[g.i][g.field]=JSON.parse(JSON.stringify(merged));}catch(_e){}
+                conflito=true;
               });
               commit(conflito);
             })
