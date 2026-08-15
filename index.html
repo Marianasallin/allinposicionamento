@@ -7859,9 +7859,39 @@ function rPortalRelatorios(c){
       +kpis+apoioHtml+anaStr+contHtml+contAnaStr+revStr+'</div>';
   }).join('');
   const empty='<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Nenhum resultado ainda.<br><small>Os resultados aparecem automaticamente conforme a equipe atualiza.</small></div>';
+  // === Comparativo mês a mês (indicadores × meses) + gráfico de conexões ===
+  const _mmv=function(mk,f){var m=(c.monthlyMetrics||{})[mk]||{};return m[f];};
+  const indic=[
+    {lbl:'👥 Conexões',g:function(r){return _mmv(r.month,'followers');}},
+    {lbl:'📨 Convites de conexão',g:function(r){return _mmv(r.month,'convitesEnviados');}},
+    {lbl:'✉️ Mensagens',g:function(r){return _mmv(r.month,'mensagensEnviadas');}},
+    {lbl:'🎯 Leads',g:function(r){var v=_mmv(r.month,'leads');return has(v)?v:r.prospects;}},
+    {lbl:'📊 SSI',g:function(r){return _mmv(r.month,'ssi');}},
+    {lbl:'📣 Impressões',g:function(r){return _mmv(r.month,'impressoes');}},
+    {lbl:'👁 Visualizações de perfil',g:function(r){return _mmv(r.month,'visualizacoes');}}
+  ].filter(function(ind){return chrono.some(function(r){return has(ind.g(r));});});
+  const fmtN=function(v){return has(v)?Number(v).toLocaleString('pt-BR'):'—';};
+  const comparativo=(chrono.length&&indic.length)?(
+    '<div class="portal-card" style="margin-bottom:16px;padding:0;overflow:hidden">'
+    +'<div style="background:linear-gradient(135deg,#0D3D9B,#0077B5);color:#fff;padding:14px 18px;font-weight:800;font-size:15px">📊 Métricas mês a mês</div>'
+    +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
+    +'<thead><tr><th style="text-align:left;padding:12px 16px;font-size:12px;color:#64748B;font-weight:700;background:#F8FAFF;text-transform:uppercase">Indicadores</th>'+chrono.map(function(r){return '<th style="text-align:center;padding:12px 12px;font-size:12px;color:#0D3D9B;font-weight:800;background:#F8FAFF;white-space:nowrap">'+short(r.month)+'</th>';}).join('')+'</tr></thead>'
+    +'<tbody>'+indic.map(function(ind){return '<tr style="border-top:1px solid #EEF2FB"><td style="padding:12px 16px;font-size:13px;font-weight:600;color:#1E293B;white-space:nowrap">'+ind.lbl+'</td>'+chrono.map(function(r){return '<td style="text-align:center;padding:12px 12px;font-size:16px;font-weight:700;color:#0D3D9B;font-variant-numeric:tabular-nums">'+fmtN(ind.g(r))+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>'
+  ):'';
+  const conexVals=chrono.map(function(r){var v=_mmv(r.month,'followers');return has(v)?Number(v):null;});
+  var conexChart='';
+  if(conexVals.filter(function(v){return v!=null;}).length>=2){
+    var arr=conexVals.filter(function(v){return v!=null;});var mx=Math.max.apply(null,arr),mn=Math.min.apply(null,arr),rg=(mx-mn)||1;
+    var W=560,padL=40,padR=24,padT=26,padB=26,H=170,n=chrono.length,stepX=n>1?(W-padL-padR)/(n-1):0;
+    var pts=chrono.map(function(r,i){var v=conexVals[i];return {x:padL+i*stepX,y:v==null?null:(padT+(H-padT-padB)*(1-(v-mn)/rg)),v:v,m:short(r.month)};});
+    var d=pts.filter(function(p){return p.y!=null;}).map(function(p,i){return (i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1);}).join(' ');
+    conexChart='<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">👥 Crescimento de conexões</div><svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:170px;display:block"><path d="'+d+'" fill="none" stroke="#0D3D9B" stroke-width="3" stroke-linejoin="round"/>'+pts.map(function(p){return p.y==null?'':('<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="4" fill="#0D3D9B"/><text x="'+p.x.toFixed(1)+'" y="'+(p.y-9).toFixed(1)+'" text-anchor="middle" font-size="11" font-weight="700" fill="#0D3D9B">'+p.v.toLocaleString('pt-BR')+'</text><text x="'+p.x.toFixed(1)+'" y="'+(H-7)+'" text-anchor="middle" font-size="10" fill="#94A3B8">'+p.m+'</text>');}).join('')+'</svg></div>';
+  }
   return '<div style="max-width:1120px;margin:0 auto">'
     +banner
     +monthChips
+    +comparativo
+    +conexChart
     +chartSvg
     +'<div style="display:flex;flex-direction:column;gap:16px">'+(months.length?cards:empty)+'</div>'
     +'</div>';
@@ -8086,7 +8116,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080425; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080426; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
