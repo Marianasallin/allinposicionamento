@@ -2230,6 +2230,61 @@ function contFichaLinhaToggle(){S.contFichaLinhaOpen=!S.contFichaLinhaOpen;rende
 
 // ── View principal ──
 function saveDesignerSenha(name,val){if(!D.designerSenhas)D.designerSenhas={};D.designerSenhas[name]=(''+val).trim();save();}
+// ── Preços por designer + relatório de pagamento das artes ──
+function _designerPrice(name){
+  var d=(D.designerPrices||{})[name]||{};
+  var def=({'Marcos':{unica:20,carrossel:10,porSlide:true},'Karine':{unica:30,carrossel:70,porSlide:false}})[name]||{unica:0,carrossel:0,porSlide:false};
+  return {unica:(d.unica!=null&&d.unica!==''?Number(d.unica):def.unica), carrossel:(d.carrossel!=null&&d.carrossel!==''?Number(d.carrossel):def.carrossel), porSlide:(d.porSlide!=null?!!d.porSlide:def.porSlide)};
+}
+function saveDesignerPrice(name,field,val){
+  if(!D.designerPrices)D.designerPrices={};if(!D.designerPrices[name])D.designerPrices[name]={};
+  if(field==='porSlide')D.designerPrices[name][field]=(val===true||val==='true');
+  else{var n=parseFloat((''+val).replace(',','.'));D.designerPrices[name][field]=isNaN(n)?0:n;}
+  save();
+}
+function _artEhCarrossel(l){return /carrossel|carousel/i.test(l.formato||'')||((l.qty||0)>1);}
+function _artValor(l){var p=_designerPrice(l.by);if(_artEhCarrossel(l))return p.porSlide?(p.carrossel*(l.qty||1)):p.carrossel;return p.unica;}
+function openPagamentoArtes(){
+  if(!_isGestao(S.currentUser)){if(typeof toast==='function')toast('🔒 Só a Gestão vê o pagamento.');return;}
+  var ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var mkOf=function(ts){var d=new Date(ts);return isNaN(d)?'':ptM[d.getMonth()]+' '+d.getFullYear();};
+  var money=function(v){return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var fd=function(ts){var d=new Date(ts);return isNaN(d)?'—':d.toLocaleDateString('pt-BR');};
+  var log=(D.artLog||[]).slice();
+  var meses=['todos'].concat([...new Set(log.map(function(l){return mkOf(l.at);}).filter(Boolean))].sort(function(a,b){var A=a.split(' '),B=b.split(' ');return (parseInt(B[1])*12+ptM.indexOf(B[0]))-(parseInt(A[1])*12+ptM.indexOf(A[0]));}));
+  var mSel=(S.pagArtMes&&meses.indexOf(S.pagArtMes)>=0)?S.pagArtMes:'todos';
+  var lista=(mSel==='todos'?log:log.filter(function(l){return mkOf(l.at)===mSel;})).slice().sort(function(a,b){return b.at-a.at;});
+  var priceCfg=_DESIGNERS.map(function(n){var p=_designerPrice(n);
+    return '<div style="border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px;margin-bottom:8px"><div style="font-weight:700;color:#0D3D9B;margin-bottom:6px">'+escH(n)+'</div>'
+      +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px">'
+      +'<label style="display:flex;align-items:center;gap:5px">Arte única R$ <input type="number" value="'+p.unica+'" onchange="saveDesignerPrice(\''+escH(n)+'\',\'unica\',this.value)" style="width:72px;padding:5px;border:1px solid #E5E7EB;border-radius:6px"></label>'
+      +'<label style="display:flex;align-items:center;gap:5px">Carrossel R$ <input type="number" value="'+p.carrossel+'" onchange="saveDesignerPrice(\''+escH(n)+'\',\'carrossel\',this.value)" style="width:72px;padding:5px;border:1px solid #E5E7EB;border-radius:6px"></label>'
+      +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" '+(p.porSlide?'checked':'')+' onchange="saveDesignerPrice(\''+escH(n)+'\',\'porSlide\',this.checked)"> por slide</label>'
+      +'</div></div>';}).join('');
+  var porDes={};lista.forEach(function(l){var n=l.by||'(sem designer)';(porDes[n]=porDes[n]||[]).push(l);});
+  var totalGeral=0;
+  var blocos=Object.keys(porDes).sort().map(function(n){
+    var arr=porDes[n];var sub=0;
+    var rows=arr.map(function(l){var v=_artValor(l);sub+=v;
+      return '<tr style="border-top:1px solid #F1F5F9"><td style="padding:6px 8px;font-size:12px;white-space:nowrap">'+fd(l.at)+'</td><td style="padding:6px 8px;font-size:12px">'+escH(l.client||'')+'</td><td style="padding:6px 8px;font-size:12px">'+escH(l.cardTitle||'')+'</td><td style="padding:6px 8px;font-size:11px;color:#64748B;white-space:nowrap">'+escH(l.formato||(_artEhCarrossel(l)?'Carrossel':'Única'))+(_artEhCarrossel(l)?(' ('+(l.qty||1)+')'):'')+'</td><td style="padding:6px 8px;font-size:11px;color:#64748B">'+escH(l.requestedBy||'')+'</td><td style="padding:6px 8px;font-size:12px;text-align:right;font-weight:700;color:#16A34A;white-space:nowrap">'+money(v)+'</td></tr>';}).join('');
+    totalGeral+=sub;
+    return '<div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:800;color:#1E293B">👤 '+escH(n)+' <span style="font-weight:400;color:#94A3B8;font-size:12px">· '+arr.length+' entrega(s)</span></div><div style="font-weight:800;color:#16A34A">'+money(sub)+'</div></div>'
+      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>'+['Data','Cliente','Tema','Formato','Pediu','Valor'].map(function(h,i){return '<th style="text-align:'+(i===5?'right':'left')+';padding:6px 8px;font-size:10px;color:#94A3B8;text-transform:uppercase;border-bottom:2px solid #E5E7EB;white-space:nowrap">'+h+'</th>';}).join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+  }).join('');
+  var mChips=meses.map(function(m){return '<span onclick="S.pagArtMes=\''+m+'\';document.getElementById(\'pagart-modal\').remove();openPagamentoArtes()" style="cursor:pointer;font-size:11px;padding:5px 11px;border-radius:99px;border:1px solid '+(mSel===m?'#16A34A':'#D8E0EE')+';background:'+(mSel===m?'#16A34A':'#fff')+';color:'+(mSel===m?'#fff':'#475569')+'">'+(m==='todos'?'Todos':m)+'</span>';}).join('');
+  var ov=document.createElement('div');ov.id='pagart-modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:760px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="background:linear-gradient(135deg,#16A34A,#0D9488);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">💵 Pagamento das artes</h3><button onclick="document.getElementById(\'pagart-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
+    +'<div style="padding:18px 20px;overflow:auto">'
+    +'<details style="margin-bottom:14px"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#0D3D9B">💰 Valores por designer (clique pra editar)</summary><div style="margin-top:10px">'+priceCfg+'</div></details>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center"><span style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Mês:</span>'+mChips+'</div>'
+    +'<div style="text-align:right;font-size:14px;font-weight:800;color:#16A34A;margin-bottom:14px">Total '+(mSel==='todos'?'geral':mSel)+': '+money(totalGeral)+'</div>'
+    +(blocos||'<div style="text-align:center;padding:30px;color:#94A3B8">Nenhuma arte registrada ainda. Aparecem aqui automaticamente quando o designer sobe as artes.</div>')
+    +'</div></div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
 function openDesignersModal(){
   var link=window.location.origin+window.location.pathname+'#designer';
   var ov=document.createElement('div');ov.id='desg-modal';
@@ -2250,7 +2305,7 @@ function openDesignersModal(){
 }
 function rConteudos(){
   var gp=_gpClients();
-  var head='<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px"><div><h2 style="font-size:19px;margin:0">🎬 Conteúdos</h2><div style="font-size:12px;color:var(--muted)">Planejamento editorial dos clientes de Gestão de Perfil</div></div>'+(_isGestao(S.currentUser)?'<button class="btn btn-o btn-s" onclick="openDesignersModal()">🎨 Designers</button>':'')+'</div>';
+  var head='<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px"><div><h2 style="font-size:19px;margin:0">🎬 Conteúdos</h2><div style="font-size:12px;color:var(--muted)">Planejamento editorial dos clientes de Gestão de Perfil</div></div>'+(_isGestao(S.currentUser)?'<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-o btn-s" onclick="openPagamentoArtes()">💵 Pagamento</button><button class="btn btn-o btn-s" onclick="openDesignersModal()">🎨 Designers</button></div>':'')+'</div>';
   if(!gp.length)return head+'<div style="text-align:center;padding:50px;color:#94A3B8">Nenhum cliente de Gestão de Perfil cadastrado ainda.</div>';
 
   // Responsáveis vêm da carteira (aba Contrato → contentOwners). Filtro mostra os clientes de cada uma.
@@ -8031,7 +8086,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080424; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080425; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
