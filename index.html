@@ -2191,8 +2191,39 @@ function _clientResp(c){return (c.contentOwners||[]).filter(Boolean);}
 // ── Quadro de um cliente ──
 function _contBoard(c){
   var cards=_conteudos(c).cards;
-  var cols=CONT_ST.map(function(s){return _contCol(s,cards.filter(function(t){return (t.status||'ideias')===s[0];}),c.id);}).join('');
-  return '<div style="display:flex;gap:12px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start;padding-bottom:6px">'+cols+'</div>';
+  // Colunas de fluxo (ideias → aprovado) + uma coluna por mês para os publicados (estilo Trello)
+  var flow=CONT_ST.filter(function(s){return s[0]!=='publicado';}).map(function(s){return _contCol(s,cards.filter(function(t){return (t.status||'ideias')===s[0];}),c.id);}).join('');
+  var pub=_contPubCols(c,cards.filter(function(t){return (t.status||'ideias')==='publicado';}));
+  return '<div style="display:flex;gap:12px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start;padding-bottom:6px">'+flow+pub+'</div>';
+}
+// ── Publicados: uma coluna por mês, lado a lado ──
+function _pubMonthKey(card){return card.date?getMonthKey(new Date(card.date+'T12:00:00')):'Sem data';}
+function _pubMonthRank(mk){var ms=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];if(mk==='Sem data')return -1;var p=(''+mk).split(' ');return parseInt(p[1],10)*12+ms.indexOf(p[0]);}
+function _monthKeyToDateISO(mk){var ms=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];var p=(''+mk).split(' ');var mi=ms.indexOf(p[0]);if(mi<0)return '';return p[1]+'-'+String(mi+1).padStart(2,'0')+'-15';}
+function _contPubCols(c,cards){
+  var byM={};cards.forEach(function(k){var mk=_pubMonthKey(k);(byM[mk]=byM[mk]||[]).push(k);});
+  var keys=Object.keys(byM);
+  var curMk=getMonthKey(new Date());
+  if(keys.indexOf(curMk)<0){keys.push(curMk);byM[curMk]=[];}
+  keys.sort(function(a,b){return _pubMonthRank(b)-_pubMonthRank(a);});
+  var meta=_contStMeta('publicado');
+  return keys.map(function(mk){
+    var list=(byM[mk]||[]).slice().sort(function(a,b){return (''+(b.date||'')).localeCompare(''+(a.date||''));});
+    var dISO=_monthKeyToDateISO(mk);
+    var body=list.length?list.map(function(card){return _contCard(c,card);}).join('')
+      :'<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">Solte aqui</div>';
+    return '<div ondragover="contDragOver(event)" ondragenter="this.style.background=\'#F0FDF4\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';contDropPubMonth(event,\''+c.id+'\',\''+dISO+'\')" '
+      +'style="flex:1;min-width:210px;max-width:280px;background:#F8FAFC;border-radius:12px;padding:12px;transition:background .15s">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12px;font-weight:700;color:'+meta[2]+'">📢 '+escH(mk)+' <span style="color:#94A3B8">('+list.length+')</span></span></div>'
+      +body+'</div>';
+  }).join('');
+}
+function contDropPubMonth(ev,cid,dISO){
+  ev.preventDefault();var d=_contDrag;_contDrag=null;if(!d||d.cid!==cid)return;
+  var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===d.id;});if(!card)return;
+  card.status='publicado';
+  if(dISO){var tgt=getMonthKey(new Date(dISO+'T12:00:00'));var cur=card.date?getMonthKey(new Date(card.date+'T12:00:00')):null;if(cur!==tgt)card.date=dISO;}
+  save();if(typeof toast==='function')toast('📢 Publicado em '+_pubMonthKey(card));render();
 }
 
 // ── Ficha do cliente (fixa no topo) ──
@@ -2363,6 +2394,8 @@ function contDropCard(ev,cid,targetId){
   if(di<0||!target)return;
   var dragged=cards.splice(di,1)[0];
   dragged.status=target.status;
+  // Se soltar sobre um publicado de outro mês, alinha o mês (mantém dentro daquela coluna)
+  if(dragged.status==='publicado'&&target.date){var dm=dragged.date?getMonthKey(new Date(dragged.date+'T12:00:00')):null;var tm=getMonthKey(new Date(target.date+'T12:00:00'));if(dm!==tm)dragged.date=target.date;}
   var ti=cards.findIndex(function(x){return x.id===targetId;});
   cards.splice(ti,0,dragged);
   save();render();
@@ -7933,12 +7966,29 @@ function rPortalConteudos(c){
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px"><div style="font-size:16px;font-weight:700;color:#1E293B">'+escH(k.title||'Arte')+' <span style="font-size:12px;font-weight:400;color:#94A3B8">'+fmtLbl(k)+'</span></div><span style="font-size:11px;font-weight:700;color:'+tagColor+';background:'+tagColor+'18;padding:3px 10px;border-radius:99px;white-space:nowrap">'+tag+'</span></div>'
     +imgsHtml(k)+legenda(k)+'</div>';};
   var sec=function(title,sub,html){return '<div style="margin-bottom:22px"><div style="font-size:14px;font-weight:800;color:#1E293B;margin-bottom:2px">'+title+'</div><div style="font-size:12px;color:#64748B;margin-bottom:12px">'+sub+'</div><div style="display:flex;flex-direction:column;gap:14px">'+html+'</div></div>';};
+  // Card compacto (capa + título) para grade de aprovadas/publicadas
+  var cardCover=function(k,tag,tagColor){var im=_cardImgs(k);var cover=im[0]?(im[0].url||im[0].bg||''):'';
+    return '<div class="portal-card" style="padding:0;overflow:hidden">'
+      +(cover?'<div style="position:relative"><img src="'+escH(cover)+'" style="width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#F1F5F9">'+(im.length>1?'<span style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);color:#fff;font-size:11px;font-weight:700;border-radius:99px;padding:2px 9px">📚 '+im.length+'</span>':'')+'<span style="position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;color:#fff;background:'+tagColor+';padding:3px 9px;border-radius:99px">'+tag+'</span></div>':'')
+      +'<div style="padding:10px 12px"><div style="font-size:12px;font-weight:600;color:#1E293B;line-height:1.35">'+escH(k.title||'Arte')+'</div>'+(k.formato?'<div style="font-size:11px;color:#94A3B8;margin-top:3px">'+escH(k.formato)+'</div>':'')+'</div>'
+      +'</div>';};
+  var grid=function(html){return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px">'+html+'</div>';};
+  var secGrid=function(title,sub,html){return '<div style="margin-bottom:22px"><div style="font-size:14px;font-weight:800;color:#1E293B;margin-bottom:2px">'+title+'</div><div style="font-size:12px;color:#64748B;margin-bottom:12px">'+sub+'</div>'+grid(html)+'</div>';};
   var out='<div class="portal-hero" style="margin-bottom:20px"><div><h1>🎨 Conteúdos</h1><p>Aprove as artes e acompanhe o que já foi publicado</p></div></div>';
   out+=aguardando.length?sec('🕐 Aguardando sua aprovação','Dê uma olhada e aprove, ou peça um ajuste.',aguardando.map(cardAguard).join('')):'';
-  out+=aprovadas.length?sec('✅ Aprovadas por você','Já aprovadas — a equipe vai publicar.',aprovadas.map(function(k){return cardSimple(k,'✅ Aprovada','#16A34A');}).join('')):'';
-  out+=publicadas.length?sec('📢 Publicadas','Artes que já foram ao ar.',publicadas.map(function(k){return cardSimple(k,'📢 Publicada','#334155');}).join('')):'';
+  out+=aprovadas.length?secGrid('✅ Aprovadas por você','Já aprovadas — a equipe vai publicar.',aprovadas.map(function(k){return cardCover(k,'✅ Aprovada','#16A34A');}).join('')):'';
+  if(publicadas.length){
+    var byM={};publicadas.forEach(function(k){var mk=_pubMonthKey(k);(byM[mk]=byM[mk]||[]).push(k);});
+    var keys=Object.keys(byM).sort(function(a,b){return _pubMonthRank(b)-_pubMonthRank(a);});
+    var pubHtml='';
+    keys.forEach(function(mk){
+      var list=byM[mk].slice().sort(function(a,b){return (''+(b.date||'')).localeCompare(''+(a.date||''));});
+      pubHtml+='<div style="font-size:13px;font-weight:800;color:#334155;margin:4px 0 10px;padding-bottom:5px;border-bottom:2px solid #E2E8F0">📢 '+escH(mk)+' <span style="color:#94A3B8;font-weight:600">('+list.length+')</span></div>'+grid(list.map(function(k){return cardCover(k,'📢 Publicada','#334155');}).join(''))+'<div style="height:18px"></div>';
+    });
+    out+='<div style="margin-bottom:22px"><div style="font-size:14px;font-weight:800;color:#1E293B;margin-bottom:2px">📢 Publicadas</div><div style="font-size:12px;color:#64748B;margin-bottom:12px">O que já foi ao ar, organizado por mês.</div>'+pubHtml+'</div>';
+  }
   if(!aguardando.length&&!aprovadas.length&&!publicadas.length){out+='<div class="portal-card" style="text-align:center;padding:40px;color:#64748B">Ainda não há artes por aqui.<br><small>Assim que a equipe subir as artes, elas aparecem aqui pra você aprovar.</small></div>';}
-  return '<div style="max-width:760px;margin:0 auto">'+out+'</div>';
+  return '<div style="max-width:820px;margin:0 auto">'+out+'</div>';
 }
 function rClientPortalAuth(){
   const c=D.clients.find(c=>c.id===S.authenticatedClientId);
@@ -8115,7 +8165,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080430; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080431; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
