@@ -7793,12 +7793,15 @@ function rPortalRelatorios(c){
   const mini=function(v,l,color,bg){return '<div style="text-align:center;padding:12px 8px;background:'+bg+';border-radius:10px"><div style="font-size:20px;font-weight:700;color:'+color+'">'+v+'</div><div style="font-size:10px;color:#64748B;margin-top:2px">'+l+'</div></div>';};
   const has=function(v){return v!=null&&v!=='';};
   const mmOf=function(mk){return (c.monthlyMetrics||{})[mk]||{};};
+  // Leads unificado: usa a MÉTRICA reportada quando existe; senão a contagem de leads cadastrados.
+  // Mantém banner, número-herói e tabelas mostrando SEMPRE o mesmo número.
+  const leadsOf=function(r){var v=mmOf(r&&r.month).leads;return (v!=null&&v!=='')?Number(v):((r&&r.prospects)||0);};
   // Tabela de métricas por mês (evolução)
   const chrono=months.slice().reverse();
   const evoDefs=[
     {lbl:'Seguidores',get:function(r){var mm=mmOf(r.month);return has(mm.followers)?Number(mm.followers).toLocaleString('pt-BR'):'—';}},
     {lbl:'Mensagens enviadas',get:function(r){var mm=mmOf(r.month);return has(mm.mensagensEnviadas)?Number(mm.mensagensEnviadas).toLocaleString('pt-BR'):'—';}},
-    {lbl:'Leads',get:function(r){return r.prospects||0;}},
+    {lbl:'Leads',get:function(r){return leadsOf(r);}},
     {lbl:'SSI',get:function(r){var p=_prospMetricsMonth(c,r.month);return p.ssi!=null?p.ssi:'—';}}
   ];
   const evoTable=chrono.length>1?'<div class="portal-card" style="margin-bottom:16px"><div class="portal-card-header">Métricas por mês</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:6px 8px;color:#64748B;font-weight:600">Indicador</th>'+chrono.map(function(r){return '<th style="padding:6px 8px;color:#64748B;font-weight:600;white-space:nowrap">'+short(r.month)+'</th>';}).join('')+'</tr></thead><tbody>'+evoDefs.map(function(row){return '<tr style="border-top:1px solid #F1F5F9"><td style="padding:7px 8px;font-weight:600;color:#1E293B">'+row.lbl+'</td>'+chrono.map(function(r){return '<td style="text-align:center;padding:7px 8px;color:#334155">'+row.get(r)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div></div>':'';
@@ -7847,7 +7850,7 @@ function rPortalRelatorios(c){
   const chipBtn=function(val,label){var a=sel===val;return '<span onclick="S.portalRelMonth=\''+val+'\';render()" style="cursor:pointer;font-size:12px;font-weight:600;padding:6px 13px;border-radius:99px;border:1px solid '+(a?'#0D3D9B':'#D8E0EE')+';background:'+(a?'#0D3D9B':'#fff')+';color:'+(a?'#fff':'#475569')+'">'+label+'</span>';};
   const monthChips=monthList.length?('<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center"><span style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-right:2px">Mês:</span>'+monthList.map(function(m){return chipBtn(m,m);}).join('')+chipBtn('todos','Todos')+'</div>'):'';
   const heroR=(sel!=='todos')?(months.filter(function(r){return r.month===sel;})[0]||{}):(months[0]||{});
-  const hWinV=(heroR.meetings>0)?heroR.meetings:((heroR.sales>0)?heroR.sales:(heroR.prospects||0));
+  const hWinV=(heroR.meetings>0)?heroR.meetings:((heroR.sales>0)?heroR.sales:leadsOf(heroR));
   const hWinL=(heroR.meetings>0)?'reuniões agendadas':((heroR.sales>0)?'fechamentos':'leads gerados');
   const banner='<div style="background:linear-gradient(135deg,#0D3D9B 0%,#1450C4 55%,#0077B5 100%);color:#fff;border-radius:20px;padding:24px 26px;margin-bottom:18px">'
     +'<div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.72);font-weight:700">ALL IN · Relatório de Resultados</div>'
@@ -7862,7 +7865,7 @@ function rPortalRelatorios(c){
     const mr=(c.monthlyReports||{})[mk]||{};
     const kpis=secLbl('Resultado do mês')
       +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">'
-      +kpi(r.prospects,'👥 Leads','#0D3D9B',deltaBadge(r.prospects,prv.prospects))
+      +kpi(leadsOf(r),'👥 Leads','#0D3D9B',deltaBadge(leadsOf(r),leadsOf(prv)))
       +kpi(r.leads,'💬 Responderam','#7C3AED',deltaBadge(r.leads,prv.leads))
       +kpi(r.meetings,'🤝 Reuniões','#EA580C',deltaBadge(r.meetings,prv.meetings))
       +(r.sales>0?'<div onclick="showFechamentos(\''+c.id+'\',\''+mk+'\')" style="cursor:pointer">'+kpi(r.sales,'✅ Fechamentos ↗','#16A34A',deltaBadge(r.sales,prv.sales))+'</div>':kpi(r.sales,'✅ Fechamentos','#16A34A',deltaBadge(r.sales,prv.sales)))
@@ -8165,7 +8168,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080431; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080432; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
