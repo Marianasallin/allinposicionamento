@@ -3836,6 +3836,8 @@ var PROC_TIPOS=[
   {id:'Material',prefix:'MAT',cor:'#16A34A',sub:'Apoios, modelos e recursos de consulta.'}
 ];
 function _procTipoMeta(t){for(var i=0;i<PROC_TIPOS.length;i++)if(PROC_TIPOS[i].id===t)return PROC_TIPOS[i];return PROC_TIPOS[2];}
+var PROC_AREA_CORES=['#0891B2','#7C3AED','#DC2626','#D97706','#16A34A','#0D3D9B','#DB2777','#0F766E','#9333EA','#B45309'];
+function _procAreaColor(a){if(!a)return '#64748B';_procEnsure();var i=D.processoAreas.indexOf(a);if(i<0){i=0;for(var j=0;j<(''+a).length;j++)i+=(''+a).charCodeAt(j);}return PROC_AREA_CORES[Math.abs(i)%PROC_AREA_CORES.length];}
 function _procEnsure(){if(!Array.isArray(D.processos))D.processos=[];if(!Array.isArray(D.processoAreas)||!D.processoAreas.length)D.processoAreas=['Sucesso do Cliente','Comercial','Entrega','Gestão'];return D.processos;}
 function procAddArea(){var n=prompt('Nome da nova área:');if(n===null)return;n=(''+n).trim();if(!n)return;_procEnsure();if(!D.processoAreas.some(function(a){return a.toLowerCase()===n.toLowerCase();}))D.processoAreas.push(n);S.procArea=n;save();if(typeof toast==='function')toast('✅ Área "'+n+'" criada');render();}
 function procDelArea(a){_procEnsure();if(!confirm('Remover a área "'+a+'"? Os itens dela ficam sem área.'))return;D.processoAreas=D.processoAreas.filter(function(x){return x!==a;});D.processos.forEach(function(p){if(p.area===a)p.area='';});if(S.procArea===a)S.procArea='todas';save();render();}
@@ -3874,14 +3876,14 @@ function rProcessos(){
     if(q&&_procText(p).indexOf(q)<0)return false;
     return true;
   }).sort(function(a,b){return (''+(a.codigo||'')).localeCompare(''+(b.codigo||''),undefined,{numeric:true});});
-  var cards=list.length?('<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">'+list.map(function(p){var m=_procTipoMeta(p.tipo);var rev=p.status==='revisado';
-    return '<div onclick="S.procId=\''+p.id+'\';render()" style="cursor:pointer;background:#334155;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">'
+  var cards=list.length?('<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">'+list.map(function(p){var m=_procTipoMeta(p.tipo);var rev=p.status==='revisado';var ac=_procAreaColor(p.area);
+    return '<div onclick="S.procId=\''+p.id+'\';render()" style="cursor:pointer;background:#334155;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);border-top:5px solid '+ac+'">'
       +'<div style="padding:18px 18px 15px;color:#fff">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><span style="font-size:13px;font-weight:700;letter-spacing:.05em;color:rgba(255,255,255,.75)">'+escH(p.codigo||'')+'</span><span style="font-size:18px;opacity:.85">📖</span></div>'
       +'<div style="font-size:19px;font-weight:700;line-height:1.35;margin-top:9px;min-height:50px">'+escH(p.titulo||'(sem título)')+'</div>'
       +'</div>'
       +'<div style="background:#fff;padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
-      +(p.area?'<span style="font-size:12px;font-weight:800;letter-spacing:.03em;color:#334155;background:#E2E8F0;border-radius:6px;padding:5px 10px">'+escH(p.area).toUpperCase()+'</span>':'')
+      +(p.area?'<span style="font-size:12px;font-weight:800;letter-spacing:.03em;color:'+ac+';background:'+ac+'1A;border-radius:6px;padding:5px 10px">'+escH(p.area).toUpperCase()+'</span>':'')
       +'<span style="font-size:12px;font-weight:800;letter-spacing:.03em;color:'+m.cor+';background:'+m.cor+'18;border-radius:6px;padding:5px 10px">'+escH(p.tipo||'').toUpperCase()+'</span>'
       +(rev?'<span style="font-size:12px;font-weight:800;color:#16A34A;margin-left:auto">✅ revisado</span>':'<span style="font-size:12px;font-weight:700;color:#D97706;margin-left:auto">a revisar</span>')
       +'</div></div>';
@@ -3906,31 +3908,68 @@ function _procDetail(){
   }
   var areaOpts='<option value="">— sem área —</option>'+D.processoAreas.map(function(a){return '<option value="'+escH(a)+'" '+(p.area===a?'selected':'')+'>'+escH(a)+'</option>';}).join('');
   var tipoOpts=PROC_TIPOS.map(function(t){return '<option value="'+t.id+'" '+(p.tipo===t.id?'selected':'')+'>'+t.id+'</option>';}).join('');
-  var mats=(p.materiais||[]);
-  var matHtml=mats.length?mats.map(function(mt,i){return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #E2E8F0;border-radius:10px;margin-bottom:8px;background:#fff">'
-    +'<span style="font-size:18px">📎</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#1E293B">'+escH(mt.name||'Material')+'</div>'+(mt.url?'<a href="'+escH(mt.url)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none;word-break:break-all">'+escH(mt.url)+' ↗</a>':'')+'</div>'
-    +'<button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="procDelMaterial(\''+p.id+'\','+i+')">🗑</button></div>';}).join(''):'<div style="font-size:12px;color:#94A3B8;padding:8px 0">Nenhum material anexado ainda.</div>';
-  var vid=p.videoUrl?('<div style="margin-top:8px">'+(/youtu|loom|vimeo|drive\.google/.test(p.videoUrl)?'<a href="'+escH(p.videoUrl)+'" target="_blank" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#0369A1;text-decoration:none;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:10px 14px">▶️ Abrir vídeo ↗</a>':'<a href="'+escH(p.videoUrl)+'" target="_blank" style="font-size:13px;color:#0369A1">'+escH(p.videoUrl)+'</a>')+'</div>'):'';
-  return '<div style="max-width:900px">'
-    +'<div style="margin-bottom:14px"><span onclick="procSaveDoc();S.procId=null;render()" style="cursor:pointer;font-size:13px;color:#64748B">← Voltar ao acervo</span></div>'
-    +'<div class="card" style="padding:20px 22px;margin-bottom:16px">'
-    +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
-    +'<input value="'+escH(p.codigo||'')+'" onchange="procSet(\''+p.id+'\',\'codigo\',this.value)" style="width:120px;padding:8px 10px;border:1px solid #E2E8F0;border-radius:8px;font-size:12px;font-weight:700;color:#334155">'
-    +'<select onchange="procSet(\''+p.id+'\',\'tipo\',this.value)" style="padding:8px 10px;border:1px solid #E2E8F0;border-radius:8px;font-size:12px">'+tipoOpts+'</select>'
-    +'<select onchange="procSet(\''+p.id+'\',\'area\',this.value)" style="padding:8px 10px;border:1px solid #E2E8F0;border-radius:8px;font-size:12px">'+areaOpts+'</select>'
-    +'<span onclick="procToggleStatus(\''+p.id+'\')" style="cursor:pointer;margin-left:auto;font-size:12px;font-weight:700;padding:6px 12px;border-radius:99px;background:'+(rev?'#DCFCE7':'#FEF3C7')+';color:'+(rev?'#16A34A':'#D97706')+'">'+(rev?'✅ Revisado':'⏳ A revisar')+' ↻</span>'
-    +'<button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="procDelete(\''+p.id+'\')">🗑 Excluir</button></div>'
-    +'<input value="'+escH(p.titulo||'')+'" onchange="procSet(\''+p.id+'\',\'titulo\',this.value)" placeholder="Título do processo" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #E2E8F0;border-radius:10px;font-size:18px;font-weight:700;color:#1E293B;margin-bottom:8px">'
-    +'<textarea onchange="procSet(\''+p.id+'\',\'descricao\',this.value)" placeholder="Descrição (uma linha dizendo para que serve)" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #E2E8F0;border-radius:10px;font-size:13px;resize:vertical" rows="2">'+escH(p.descricao||'')+'</textarea></div>'
-    +'<div class="card" style="padding:0;margin-bottom:16px;overflow:hidden">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid #EEF2F7;background:#F8FAFC"><h3 style="margin:0;font-size:14px">📄 Documento (passo a passo)</h3><button class="btn btn-o btn-s" onclick="procSaveDoc();S.procDocFull=true;render()">⛶ Tela cheia</button></div>'
-    +'<textarea id="proc-doc" oninput="clearTimeout(window._procDT);window._procDT=setTimeout(procSaveDoc,600)" placeholder="Escreva aqui o passo a passo do processo…" style="width:100%;box-sizing:border-box;border:none;outline:none;padding:18px 22px;font-size:14px;line-height:1.7;resize:vertical;font-family:inherit;min-height:280px">'+escH(p.doc||'')+'</textarea></div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
-    +'<div class="card" style="padding:16px 18px"><h3 style="margin:0 0 10px;font-size:14px">🎥 Vídeo</h3>'
-    +'<input value="'+escH(p.videoUrl||'')+'" onchange="procSet(\''+p.id+'\',\'videoUrl\',this.value)" placeholder="Cole o link do vídeo (YouTube, Loom, Drive…)" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px">'+vid+'</div>'
-    +'<div class="card" style="padding:16px 18px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;font-size:14px">📎 Materiais anexados</h3><button class="btn btn-o btn-s" onclick="procAddMaterial(\''+p.id+'\')">＋ Anexar</button></div>'+matHtml+'</div>'
-    +'</div></div>';
+  var ac=_procAreaColor(p.area);
+  var header='<div style="background:linear-gradient(135deg,#3A4453,#272E39);border-radius:18px;padding:22px 26px;color:#fff;position:relative;overflow:hidden">'
+    +'<div style="position:absolute;left:0;top:0;bottom:0;width:6px;background:'+ac+'"></div>'
+    +'<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'
+    +'<span style="font-size:13px;font-weight:800;letter-spacing:.05em;color:rgba(255,255,255,.85)">📖 '+escH((p.tipo||'').toUpperCase())+'</span>'
+    +'<span style="font-size:12px;font-weight:800;letter-spacing:.04em;color:#fff;background:'+ac+';border-radius:6px;padding:4px 11px">'+escH(p.codigo||'')+'</span>'
+    +(p.area?'<span style="font-size:12px;font-weight:700;color:#fff;background:rgba(255,255,255,.15);border-radius:6px;padding:4px 11px">'+escH(p.area)+'</span>':'')
+    +'<span style="font-size:11px;font-weight:800;letter-spacing:.02em;color:#3A2A00;background:#F5B841;border-radius:6px;padding:5px 11px">🔒 USO INTERNO · NÃO COMPARTILHAR</span>'
+    +'<span onclick="procToggleStatus(\''+p.id+'\')" style="cursor:pointer;margin-left:auto;font-size:12px;font-weight:700;padding:5px 12px;border-radius:99px;background:'+(rev?'rgba(134,239,172,.2)':'rgba(253,230,138,.2)')+';color:'+(rev?'#86EFAC':'#FDE68A')+'">'+(rev?'✅ Revisado':'⏳ A revisar')+' ↻</span></div>'
+    +'<input value="'+escH(p.titulo||'')+'" onchange="procSet(\''+p.id+'\',\'titulo\',this.value)" placeholder="Título do processo" style="width:100%;box-sizing:border-box;background:transparent;border:none;outline:none;color:#fff;font-size:32px;font-weight:800;letter-spacing:-.02em;padding:0;margin-bottom:4px">'
+    +'<input value="'+escH(p.descricao||'')+'" onchange="procSet(\''+p.id+'\',\'descricao\',this.value)" placeholder="Uma linha dizendo para que serve…" style="width:100%;box-sizing:border-box;background:transparent;border:none;outline:none;color:rgba(255,255,255,.8);font-size:15px;padding:0;margin-bottom:16px">'
+    +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-s" style="background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.25);font-size:13px;font-weight:600" onclick="procPrint(\''+p.id+'\')">🖨 Imprimir & PDF</button>'
+    +'<span style="margin-left:auto"></span><button class="btn btn-s" style="background:transparent;color:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.2);font-size:12px" onclick="procDelete(\''+p.id+'\')">🗑 Excluir</button></div></div>';
+  var metaRow='<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin:14px 0 20px;padding:11px 15px;background:#F8FAFC;border:1px solid #EEF2F7;border-radius:12px">'
+    +'<span style="font-size:12px;font-weight:700;color:#64748B">Dados:</span>'
+    +'<select onchange="procSet(\''+p.id+'\',\'tipo\',this.value)" style="padding:8px 10px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px">'+tipoOpts+'</select>'
+    +'<select onchange="procSet(\''+p.id+'\',\'area\',this.value)" style="padding:8px 10px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px">'+areaOpts+'</select>'
+    +'<span onclick="procNewAreaInline(\''+p.id+'\')" style="cursor:pointer;font-size:12px;font-weight:700;color:#0369A1">＋ nova área</span>'
+    +'<input value="'+escH(p.codigo||'')+'" onchange="procSet(\''+p.id+'\',\'codigo\',this.value)" style="width:120px;padding:8px 10px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;font-weight:700;color:#334155"></div>';
+  var video=p.videoUrl
+    ? '<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:8px">🎥 Vídeo de demonstração</div><a href="'+escH(p.videoUrl)+'" target="_blank" style="display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#0369A1;text-decoration:none;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:11px 15px">▶️ Abrir vídeo ↗</a> <span onclick="procSetVideo(\''+p.id+'\')" style="cursor:pointer;font-size:12px;color:#64748B;margin-left:6px">trocar link</span></div>'
+    : '<div onclick="procSetVideo(\''+p.id+'\')" style="cursor:pointer;border:2px dashed #CBD5E1;border-radius:14px;padding:22px;text-align:center;color:#64748B;font-size:14px;margin-bottom:20px">📹 adicionar um vídeo de demonstração</div>';
+  var secHead=function(icon,title,btns){return '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #E2E8F0;padding-bottom:8px;margin-bottom:12px"><h3 style="margin:0;font-size:20px;font-weight:800;color:#1E293B">'+icon+' '+title+'</h3><div style="display:flex;gap:8px">'+(btns||'')+'</div></div>';};
+  var docHas=p.doc&&(''+p.doc).trim();
+  var docSec='<div style="margin-bottom:24px">'+secHead('📄','O documento','<button class="btn btn-o btn-s" onclick="procSaveDoc();S.procDocFull=true;render()">✏️ escrever</button>')
+    +(docHas
+      ? '<div onclick="procSaveDoc();S.procDocFull=true;render()" style="cursor:text;white-space:pre-wrap;font-size:15px;line-height:1.75;color:#1E293B;background:#fff;border:1px solid #EEF2F7;border-radius:14px;padding:20px 24px">'+escH(p.doc)+'</div>'
+      : '<div onclick="procSaveDoc();S.procDocFull=true;render()" style="cursor:pointer;border:2px dashed #CBD5E1;border-radius:14px;padding:22px 24px"><div style="font-size:15px;font-weight:700;color:#334155;margin-bottom:6px">✏️ Escrever o passo a passo</div><div style="font-size:13px;color:#64748B;line-height:1.6">É o corpo do item: o texto longo, com títulos, listas e tabelas, que explica como a coisa é feita. O checklist marca o que fazer; aqui é onde se diz como.</div></div>')
+    +'</div>';
+  var cks=p.checklist||[];
+  var ckHtml=cks.map(function(ck){return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F1F5F9"><span onclick="procToggleCheck(\''+p.id+'\',\''+ck.id+'\')" style="cursor:pointer;font-size:20px">'+(ck.done?'☑️':'⬜')+'</span><span style="flex:1;font-size:14px;color:'+(ck.done?'#94A3B8':'#1E293B')+';text-decoration:'+(ck.done?'line-through':'none')+'">'+escH(ck.text)+'</span><span onclick="procDelCheck(\''+p.id+'\',\''+ck.id+'\')" style="cursor:pointer;color:#CBD5E1;font-size:13px">🗑</span></div>';}).join('');
+  var ckSec='<div style="margin-bottom:24px">'+secHead('✓','Checklist operacional','<button class="btn btn-o btn-s" onclick="procAddCheck(\''+p.id+'\')">＋ item</button>')
+    +(cks.length?ckHtml:'<div onclick="procAddCheck(\''+p.id+'\')" style="cursor:pointer;font-size:14px;color:#64748B;padding:4px 0">＋ criar o checklist deste item</div>')+'</div>';
+  var mats=p.materiais||[];
+  var matHtml=mats.length?mats.map(function(mt,i){return '<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid #E2E8F0;border-radius:10px;margin-bottom:8px;background:#fff"><span style="font-size:18px">📎</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#1E293B">'+escH(mt.name||'Material')+'</div>'+(mt.url?'<a href="'+escH(mt.url)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">abrir ↗</a>':'')+'</div><span onclick="procDelMaterial(\''+p.id+'\','+i+')" style="cursor:pointer;color:#CBD5E1">🗑</span></div>';}).join(''):'<div style="font-size:14px;color:#94A3B8;line-height:1.6;font-style:italic">Nada anexado ainda. Suba aqui a planilha, o contrato-modelo ou o PDF que este item precisa — quem abrir o processo baixa direto daqui, sem procurar no Drive.</div>';
+  var matSec='<div style="margin-bottom:24px">'+secHead('📎','Materiais anexados','<button class="btn btn-o btn-s" onclick="procAddMaterialFile(\''+p.id+'\')">＋ anexar arquivo</button><button class="btn btn-o btn-s" onclick="procAddMaterial(\''+p.id+'\')">🔗 link</button>')+matHtml+'</div>';
+  return '<div style="max-width:920px">'
+    +'<div style="margin-bottom:14px"><span onclick="procSaveDoc();S.procId=null;render()" style="cursor:pointer;font-size:14px;color:#64748B">← voltar ao acervo interno</span></div>'
+    +header+metaRow+video+docSec+ckSec+matSec+'</div>';
 }
+function procPrint(id){var p=_procFind(id);if(!p)return;var w=window.open('','_blank');if(!w)return;var e=function(s){return (''+s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});};
+  var chk=(p.checklist||[]).map(function(c){return '<li>'+(c.done?'☑':'☐')+' '+e(c.text)+'</li>';}).join('');
+  w.document.write('<html><head><meta charset="utf-8"><title>'+e(p.codigo||'')+' — '+e(p.titulo||'')+'</title><style>body{font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:40px auto;padding:0 24px;color:#1a1a1a;line-height:1.65}h1{font-size:26px;margin:6px 0}.meta{color:#666;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}.desc{color:#555;font-style:italic;margin:8px 0 18px}.doc{white-space:pre-wrap;font-size:14px}h3{margin-top:26px;border-top:1px solid #ddd;padding-top:14px}ul{list-style:none;padding-left:0}li{margin:5px 0;font-size:14px}</style></head><body>'
+    +'<div class="meta">'+e(p.tipo||'')+' · '+e(p.codigo||'')+(p.area?' · '+e(p.area):'')+' — USO INTERNO · NÃO COMPARTILHAR</div>'
+    +'<h1>'+e(p.titulo||'')+'</h1>'+(p.descricao?'<div class="desc">'+e(p.descricao)+'</div>':'')
+    +'<div class="doc">'+e(p.doc||'(documento ainda não escrito)')+'</div>'
+    +(chk?'<h3>Checklist operacional</h3><ul>'+chk+'</ul>':'')
+    +'</body></html>');
+  w.document.close();setTimeout(function(){try{w.print();}catch(_e){}},350);}
+function procSetVideo(id){var p=_procFind(id);if(!p)return;var u=prompt('Cole o link do vídeo (YouTube, Loom, Drive…):',p.videoUrl||'');if(u===null)return;p.videoUrl=(''+u).trim();p.updatedAt=new Date().toISOString();save();render();}
+function procAddCheck(id){var p=_procFind(id);if(!p)return;var t=prompt('Item do checklist:');if(t===null)return;t=(''+t).trim();if(!t)return;if(!p.checklist)p.checklist=[];p.checklist.push({id:'ck'+Date.now()+Math.floor(Math.random()*1000),text:t,done:false});p.updatedAt=new Date().toISOString();save();render();}
+function procToggleCheck(id,cid){var p=_procFind(id);if(!p||!p.checklist)return;var it=p.checklist.find(function(x){return x.id===cid;});if(it){it.done=!it.done;p.updatedAt=new Date().toISOString();save();render();}}
+function procDelCheck(id,cid){var p=_procFind(id);if(!p||!p.checklist)return;p.checklist=p.checklist.filter(function(x){return x.id!==cid;});save();render();}
+function procNewAreaInline(id){var n=prompt('Nome da nova área:');if(n===null)return;n=(''+n).trim();if(!n)return;_procEnsure();if(!D.processoAreas.some(function(a){return a.toLowerCase()===n.toLowerCase();}))D.processoAreas.push(n);var p=_procFind(id);if(p)p.area=n;save();if(typeof toast==='function')toast('✅ Área "'+n+'" criada');render();}
+function procAddMaterialFile(id){var inp=document.createElement('input');inp.type='file';inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;var p=_procFind(id);if(!p)return;
+    if(typeof _fbStorage==='undefined'||!_fbStorage){if(typeof toast==='function')toast('⚠️ Upload de arquivo indisponível agora. Use o botão "🔗 link".');return;}
+    if(f.size>20*1024*1024){if(typeof toast==='function')toast('Arquivo acima de 20 MB — use o "🔗 link".');return;}
+    if(typeof toast==='function')toast('⏳ Enviando '+f.name+'…');
+    var safe=function(s){return (''+s).replace(/[^a-zA-Z0-9._-]/g,'_');};
+    var path='processos/'+id+'/'+Date.now()+'_'+safe(f.name);var ref=_fbStorage.ref().child(path);
+    ref.put(f).then(function(){return ref.getDownloadURL();}).then(function(url){if(!p.materiais)p.materiais=[];p.materiais.push({name:f.name,url:url,path:path});p.updatedAt=new Date().toISOString();save();if(typeof toast==='function')toast('✅ Anexado!');render();}).catch(function(){if(typeof toast==='function')toast('❌ Não consegui enviar. Use o botão "🔗 link".');});
+  };inp.click();}
 function procSaveDoc(){var el=document.getElementById('proc-doc');if(!el)return;var p=_procFind(S.procId);if(!p)return;if(p.doc!==el.value){p.doc=el.value;p.updatedAt=new Date().toISOString();save();}}
 function procSet(id,field,val){var p=_procFind(id);if(!p)return;p[field]=val;p.updatedAt=new Date().toISOString();save();if(field==='titulo'||field==='tipo'||field==='area'||field==='codigo')render();}
 function procToggleStatus(id){var p=_procFind(id);if(!p)return;p.status=(p.status==='revisado')?'a-revisar':'revisado';p.updatedAt=new Date().toISOString();save();if(typeof toast==='function')toast(p.status==='revisado'?'✅ Marcado como revisado':'Voltou para "a revisar"');render();}
@@ -8378,9 +8417,9 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080436; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080437; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
-    let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
+    let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
       _fbSnap={
         ids:D.clients.map(c=>c.id),
@@ -8388,7 +8427,9 @@ window.addEventListener('hashchange',handleNavigation);
         clients:D.clients.map(c=>{var o={};for(var k in c){if(Object.prototype.hasOwnProperty.call(c,k)&&c[k]!==undefined)o[k]=JSON.stringify(c[k]);}return o;}),
         team:JSON.stringify(D.team||[]),
         assignedTasks:JSON.stringify(D.assignedTasks||[]),
-        finance:JSON.stringify(D.finance||null)
+        finance:JSON.stringify(D.finance||null),
+        processos:JSON.stringify(D.processos||[]),
+        processoAreas:JSON.stringify(D.processoAreas||[])
       };
     }
 
@@ -8460,6 +8501,8 @@ window.addEventListener('hashchange',handleNavigation);
           const tj=JSON.stringify(D.team||[]);if(_fbSnap.team!==tj)updates['team']=JSON.parse(tj);
           const aj=JSON.stringify(D.assignedTasks||[]);if(_fbSnap.assignedTasks!==aj)updates['assignedTasks']=JSON.parse(aj);
           const fj=JSON.stringify(D.finance||null);if(_fbSnap.finance!==fj)updates['finance']=D.finance?JSON.parse(fj):null;
+          const prj=JSON.stringify(D.processos||[]);if(_fbSnap.processos!==prj)updates['processos']=JSON.parse(prj);
+          const paj=JSON.stringify(D.processoAreas||[]);if(_fbSnap.processoAreas!==paj)updates['processoAreas']=JSON.parse(paj);
           if(!Object.keys(updates).length){done();return;}
           const commit=(resync)=>{
             if(!Object.keys(updates).length){if(resync)doneResync();else done();return;}
