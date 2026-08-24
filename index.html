@@ -3840,6 +3840,8 @@ var PROC_AREA_CORES=['#0891B2','#7C3AED','#DC2626','#D97706','#16A34A','#0D3D9B'
 function _procAreaColor(a){if(!a)return '#64748B';_procEnsure();var i=D.processoAreas.indexOf(a);if(i<0){i=0;for(var j=0;j<(''+a).length;j++)i+=(''+a).charCodeAt(j);}return PROC_AREA_CORES[Math.abs(i)%PROC_AREA_CORES.length];}
 function _procEnsure(){if(!Array.isArray(D.processos))D.processos=[];if(!Array.isArray(D.processoAreas)||!D.processoAreas.length)D.processoAreas=['Sucesso do Cliente','Comercial','Entrega','Gestão'];return D.processos;}
 function procAddArea(){var n=prompt('Nome da nova área:');if(n===null)return;n=(''+n).trim();if(!n)return;_procEnsure();if(!D.processoAreas.some(function(a){return a.toLowerCase()===n.toLowerCase();}))D.processoAreas.push(n);S.procArea=n;save();if(typeof toast==='function')toast('✅ Área "'+n+'" criada');render();}
+function procRenameArea(){_procEnsure();var a=S.procArea;if(!a||a==='todas'){if(typeof toast==='function')toast('Clique na área que quer renomear primeiro.');return;}var n=prompt('Corrigir o nome da área:',a);if(n===null)return;n=(''+n).trim();if(!n)return;var idx=D.processoAreas.indexOf(a);if(idx>=0)D.processoAreas[idx]=n;D.processoAreas=D.processoAreas.filter(function(x,i){return D.processoAreas.indexOf(x)===i;});D.processos.forEach(function(p){if(p.area===a)p.area=n;});S.procArea=n;save();if(typeof toast==='function')toast('✅ Área renomeada para "'+n+'"');render();}
+function procDelAreaSel(){var a=S.procArea;if(!a||a==='todas'){if(typeof toast==='function')toast('Clique na área que quer remover primeiro.');return;}procDelArea(a);}
 function procDelArea(a){_procEnsure();if(!confirm('Remover a área "'+a+'"? Os itens dela ficam sem área.'))return;D.processoAreas=D.processoAreas.filter(function(x){return x!==a;});D.processos.forEach(function(p){if(p.area===a)p.area='';});if(S.procArea===a)S.procArea='todas';save();render();}
 function _procFind(id){return _procEnsure().find(function(p){return p.id===id;});}
 function _procNextCode(tipo){var m=_procTipoMeta(tipo);var mx=0;_procEnsure().forEach(function(p){if(!p.codigo)return;var mm=(''+p.codigo).match(new RegExp('^'+m.prefix+'-?(\\d+)$','i'));if(mm){var n=parseInt(mm[1],10);if(n>mx)mx=n;}});return m.prefix+'-'+String(mx+1).padStart(3,'0');}
@@ -3863,7 +3865,8 @@ function rProcessos(){
   var areaChip=function(val,label,n){var a=areaSel===val;return '<span onclick="S.procArea=\''+val+'\';render()" style="cursor:pointer;font-size:14px;font-weight:600;padding:8px 15px;border-radius:99px;border:1px solid '+(a?'#1E293B':'#E2E8F0')+';background:'+(a?'#1E293B':'#fff')+';color:'+(a?'#fff':'#475569')+'">'+escH(label)+(n!=null?' <span style="opacity:.7">'+n+'</span>':'')+'</span>';};
   var areaFilters='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 8px">'+areaChip('todas','Todas as áreas',null)
     +areasComItem.map(function(a){return areaChip(a,a,ofTipo.filter(function(p){return p.area===a;}).length);}).join('')
-    +'<span onclick="procAddArea()" style="cursor:pointer;font-size:14px;font-weight:700;padding:8px 15px;border-radius:99px;border:1px dashed #94A3B8;background:#fff;color:#475569">＋ Nova área</span></div>';
+    +'<span onclick="procAddArea()" style="cursor:pointer;font-size:14px;font-weight:700;padding:8px 15px;border-radius:99px;border:1px dashed #94A3B8;background:#fff;color:#475569">＋ Nova área</span>'
+    +(areaSel!=='todas'?'<span onclick="procRenameArea()" style="cursor:pointer;font-size:13px;font-weight:600;color:#0369A1;padding:8px 6px">✏️ renomear</span><span onclick="procDelAreaSel()" style="cursor:pointer;font-size:13px;font-weight:600;color:#DC2626;padding:8px 6px">🗑 remover</span>':'')+'</div>';
   // Filtro de status
   var stChip=function(val,label,n){var a=stSel===val;return '<span onclick="S.procStatus=\''+val+'\';render()" style="cursor:pointer;font-size:14px;font-weight:600;padding:7px 14px;border-radius:99px;border:1px solid '+(a?'#1E293B':'#E2E8F0')+';background:'+(a?'#1E293B':'#fff')+';color:'+(a?'#fff':'#475569')+'">'+label+(n!=null?' <span style="opacity:.7">'+n+'</span>':'')+'</span>';};
   var statusFilters='<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px">'+stChip('tudo','Tudo',null)
@@ -3937,7 +3940,7 @@ function _procDetail(){
   var ckInput='<div style="display:flex;gap:8px;align-items:center;margin-top:'+(cks.length?'10px':'2px')+'"><input id="proc-ck-new" placeholder="＋ escreva um item e aperte Enter…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();procAddCheckInline(\''+p.id+'\')}" style="flex:1;padding:11px 14px;border:1px solid #E2E8F0;border-radius:10px;font-size:14px;outline:none"><button class="btn btn-o btn-s" onclick="procAddCheckInline(\''+p.id+'\')">adicionar</button></div>';
   var ckSec='<div style="margin-bottom:24px">'+secHead('✓','Checklist operacional','')+ckHtml+ckInput+'</div>';
   var mats=p.materiais||[];
-  var matHtml=mats.length?mats.map(function(mt,i){return '<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid #E2E8F0;border-radius:10px;margin-bottom:8px;background:#fff"><span style="font-size:18px">📎</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#1E293B">'+escH(mt.name||'Material')+'</div>'+(mt.url?'<a href="'+escH(mt.url)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">abrir ↗</a>':'')+'</div><span onclick="procDelMaterial(\''+p.id+'\','+i+')" style="cursor:pointer;color:#CBD5E1">🗑</span></div>';}).join(''):'<div style="font-size:14px;color:#94A3B8;line-height:1.6;font-style:italic">Nada anexado ainda. Suba aqui a planilha, o contrato-modelo ou o PDF que este item precisa — quem abrir o processo baixa direto daqui, sem procurar no Drive.</div>';
+  var matHtml=mats.length?mats.map(function(mt,i){return '<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid #E2E8F0;border-radius:10px;margin-bottom:8px;background:#fff"><span style="font-size:18px">📎</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#1E293B">'+escH(mt.name||'Material')+'</div>'+(mt.url?'<a href="'+escH(mt.url)+'" '+(mt.inline?'download="'+escH(mt.name||'arquivo')+'"':'target="_blank"')+' style="font-size:11px;color:#0369A1;text-decoration:none">'+(mt.inline?'baixar ↓':'abrir ↗')+'</a>':'')+(mt.size?' <span style="font-size:10px;color:#CBD5E1">'+Math.round(mt.size/1024)+' KB</span>':'')+'</div><span onclick="procDelMaterial(\''+p.id+'\','+i+')" style="cursor:pointer;color:#CBD5E1">🗑</span></div>';}).join(''):'<div style="font-size:14px;color:#94A3B8;line-height:1.6;font-style:italic">Nada anexado ainda. Suba aqui a planilha, o contrato-modelo ou o PDF que este item precisa — arquivos até 800 KB sobem direto; maiores, use o botão "🔗 link".</div>';
   var matSec='<div style="margin-bottom:24px">'+secHead('📎','Materiais anexados','<button class="btn btn-o btn-s" onclick="procAddMaterialFile(\''+p.id+'\')">＋ anexar arquivo</button><button class="btn btn-o btn-s" onclick="procAddMaterial(\''+p.id+'\')">🔗 link</button>')+matHtml+'</div>';
   return '<div>'
     +'<div style="margin-bottom:14px"><span onclick="procSaveDoc();S.procId=null;render()" style="cursor:pointer;font-size:14px;color:#64748B">← voltar ao acervo interno</span></div>'
@@ -3959,12 +3962,17 @@ function procToggleCheck(id,cid){var p=_procFind(id);if(!p||!p.checklist)return;
 function procDelCheck(id,cid){var p=_procFind(id);if(!p||!p.checklist)return;p.checklist=p.checklist.filter(function(x){return x.id!==cid;});save();render();}
 function procNewAreaInline(id){var n=prompt('Nome da nova área:');if(n===null)return;n=(''+n).trim();if(!n)return;_procEnsure();if(!D.processoAreas.some(function(a){return a.toLowerCase()===n.toLowerCase();}))D.processoAreas.push(n);var p=_procFind(id);if(p)p.area=n;save();if(typeof toast==='function')toast('✅ Área "'+n+'" criada');render();}
 function procAddMaterialFile(id){var inp=document.createElement('input');inp.type='file';inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;var p=_procFind(id);if(!p)return;
-    if(typeof _fbStorage==='undefined'||!_fbStorage){if(typeof toast==='function')toast('⚠️ Upload de arquivo indisponível agora. Use o botão "🔗 link".');return;}
-    if(f.size>20*1024*1024){if(typeof toast==='function')toast('Arquivo acima de 20 MB — use o "🔗 link".');return;}
-    if(typeof toast==='function')toast('⏳ Enviando '+f.name+'…');
+    var _tt=function(m){if(typeof toast==='function')toast(m);};
+    var addMat=function(url,extra){if(!p.materiais)p.materiais=[];p.materiais.push(Object.assign({name:f.name,url:url,size:f.size},extra||{}));p.updatedAt=new Date().toISOString();save();_tt('✅ Anexado!');render();};
+    var SMALL=800*1024; // ≤800KB → base64 no banco (funciona sem Storage)
+    if(f.size<=SMALL){var rd=new FileReader();rd.onload=function(){addMat(rd.result,{inline:true});};rd.onerror=function(){_tt('❌ Não consegui ler o arquivo.');};rd.readAsDataURL(f);return;}
+    // Arquivo grande → tenta Storage; se não estiver ativo, orienta usar link
+    if(typeof _fbStorage==='undefined'||!_fbStorage){_tt('⚠️ Arquivo grande e o armazenamento de arquivos ainda não está ativo. Cole o "🔗 link" (Google Drive) — ou peça pra ativar o Storage.');return;}
+    if(f.size>20*1024*1024){_tt('Arquivo acima de 20 MB — use o "🔗 link".');return;}
+    _tt('⏳ Enviando '+f.name+'…');
     var safe=function(s){return (''+s).replace(/[^a-zA-Z0-9._-]/g,'_');};
     var path='processos/'+id+'/'+Date.now()+'_'+safe(f.name);var ref=_fbStorage.ref().child(path);
-    ref.put(f).then(function(){return ref.getDownloadURL();}).then(function(url){if(!p.materiais)p.materiais=[];p.materiais.push({name:f.name,url:url,path:path});p.updatedAt=new Date().toISOString();save();if(typeof toast==='function')toast('✅ Anexado!');render();}).catch(function(){if(typeof toast==='function')toast('❌ Não consegui enviar. Use o botão "🔗 link".');});
+    ref.put(f).then(function(){return ref.getDownloadURL();}).then(function(url){addMat(url,{path:path});}).catch(function(){_tt('❌ Arquivo grande e o armazenamento não está ativo. Cole o "🔗 link" (Google Drive).');});
   };inp.click();}
 function procSaveDoc(){var el=document.getElementById('proc-doc');if(!el)return;var p=_procFind(S.procId);if(!p)return;var v=el.isContentEditable?el.innerHTML:el.value;if(p.doc!==v){p.doc=v;p.updatedAt=new Date().toISOString();save();}}
 function procSet(id,field,val){var p=_procFind(id);if(!p)return;p[field]=val;p.updatedAt=new Date().toISOString();save();if(field==='titulo'||field==='tipo'||field==='area'||field==='codigo')render();}
@@ -8413,7 +8421,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080440; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080441; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
