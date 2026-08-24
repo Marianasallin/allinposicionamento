@@ -274,6 +274,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
     <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Visão da Equipe</span></div>
     <div class="ni" onclick="nav('team')"><span class="ni-icon">👩‍💼</span><span>Equipe</span></div>
     <div class="ni" onclick="nav('estruturacao')"><span class="ni-icon">🎯</span><span>Estruturação</span></div>
+    <div class="ni" onclick="S.procId=null;nav('processos')"><span class="ni-icon">📚</span><span>Banco de Processos</span></div>
     <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.38);padding:14px 12px 4px">Marketing</div>
     <div class="ni" onclick="nav('conteudos')"><span class="ni-icon">🎬</span><span>Conteúdos</span></div>
     <div id="nav-sec-fin" style="display:none;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.38);padding:14px 12px 4px">Financeiro</div>
@@ -871,7 +872,7 @@ function nav(view,extra={}){
   if(S.view==='team')S.teamAuth=false;
   Object.assign(S,{view},extra);
   document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dash','clients','conteudos','semana','minhasamana','team','financeiro'][i]===view));
-  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',conteudos:'Conteúdos',semana:'Visão da Equipe',minhasamana:'Minha Semana',func:'Equipe',team:'Equipe',financeiro:'Financeiro',estruturacao:'Estruturação de Perfil'};
+  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',conteudos:'Conteúdos',semana:'Visão da Equipe',minhasamana:'Minha Semana',func:'Equipe',team:'Equipe',financeiro:'Financeiro',estruturacao:'Estruturação de Perfil',processos:'Banco de Processos'};
   $('ttitle').textContent=titles[view]||view;
   render();
 }
@@ -913,7 +914,7 @@ function render(){
   if(S._realUser){document.body.insertAdjacentHTML('beforeend','<div id="veras-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#7C3AED,#9333EA);color:#fff;padding:9px 14px;text-align:center;font-size:13px;font-weight:600;box-shadow:0 -2px 10px rgba(0,0,0,.2)">👁 Você está vendo como <strong>'+(S.currentUser.name||'').split(' ')[0]+'</strong> (só visualização) <button onclick="voltarMeuPerfil()" style="margin-left:12px;background:#fff;color:#7C3AED;border:none;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer">Voltar ao meu perfil</button></div>');}
   // Normal admin views
   try{
-    const _viewFns={dash:rDash,clients:rClients,conteudos:rConteudos,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rTeam,team:rTeam,clientView:rClientView,financeiro:rFinanceiro,comissoes:rComissoes,carteira:rCarteira,estruturacao:rEstruturacaoBoard};
+    const _viewFns={dash:rDash,clients:rClients,conteudos:rConteudos,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rTeam,team:rTeam,clientView:rClientView,financeiro:rFinanceiro,comissoes:rComissoes,carteira:rCarteira,estruturacao:rEstruturacaoBoard,processos:rProcessos};
     const _fn=_viewFns[S.view];
     if(!_fn){
       $('view').innerHTML='<div style="padding:20px;color:var(--muted)">Vista desconhecida: <code>'+S.view+'</code></div>';
@@ -3822,6 +3823,146 @@ function rEstruturacaoBoard(){
     +'<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:#16A34A">✅ Concluídos <span style="color:#94A3B8">('+doneList.length+')</span></div></div>'
     +(doneList.length?doneList.map(card).join(''):'<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">—</div>')+'</div>';
   return head+'<div style="display:flex;gap:12px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start;padding-bottom:6px">'+cols+doneCol+'</div>';
+}
+
+// ────────────────────────────────────────────────────────────
+// BANCO DE PROCESSOS — acervo interno (POPs, playbooks, protocolos…)
+// ────────────────────────────────────────────────────────────
+var PROC_TIPOS=[
+  {id:'Protocolo',prefix:'PRT',cor:'#DC2626',sub:'Regras e diretrizes — o que sempre vale.'},
+  {id:'Playbook',prefix:'PLB',cor:'#7C3AED',sub:'A jogada completa de uma frente de trabalho.'},
+  {id:'Processo',prefix:'POP',cor:'#0891B2',sub:'Os POPs: o passo a passo de uma tarefa específica.'},
+  {id:'Job Description',prefix:'JD',cor:'#0D3D9B',sub:'O papel de cada função no time.'},
+  {id:'Material',prefix:'MAT',cor:'#16A34A',sub:'Apoios, modelos e recursos de consulta.'}
+];
+function _procTipoMeta(t){for(var i=0;i<PROC_TIPOS.length;i++)if(PROC_TIPOS[i].id===t)return PROC_TIPOS[i];return PROC_TIPOS[2];}
+function _procEnsure(){if(!Array.isArray(D.processos))D.processos=[];if(!Array.isArray(D.processoAreas)||!D.processoAreas.length)D.processoAreas=['Central DSG','Sucesso do Cliente','Comercial','Entrega','Gestão'];return D.processos;}
+function _procFind(id){return _procEnsure().find(function(p){return p.id===id;});}
+function _procNextCode(tipo){var m=_procTipoMeta(tipo);var mx=0;_procEnsure().forEach(function(p){if(!p.codigo)return;var mm=(''+p.codigo).match(new RegExp('^'+m.prefix+'-?(\\d+)$','i'));if(mm){var n=parseInt(mm[1],10);if(n>mx)mx=n;}});return m.prefix+'-'+String(mx+1).padStart(3,'0');}
+function _procText(p){return ((p.titulo||'')+' '+(p.descricao||'')+' '+((p.doc||'').replace(/<[^>]+>/g,' '))).toLowerCase();}
+function rProcessos(){
+  _procEnsure();
+  if(S.procId)return _procDetail();
+  var all=D.processos;
+  var tipoSel=S.procTipo||'Processo';
+  var areaSel=S.procArea||'todas';
+  var stSel=S.procStatus||'tudo';
+  var q=(S.procSearch||'').trim().toLowerCase();
+  var meta=_procTipoMeta(tipoSel);
+  // Tabs por tipo (com contagem)
+  var tabs=PROC_TIPOS.map(function(t){var n=all.filter(function(p){return p.tipo===t.id;}).length;var a=t.id===tipoSel;
+    return '<span onclick="S.procTipo=\''+t.id+'\';S.procArea=\'todas\';render()" style="cursor:pointer;display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:10px;font-size:13px;font-weight:700;background:'+(a?'#1E293B':'#fff')+';color:'+(a?'#fff':'#475569')+';border:1px solid '+(a?'#1E293B':'#E2E8F0')+'">📘 '+t.id+'s <span style="font-size:11px;font-weight:700;background:'+(a?'rgba(255,255,255,.2)':'#F1F5F9')+';color:'+(a?'#fff':'#64748B')+';border-radius:99px;padding:1px 8px">'+n+'</span></span>';
+  }).join('');
+  var ofTipo=all.filter(function(p){return p.tipo===tipoSel;});
+  // Filtro de área (com contagem)
+  var areasComItem=D.processoAreas.slice();
+  var areaChip=function(val,label,n){var a=areaSel===val;return '<span onclick="S.procArea=\''+val+'\';render()" style="cursor:pointer;font-size:12px;font-weight:600;padding:6px 13px;border-radius:99px;border:1px solid '+(a?'#1E293B':'#E2E8F0')+';background:'+(a?'#1E293B':'#fff')+';color:'+(a?'#fff':'#475569')+'">'+escH(label)+(n!=null?' <span style="opacity:.7">'+n+'</span>':'')+'</span>';};
+  var areaFilters='<div style="display:flex;gap:7px;flex-wrap:wrap;margin:14px 0 6px">'+areaChip('todas','Todas as áreas',null)
+    +areasComItem.map(function(a){return areaChip(a,a,ofTipo.filter(function(p){return p.area===a;}).length);}).join('')+'</div>';
+  // Filtro de status
+  var stChip=function(val,label,n){var a=stSel===val;return '<span onclick="S.procStatus=\''+val+'\';render()" style="cursor:pointer;font-size:12px;font-weight:600;padding:5px 12px;border-radius:99px;border:1px solid '+(a?'#1E293B':'#E2E8F0')+';background:'+(a?'#1E293B':'#fff')+';color:'+(a?'#fff':'#475569')+'">'+label+(n!=null?' <span style="opacity:.7">'+n+'</span>':'')+'</span>';};
+  var statusFilters='<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px">'+stChip('tudo','Tudo',null)
+    +stChip('a-revisar','a revisar',ofTipo.filter(function(p){return (p.status||'a-revisar')==='a-revisar';}).length)
+    +stChip('revisado','revisados',ofTipo.filter(function(p){return p.status==='revisado';}).length)+'</div>';
+  // Lista final
+  var list=ofTipo.filter(function(p){
+    if(areaSel!=='todas'&&p.area!==areaSel)return false;
+    if(stSel!=='tudo'&&(p.status||'a-revisar')!==stSel)return false;
+    if(q&&_procText(p).indexOf(q)<0)return false;
+    return true;
+  }).sort(function(a,b){return (''+(a.codigo||'')).localeCompare(''+(b.codigo||''),undefined,{numeric:true});});
+  var cards=list.length?('<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">'+list.map(function(p){var m=_procTipoMeta(p.tipo);var rev=p.status==='revisado';
+    return '<div onclick="S.procId=\''+p.id+'\';render()" style="cursor:pointer;background:#334155;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">'
+      +'<div style="padding:16px 16px 14px;color:#fff">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><span style="font-size:11px;font-weight:700;letter-spacing:.05em;color:rgba(255,255,255,.7)">'+escH(p.codigo||'')+'</span><span style="font-size:15px;opacity:.8">📖</span></div>'
+      +'<div style="font-size:16px;font-weight:700;line-height:1.35;margin-top:8px;min-height:42px">'+escH(p.titulo||'(sem título)')+'</div>'
+      +'</div>'
+      +'<div style="background:#fff;padding:11px 14px;display:flex;gap:7px;flex-wrap:wrap;align-items:center">'
+      +(p.area?'<span style="font-size:10px;font-weight:800;letter-spacing:.03em;color:#334155;background:#E2E8F0;border-radius:6px;padding:4px 9px">'+escH(p.area).toUpperCase()+'</span>':'')
+      +'<span style="font-size:10px;font-weight:800;letter-spacing:.03em;color:'+m.cor+';background:'+m.cor+'18;border-radius:6px;padding:4px 9px">'+escH(p.tipo||'').toUpperCase()+'</span>'
+      +(rev?'<span style="font-size:10px;font-weight:800;color:#16A34A;margin-left:auto">✅ revisado</span>':'<span style="font-size:10px;font-weight:700;color:#D97706;margin-left:auto">a revisar</span>')
+      +'</div></div>';
+  }).join('')+'</div>'):('<div class="card" style="text-align:center;padding:40px;color:var(--muted)">Nenhum item aqui ainda.<br><small>Clique em "＋ Novo item" para começar o acervo.</small></div>');
+  return '<div style="max-width:1100px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:6px"><div><h2 style="margin:0;font-size:26px">Processos internos</h2><div style="font-size:13px;color:var(--muted);margin-top:2px"><b>'+all.length+'</b> itens de uso exclusivo do time.</div></div>'
+    +'<button class="btn btn-p" style="background:#F5B841;color:#3A2A00;border:none;font-weight:700" onclick="procNew()">＋ Novo item</button></div>'
+    +'<input id="proc-search" value="'+escH(S.procSearch||'')+'" oninput="S.procSearch=this.value;clearTimeout(window._procT);window._procT=setTimeout(render,250)" placeholder="🔎 Buscar em todo o acervo — título, descrição e o texto dos documentos…" style="width:100%;padding:15px 18px;border:1px solid #E2E8F0;border-radius:14px;font-size:14px;margin:14px 0 18px;box-sizing:border-box">'
+    +'<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:4px">'+tabs+'</div>'
+    +'<div style="font-size:13px;color:var(--muted);margin:10px 0 2px">'+escH(meta.sub)+'</div>'
+    +areaFilters+statusFilters+cards+'</div>';
+}
+function _procDetail(){
+  var p=_procFind(S.procId);if(!p){S.procId=null;return rProcessos();}
+  var m=_procTipoMeta(p.tipo);var rev=p.status==='revisado';
+  // Editor em tela cheia
+  if(S.procDocFull){
+    return '<div style="position:fixed;inset:0;background:#fff;z-index:3000;display:flex;flex-direction:column">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid #E2E8F0;background:#F8FAFC"><div style="font-size:14px;font-weight:700;color:#1E293B">📄 '+escH(p.codigo||'')+' · '+escH(p.titulo||'')+'</div>'
+      +'<button class="btn btn-o btn-s" onclick="procSaveDoc();S.procDocFull=false;render()">✕ Sair da tela cheia</button></div>'
+      +'<textarea id="proc-doc" oninput="clearTimeout(window._procDT);window._procDT=setTimeout(procSaveDoc,600)" style="flex:1;border:none;outline:none;padding:26px 34px;font-size:15px;line-height:1.7;resize:none;font-family:inherit">'+escH(p.doc||'')+'</textarea></div>';
+  }
+  var areaOpts='<option value="">— sem área —</option>'+D.processoAreas.map(function(a){return '<option value="'+escH(a)+'" '+(p.area===a?'selected':'')+'>'+escH(a)+'</option>';}).join('');
+  var tipoOpts=PROC_TIPOS.map(function(t){return '<option value="'+t.id+'" '+(p.tipo===t.id?'selected':'')+'>'+t.id+'</option>';}).join('');
+  var mats=(p.materiais||[]);
+  var matHtml=mats.length?mats.map(function(mt,i){return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #E2E8F0;border-radius:10px;margin-bottom:8px;background:#fff">'
+    +'<span style="font-size:18px">📎</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#1E293B">'+escH(mt.name||'Material')+'</div>'+(mt.url?'<a href="'+escH(mt.url)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none;word-break:break-all">'+escH(mt.url)+' ↗</a>':'')+'</div>'
+    +'<button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="procDelMaterial(\''+p.id+'\','+i+')">🗑</button></div>';}).join(''):'<div style="font-size:12px;color:#94A3B8;padding:8px 0">Nenhum material anexado ainda.</div>';
+  var vid=p.videoUrl?('<div style="margin-top:8px">'+(/youtu|loom|vimeo|drive\.google/.test(p.videoUrl)?'<a href="'+escH(p.videoUrl)+'" target="_blank" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#0369A1;text-decoration:none;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:10px 14px">▶️ Abrir vídeo ↗</a>':'<a href="'+escH(p.videoUrl)+'" target="_blank" style="font-size:13px;color:#0369A1">'+escH(p.videoUrl)+'</a>')+'</div>'):'';
+  return '<div style="max-width:900px">'
+    +'<div style="margin-bottom:14px"><span onclick="procSaveDoc();S.procId=null;render()" style="cursor:pointer;font-size:13px;color:#64748B">← Voltar ao acervo</span></div>'
+    +'<div class="card" style="padding:20px 22px;margin-bottom:16px">'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
+    +'<input value="'+escH(p.codigo||'')+'" onchange="procSet(\''+p.id+'\',\'codigo\',this.value)" style="width:120px;padding:8px 10px;border:1px solid #E2E8F0;border-radius:8px;font-size:12px;font-weight:700;color:#334155">'
+    +'<select onchange="procSet(\''+p.id+'\',\'tipo\',this.value)" style="padding:8px 10px;border:1px solid #E2E8F0;border-radius:8px;font-size:12px">'+tipoOpts+'</select>'
+    +'<select onchange="procSet(\''+p.id+'\',\'area\',this.value)" style="padding:8px 10px;border:1px solid #E2E8F0;border-radius:8px;font-size:12px">'+areaOpts+'</select>'
+    +'<span onclick="procToggleStatus(\''+p.id+'\')" style="cursor:pointer;margin-left:auto;font-size:12px;font-weight:700;padding:6px 12px;border-radius:99px;background:'+(rev?'#DCFCE7':'#FEF3C7')+';color:'+(rev?'#16A34A':'#D97706')+'">'+(rev?'✅ Revisado':'⏳ A revisar')+' ↻</span>'
+    +'<button class="btn btn-o btn-s" style="border-color:var(--red);color:var(--red)" onclick="procDelete(\''+p.id+'\')">🗑 Excluir</button></div>'
+    +'<input value="'+escH(p.titulo||'')+'" onchange="procSet(\''+p.id+'\',\'titulo\',this.value)" placeholder="Título do processo" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #E2E8F0;border-radius:10px;font-size:18px;font-weight:700;color:#1E293B;margin-bottom:8px">'
+    +'<textarea onchange="procSet(\''+p.id+'\',\'descricao\',this.value)" placeholder="Descrição (uma linha dizendo para que serve)" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #E2E8F0;border-radius:10px;font-size:13px;resize:vertical" rows="2">'+escH(p.descricao||'')+'</textarea></div>'
+    +'<div class="card" style="padding:0;margin-bottom:16px;overflow:hidden">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid #EEF2F7;background:#F8FAFC"><h3 style="margin:0;font-size:14px">📄 Documento (passo a passo)</h3><button class="btn btn-o btn-s" onclick="procSaveDoc();S.procDocFull=true;render()">⛶ Tela cheia</button></div>'
+    +'<textarea id="proc-doc" oninput="clearTimeout(window._procDT);window._procDT=setTimeout(procSaveDoc,600)" placeholder="Escreva aqui o passo a passo do processo…" style="width:100%;box-sizing:border-box;border:none;outline:none;padding:18px 22px;font-size:14px;line-height:1.7;resize:vertical;font-family:inherit;min-height:280px">'+escH(p.doc||'')+'</textarea></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
+    +'<div class="card" style="padding:16px 18px"><h3 style="margin:0 0 10px;font-size:14px">🎥 Vídeo</h3>'
+    +'<input value="'+escH(p.videoUrl||'')+'" onchange="procSet(\''+p.id+'\',\'videoUrl\',this.value)" placeholder="Cole o link do vídeo (YouTube, Loom, Drive…)" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px">'+vid+'</div>'
+    +'<div class="card" style="padding:16px 18px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;font-size:14px">📎 Materiais anexados</h3><button class="btn btn-o btn-s" onclick="procAddMaterial(\''+p.id+'\')">＋ Anexar</button></div>'+matHtml+'</div>'
+    +'</div></div>';
+}
+function procSaveDoc(){var el=document.getElementById('proc-doc');if(!el)return;var p=_procFind(S.procId);if(!p)return;if(p.doc!==el.value){p.doc=el.value;p.updatedAt=new Date().toISOString();save();}}
+function procSet(id,field,val){var p=_procFind(id);if(!p)return;p[field]=val;p.updatedAt=new Date().toISOString();save();if(field==='titulo'||field==='tipo'||field==='area'||field==='codigo')render();}
+function procToggleStatus(id){var p=_procFind(id);if(!p)return;p.status=(p.status==='revisado')?'a-revisar':'revisado';p.updatedAt=new Date().toISOString();save();if(typeof toast==='function')toast(p.status==='revisado'?'✅ Marcado como revisado':'Voltou para "a revisar"');render();}
+function procAddMaterial(id){var p=_procFind(id);if(!p)return;var name=prompt('Nome do material (ex.: Modelo de proposta):');if(name===null)return;var url=prompt('Cole o link do material (Drive, Notion, etc.):');if(url===null)return;if(!p.materiais)p.materiais=[];p.materiais.push({name:(''+name).trim()||'Material',url:(''+url).trim()});p.updatedAt=new Date().toISOString();save();render();}
+function procDelMaterial(id,i){var p=_procFind(id);if(!p||!p.materiais)return;p.materiais.splice(i,1);save();render();}
+function procDelete(id){var p=_procFind(id);if(!p)return;if(!confirm('Excluir "'+(p.titulo||p.codigo||'este item')+'" do acervo? Não dá para desfazer.'))return;D.processos=_procEnsure().filter(function(x){return x.id!==id;});S.procId=null;save();if(typeof toast==='function')toast('Item excluído');render();}
+function procNew(){
+  _procEnsure();S._procNewTipo='Processo';
+  var ov=document.createElement('div');ov.id='proc-new';ov.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:3001;display:flex;align-items:center;justify-content:center;padding:20px';
+  var tipoBtns=PROC_TIPOS.map(function(t){return '<button type="button" data-tp="'+t.id+'" onclick="procPickTipo(this,\''+t.id+'\')" style="cursor:pointer;padding:9px 15px;border-radius:99px;font-size:13px;font-weight:600;border:1px solid '+(t.id==='Processo'?'#1E293B':'#E2E8F0')+';background:'+(t.id==='Processo'?'#1E293B':'#fff')+';color:'+(t.id==='Processo'?'#fff':'#475569')+'">'+t.id+'</button>';}).join('');
+  var areaOpts='<option value="">Sem área</option>'+D.processoAreas.map(function(a){return '<option value="'+escH(a)+'">'+escH(a)+'</option>';}).join('');
+  ov.innerHTML='<div style="background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:20px 24px 6px"><div><h3 style="margin:0;font-size:20px">Novo item no acervo</h3><div style="font-size:12px;color:#64748B;margin-top:3px;max-width:400px">Só o essencial aqui. O conteúdo, o vídeo e os materiais você escreve na ficha, que abre em seguida.</div></div><button onclick="document.getElementById(\'proc-new\').remove()" style="background:none;border:none;font-size:22px;color:#94A3B8;cursor:pointer">×</button></div>'
+    +'<div style="padding:14px 24px 22px">'
+    +'<div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:#334155;margin-bottom:8px">O QUE É</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">'+tipoBtns+'</div>'
+    +'<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px"><div style="flex:1;min-width:150px"><div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:#334155;margin-bottom:6px">CÓDIGO</div><input id="proc-n-cod" value="'+_procNextCode('Processo')+'" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #E2E8F0;border-radius:10px;font-size:14px;font-weight:700;color:#334155"><div style="font-size:11px;color:#94A3B8;margin-top:4px">próximo livre da série (pode editar)</div></div>'
+    +'<div style="flex:1;min-width:150px"><div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:#334155;margin-bottom:6px">ÁREA</div><select id="proc-n-area" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #E2E8F0;border-radius:10px;font-size:14px">'+areaOpts+'</select></div></div>'
+    +'<div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:#334155;margin-bottom:6px">TÍTULO</div><input id="proc-n-tit" placeholder="Ex.: Script de reativação de lead frio" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #E2E8F0;border-radius:10px;font-size:14px;margin-bottom:16px">'
+    +'<div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:#334155;margin-bottom:6px">DESCRIÇÃO <span style="font-weight:400;color:#94A3B8">(opcional)</span></div><textarea id="proc-n-desc" rows="2" placeholder="Uma linha dizendo para que serve — é o que aparece no card da lista." style="width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #E2E8F0;border-radius:10px;font-size:14px;resize:vertical"></textarea>'
+    +'<div style="display:flex;gap:14px;align-items:center;margin-top:20px"><button class="btn btn-p" style="background:#F5B841;color:#3A2A00;border:none;font-weight:700" onclick="procCreate()">＋ Criar e escrever</button><span onclick="document.getElementById(\'proc-new\').remove()" style="cursor:pointer;font-size:13px;color:#64748B">cancelar</span></div>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+}
+function procPickTipo(btn,tipo){S._procNewTipo=tipo;var box=btn.parentNode;Array.prototype.forEach.call(box.children,function(b){var on=b.getAttribute('data-tp')===tipo;b.style.background=on?'#1E293B':'#fff';b.style.color=on?'#fff':'#475569';b.style.borderColor=on?'#1E293B':'#E2E8F0';});var cod=document.getElementById('proc-n-cod');if(cod)cod.value=_procNextCode(tipo);}
+function procCreate(){
+  _procEnsure();
+  var tipo=S._procNewTipo||'Processo';
+  var cod=(document.getElementById('proc-n-cod')||{}).value||_procNextCode(tipo);
+  var area=(document.getElementById('proc-n-area')||{}).value||'';
+  var tit=(document.getElementById('proc-n-tit')||{}).value||'';
+  var desc=(document.getElementById('proc-n-desc')||{}).value||'';
+  if(!(''+tit).trim()){alert('Dê um título ao item.');return;}
+  var id='proc'+Date.now()+Math.floor(Math.random()*1000);
+  D.processos.push({id:id,tipo:tipo,codigo:(''+cod).trim(),area:area,titulo:(''+tit).trim(),descricao:(''+desc).trim(),doc:'',videoUrl:'',materiais:[],status:'a-revisar',createdAt:new Date().toISOString(),createdBy:(S.currentUser&&S.currentUser.name)||'equipe',updatedAt:new Date().toISOString()});
+  save();var ov=document.getElementById('proc-new');if(ov)ov.remove();S.procId=id;S.procTipo=tipo;render();
 }
 
 // ────────────────────────────────────────────────────────────
@@ -8233,7 +8374,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080433; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080434; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
