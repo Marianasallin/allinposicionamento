@@ -3836,7 +3836,9 @@ var PROC_TIPOS=[
   {id:'Material',prefix:'MAT',cor:'#16A34A',sub:'Apoios, modelos e recursos de consulta.'}
 ];
 function _procTipoMeta(t){for(var i=0;i<PROC_TIPOS.length;i++)if(PROC_TIPOS[i].id===t)return PROC_TIPOS[i];return PROC_TIPOS[2];}
-function _procEnsure(){if(!Array.isArray(D.processos))D.processos=[];if(!Array.isArray(D.processoAreas)||!D.processoAreas.length)D.processoAreas=['Central DSG','Sucesso do Cliente','Comercial','Entrega','Gestão'];return D.processos;}
+function _procEnsure(){if(!Array.isArray(D.processos))D.processos=[];if(!Array.isArray(D.processoAreas)||!D.processoAreas.length)D.processoAreas=['Sucesso do Cliente','Comercial','Entrega','Gestão'];return D.processos;}
+function procAddArea(){var n=prompt('Nome da nova área:');if(n===null)return;n=(''+n).trim();if(!n)return;_procEnsure();if(!D.processoAreas.some(function(a){return a.toLowerCase()===n.toLowerCase();}))D.processoAreas.push(n);S.procArea=n;save();if(typeof toast==='function')toast('✅ Área "'+n+'" criada');render();}
+function procDelArea(a){_procEnsure();if(!confirm('Remover a área "'+a+'"? Os itens dela ficam sem área.'))return;D.processoAreas=D.processoAreas.filter(function(x){return x!==a;});D.processos.forEach(function(p){if(p.area===a)p.area='';});if(S.procArea===a)S.procArea='todas';save();render();}
 function _procFind(id){return _procEnsure().find(function(p){return p.id===id;});}
 function _procNextCode(tipo){var m=_procTipoMeta(tipo);var mx=0;_procEnsure().forEach(function(p){if(!p.codigo)return;var mm=(''+p.codigo).match(new RegExp('^'+m.prefix+'-?(\\d+)$','i'));if(mm){var n=parseInt(mm[1],10);if(n>mx)mx=n;}});return m.prefix+'-'+String(mx+1).padStart(3,'0');}
 function _procText(p){return ((p.titulo||'')+' '+(p.descricao||'')+' '+((p.doc||'').replace(/<[^>]+>/g,' '))).toLowerCase();}
@@ -3851,16 +3853,17 @@ function rProcessos(){
   var meta=_procTipoMeta(tipoSel);
   // Tabs por tipo (com contagem)
   var tabs=PROC_TIPOS.map(function(t){var n=all.filter(function(p){return p.tipo===t.id;}).length;var a=t.id===tipoSel;
-    return '<span onclick="S.procTipo=\''+t.id+'\';S.procArea=\'todas\';render()" style="cursor:pointer;display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:10px;font-size:13px;font-weight:700;background:'+(a?'#1E293B':'#fff')+';color:'+(a?'#fff':'#475569')+';border:1px solid '+(a?'#1E293B':'#E2E8F0')+'">📘 '+t.id+'s <span style="font-size:11px;font-weight:700;background:'+(a?'rgba(255,255,255,.2)':'#F1F5F9')+';color:'+(a?'#fff':'#64748B')+';border-radius:99px;padding:1px 8px">'+n+'</span></span>';
+    return '<span onclick="S.procTipo=\''+t.id+'\';S.procArea=\'todas\';render()" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:11px;font-size:16px;font-weight:700;background:'+(a?'#1E293B':'#fff')+';color:'+(a?'#fff':'#475569')+';border:1px solid '+(a?'#1E293B':'#E2E8F0')+'">📘 '+t.id+'s <span style="font-size:13px;font-weight:700;background:'+(a?'rgba(255,255,255,.2)':'#F1F5F9')+';color:'+(a?'#fff':'#64748B')+';border-radius:99px;padding:2px 9px">'+n+'</span></span>';
   }).join('');
   var ofTipo=all.filter(function(p){return p.tipo===tipoSel;});
   // Filtro de área (com contagem)
   var areasComItem=D.processoAreas.slice();
-  var areaChip=function(val,label,n){var a=areaSel===val;return '<span onclick="S.procArea=\''+val+'\';render()" style="cursor:pointer;font-size:12px;font-weight:600;padding:6px 13px;border-radius:99px;border:1px solid '+(a?'#1E293B':'#E2E8F0')+';background:'+(a?'#1E293B':'#fff')+';color:'+(a?'#fff':'#475569')+'">'+escH(label)+(n!=null?' <span style="opacity:.7">'+n+'</span>':'')+'</span>';};
-  var areaFilters='<div style="display:flex;gap:7px;flex-wrap:wrap;margin:14px 0 6px">'+areaChip('todas','Todas as áreas',null)
-    +areasComItem.map(function(a){return areaChip(a,a,ofTipo.filter(function(p){return p.area===a;}).length);}).join('')+'</div>';
+  var areaChip=function(val,label,n){var a=areaSel===val;return '<span onclick="S.procArea=\''+val+'\';render()" style="cursor:pointer;font-size:14px;font-weight:600;padding:8px 15px;border-radius:99px;border:1px solid '+(a?'#1E293B':'#E2E8F0')+';background:'+(a?'#1E293B':'#fff')+';color:'+(a?'#fff':'#475569')+'">'+escH(label)+(n!=null?' <span style="opacity:.7">'+n+'</span>':'')+'</span>';};
+  var areaFilters='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 8px">'+areaChip('todas','Todas as áreas',null)
+    +areasComItem.map(function(a){return areaChip(a,a,ofTipo.filter(function(p){return p.area===a;}).length);}).join('')
+    +'<span onclick="procAddArea()" style="cursor:pointer;font-size:14px;font-weight:700;padding:8px 15px;border-radius:99px;border:1px dashed #94A3B8;background:#fff;color:#475569">＋ Nova área</span></div>';
   // Filtro de status
-  var stChip=function(val,label,n){var a=stSel===val;return '<span onclick="S.procStatus=\''+val+'\';render()" style="cursor:pointer;font-size:12px;font-weight:600;padding:5px 12px;border-radius:99px;border:1px solid '+(a?'#1E293B':'#E2E8F0')+';background:'+(a?'#1E293B':'#fff')+';color:'+(a?'#fff':'#475569')+'">'+label+(n!=null?' <span style="opacity:.7">'+n+'</span>':'')+'</span>';};
+  var stChip=function(val,label,n){var a=stSel===val;return '<span onclick="S.procStatus=\''+val+'\';render()" style="cursor:pointer;font-size:14px;font-weight:600;padding:7px 14px;border-radius:99px;border:1px solid '+(a?'#1E293B':'#E2E8F0')+';background:'+(a?'#1E293B':'#fff')+';color:'+(a?'#fff':'#475569')+'">'+label+(n!=null?' <span style="opacity:.7">'+n+'</span>':'')+'</span>';};
   var statusFilters='<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px">'+stChip('tudo','Tudo',null)
     +stChip('a-revisar','a revisar',ofTipo.filter(function(p){return (p.status||'a-revisar')==='a-revisar';}).length)
     +stChip('revisado','revisados',ofTipo.filter(function(p){return p.status==='revisado';}).length)+'</div>';
@@ -3873,22 +3876,22 @@ function rProcessos(){
   }).sort(function(a,b){return (''+(a.codigo||'')).localeCompare(''+(b.codigo||''),undefined,{numeric:true});});
   var cards=list.length?('<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">'+list.map(function(p){var m=_procTipoMeta(p.tipo);var rev=p.status==='revisado';
     return '<div onclick="S.procId=\''+p.id+'\';render()" style="cursor:pointer;background:#334155;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">'
-      +'<div style="padding:16px 16px 14px;color:#fff">'
-      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><span style="font-size:11px;font-weight:700;letter-spacing:.05em;color:rgba(255,255,255,.7)">'+escH(p.codigo||'')+'</span><span style="font-size:15px;opacity:.8">📖</span></div>'
-      +'<div style="font-size:16px;font-weight:700;line-height:1.35;margin-top:8px;min-height:42px">'+escH(p.titulo||'(sem título)')+'</div>'
+      +'<div style="padding:18px 18px 15px;color:#fff">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><span style="font-size:13px;font-weight:700;letter-spacing:.05em;color:rgba(255,255,255,.75)">'+escH(p.codigo||'')+'</span><span style="font-size:18px;opacity:.85">📖</span></div>'
+      +'<div style="font-size:19px;font-weight:700;line-height:1.35;margin-top:9px;min-height:50px">'+escH(p.titulo||'(sem título)')+'</div>'
       +'</div>'
-      +'<div style="background:#fff;padding:11px 14px;display:flex;gap:7px;flex-wrap:wrap;align-items:center">'
-      +(p.area?'<span style="font-size:10px;font-weight:800;letter-spacing:.03em;color:#334155;background:#E2E8F0;border-radius:6px;padding:4px 9px">'+escH(p.area).toUpperCase()+'</span>':'')
-      +'<span style="font-size:10px;font-weight:800;letter-spacing:.03em;color:'+m.cor+';background:'+m.cor+'18;border-radius:6px;padding:4px 9px">'+escH(p.tipo||'').toUpperCase()+'</span>'
-      +(rev?'<span style="font-size:10px;font-weight:800;color:#16A34A;margin-left:auto">✅ revisado</span>':'<span style="font-size:10px;font-weight:700;color:#D97706;margin-left:auto">a revisar</span>')
+      +'<div style="background:#fff;padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+      +(p.area?'<span style="font-size:12px;font-weight:800;letter-spacing:.03em;color:#334155;background:#E2E8F0;border-radius:6px;padding:5px 10px">'+escH(p.area).toUpperCase()+'</span>':'')
+      +'<span style="font-size:12px;font-weight:800;letter-spacing:.03em;color:'+m.cor+';background:'+m.cor+'18;border-radius:6px;padding:5px 10px">'+escH(p.tipo||'').toUpperCase()+'</span>'
+      +(rev?'<span style="font-size:12px;font-weight:800;color:#16A34A;margin-left:auto">✅ revisado</span>':'<span style="font-size:12px;font-weight:700;color:#D97706;margin-left:auto">a revisar</span>')
       +'</div></div>';
   }).join('')+'</div>'):('<div class="card" style="text-align:center;padding:40px;color:var(--muted)">Nenhum item aqui ainda.<br><small>Clique em "＋ Novo item" para começar o acervo.</small></div>');
   return '<div style="max-width:1100px">'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:6px"><div><h2 style="margin:0;font-size:26px">Processos internos</h2><div style="font-size:13px;color:var(--muted);margin-top:2px"><b>'+all.length+'</b> itens de uso exclusivo do time.</div></div>'
     +'<button class="btn btn-p" style="background:#F5B841;color:#3A2A00;border:none;font-weight:700" onclick="procNew()">＋ Novo item</button></div>'
-    +'<input id="proc-search" value="'+escH(S.procSearch||'')+'" oninput="S.procSearch=this.value;clearTimeout(window._procT);window._procT=setTimeout(render,250)" placeholder="🔎 Buscar em todo o acervo — título, descrição e o texto dos documentos…" style="width:100%;padding:15px 18px;border:1px solid #E2E8F0;border-radius:14px;font-size:14px;margin:14px 0 18px;box-sizing:border-box">'
-    +'<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:4px">'+tabs+'</div>'
-    +'<div style="font-size:13px;color:var(--muted);margin:10px 0 2px">'+escH(meta.sub)+'</div>'
+    +'<input id="proc-search" value="'+escH(S.procSearch||'')+'" oninput="S.procSearch=this.value;clearTimeout(window._procT);window._procT=setTimeout(render,250)" placeholder="🔎 Buscar em todo o acervo — título, descrição e o texto dos documentos…" style="width:100%;padding:16px 18px;border:1px solid #E2E8F0;border-radius:14px;font-size:16px;margin:14px 0 18px;box-sizing:border-box">'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px">'+tabs+'</div>'
+    +'<div style="font-size:15px;color:var(--muted);margin:12px 0 2px">'+escH(meta.sub)+'</div>'
     +areaFilters+statusFilters+cards+'</div>';
 }
 function _procDetail(){
@@ -3937,7 +3940,7 @@ function procDelete(id){var p=_procFind(id);if(!p)return;if(!confirm('Excluir "'
 function procNew(){
   _procEnsure();S._procNewTipo='Processo';
   var ov=document.createElement('div');ov.id='proc-new';ov.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:3001;display:flex;align-items:center;justify-content:center;padding:20px';
-  var tipoBtns=PROC_TIPOS.map(function(t){return '<button type="button" data-tp="'+t.id+'" onclick="procPickTipo(this,\''+t.id+'\')" style="cursor:pointer;padding:9px 15px;border-radius:99px;font-size:13px;font-weight:600;border:1px solid '+(t.id==='Processo'?'#1E293B':'#E2E8F0')+';background:'+(t.id==='Processo'?'#1E293B':'#fff')+';color:'+(t.id==='Processo'?'#fff':'#475569')+'">'+t.id+'</button>';}).join('');
+  var tipoBtns=PROC_TIPOS.map(function(t){return '<button type="button" data-tp="'+t.id+'" onclick="procPickTipo(this,\''+t.id+'\')" style="cursor:pointer;padding:14px 22px;border-radius:12px;font-size:16px;font-weight:600;border:1px solid '+(t.id==='Processo'?'#1E293B':'#E2E8F0')+';background:'+(t.id==='Processo'?'#1E293B':'#fff')+';color:'+(t.id==='Processo'?'#fff':'#475569')+'">'+t.id+'</button>';}).join('');
   var areaOpts='<option value="">Sem área</option>'+D.processoAreas.map(function(a){return '<option value="'+escH(a)+'">'+escH(a)+'</option>';}).join('');
   ov.innerHTML='<div style="background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:20px 24px 6px"><div><h3 style="margin:0;font-size:20px">Novo item no acervo</h3><div style="font-size:12px;color:#64748B;margin-top:3px;max-width:400px">Só o essencial aqui. O conteúdo, o vídeo e os materiais você escreve na ficha, que abre em seguida.</div></div><button onclick="document.getElementById(\'proc-new\').remove()" style="background:none;border:none;font-size:22px;color:#94A3B8;cursor:pointer">×</button></div>'
@@ -8374,7 +8377,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080434; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080435; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:''};
     function _resnap(){
