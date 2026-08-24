@@ -3832,7 +3832,7 @@ var PROC_TIPOS=[
   {id:'Protocolo',prefix:'PRT',cor:'#DC2626',sub:'Regras e diretrizes — o que sempre vale.'},
   {id:'Playbook',prefix:'PLB',cor:'#7C3AED',sub:'A jogada completa de uma frente de trabalho.'},
   {id:'Processo',prefix:'POP',cor:'#0891B2',sub:'Os POPs: o passo a passo de uma tarefa específica.'},
-  {id:'Job Description',prefix:'JD',cor:'#0D3D9B',sub:'O papel de cada função no time.'},
+  {id:'Job Description',prefix:'JOB',cor:'#0D3D9B',sub:'O papel de cada função no time.'},
   {id:'Material',prefix:'MAT',cor:'#16A34A',sub:'Apoios, modelos e recursos de consulta.'}
 ];
 function _procTipoMeta(t){for(var i=0;i<PROC_TIPOS.length;i++)if(PROC_TIPOS[i].id===t)return PROC_TIPOS[i];return PROC_TIPOS[2];}
@@ -3934,8 +3934,8 @@ function _procDetail(){
     +'<div id="proc-doc" contenteditable="true" oninput="clearTimeout(window._procDT);window._procDT=setTimeout(procSaveDoc,700)" onblur="procSaveDoc()" style="min-height:280px;background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:22px 26px;font-size:15px;line-height:1.75;color:#1E293B;outline:none">'+(p.doc||'')+'</div></div>';
   var cks=p.checklist||[];
   var ckHtml=cks.map(function(ck){return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F1F5F9"><span onclick="procToggleCheck(\''+p.id+'\',\''+ck.id+'\')" style="cursor:pointer;font-size:20px">'+(ck.done?'☑️':'⬜')+'</span><span style="flex:1;font-size:14px;color:'+(ck.done?'#94A3B8':'#1E293B')+';text-decoration:'+(ck.done?'line-through':'none')+'">'+escH(ck.text)+'</span><span onclick="procDelCheck(\''+p.id+'\',\''+ck.id+'\')" style="cursor:pointer;color:#CBD5E1;font-size:13px">🗑</span></div>';}).join('');
-  var ckSec='<div style="margin-bottom:24px">'+secHead('✓','Checklist operacional','<button class="btn btn-o btn-s" onclick="procAddCheck(\''+p.id+'\')">＋ item</button>')
-    +(cks.length?ckHtml:'<div onclick="procAddCheck(\''+p.id+'\')" style="cursor:pointer;font-size:14px;color:#64748B;padding:4px 0">＋ criar o checklist deste item</div>')+'</div>';
+  var ckInput='<div style="display:flex;gap:8px;align-items:center;margin-top:'+(cks.length?'10px':'2px')+'"><input id="proc-ck-new" placeholder="＋ escreva um item e aperte Enter…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();procAddCheckInline(\''+p.id+'\')}" style="flex:1;padding:11px 14px;border:1px solid #E2E8F0;border-radius:10px;font-size:14px;outline:none"><button class="btn btn-o btn-s" onclick="procAddCheckInline(\''+p.id+'\')">adicionar</button></div>';
+  var ckSec='<div style="margin-bottom:24px">'+secHead('✓','Checklist operacional','')+ckHtml+ckInput+'</div>';
   var mats=p.materiais||[];
   var matHtml=mats.length?mats.map(function(mt,i){return '<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid #E2E8F0;border-radius:10px;margin-bottom:8px;background:#fff"><span style="font-size:18px">📎</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#1E293B">'+escH(mt.name||'Material')+'</div>'+(mt.url?'<a href="'+escH(mt.url)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">abrir ↗</a>':'')+'</div><span onclick="procDelMaterial(\''+p.id+'\','+i+')" style="cursor:pointer;color:#CBD5E1">🗑</span></div>';}).join(''):'<div style="font-size:14px;color:#94A3B8;line-height:1.6;font-style:italic">Nada anexado ainda. Suba aqui a planilha, o contrato-modelo ou o PDF que este item precisa — quem abrir o processo baixa direto daqui, sem procurar no Drive.</div>';
   var matSec='<div style="margin-bottom:24px">'+secHead('📎','Materiais anexados','<button class="btn btn-o btn-s" onclick="procAddMaterialFile(\''+p.id+'\')">＋ anexar arquivo</button><button class="btn btn-o btn-s" onclick="procAddMaterial(\''+p.id+'\')">🔗 link</button>')+matHtml+'</div>';
@@ -3954,6 +3954,7 @@ function procPrint(id){var p=_procFind(id);if(!p)return;var w=window.open('','_b
   w.document.close();setTimeout(function(){try{w.print();}catch(_e){}},350);}
 function procSetVideo(id){var p=_procFind(id);if(!p)return;var u=prompt('Cole o link do vídeo (YouTube, Loom, Drive…):',p.videoUrl||'');if(u===null)return;p.videoUrl=(''+u).trim();p.updatedAt=new Date().toISOString();save();render();}
 function procAddCheck(id){var p=_procFind(id);if(!p)return;var t=prompt('Item do checklist:');if(t===null)return;t=(''+t).trim();if(!t)return;if(!p.checklist)p.checklist=[];p.checklist.push({id:'ck'+Date.now()+Math.floor(Math.random()*1000),text:t,done:false});p.updatedAt=new Date().toISOString();save();render();}
+function procAddCheckInline(id){var el=document.getElementById('proc-ck-new');if(!el)return;var t=(''+el.value).trim();if(!t)return;var p=_procFind(id);if(!p)return;if(!p.checklist)p.checklist=[];p.checklist.push({id:'ck'+Date.now()+Math.floor(Math.random()*1000),text:t,done:false});p.updatedAt=new Date().toISOString();save();render();setTimeout(function(){var e2=document.getElementById('proc-ck-new');if(e2)e2.focus();},60);}
 function procToggleCheck(id,cid){var p=_procFind(id);if(!p||!p.checklist)return;var it=p.checklist.find(function(x){return x.id===cid;});if(it){it.done=!it.done;p.updatedAt=new Date().toISOString();save();render();}}
 function procDelCheck(id,cid){var p=_procFind(id);if(!p||!p.checklist)return;p.checklist=p.checklist.filter(function(x){return x.id!==cid;});save();render();}
 function procNewAreaInline(id){var n=prompt('Nome da nova área:');if(n===null)return;n=(''+n).trim();if(!n)return;_procEnsure();if(!D.processoAreas.some(function(a){return a.toLowerCase()===n.toLowerCase();}))D.processoAreas.push(n);var p=_procFind(id);if(p)p.area=n;save();if(typeof toast==='function')toast('✅ Área "'+n+'" criada');render();}
@@ -8412,7 +8413,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080439; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080440; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
