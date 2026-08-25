@@ -3880,7 +3880,7 @@ function rProcessos(){
     return true;
   }).sort(function(a,b){return (''+(a.codigo||'')).localeCompare(''+(b.codigo||''),undefined,{numeric:true});});
   var cards=list.length?('<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">'+list.map(function(p){var m=_procTipoMeta(p.tipo);var rev=p.status==='revisado';var ac=_procAreaColor(p.area);
-    return '<div onclick="S.procId=\''+p.id+'\';render()" style="cursor:pointer;background:#334155;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);border-top:5px solid '+ac+'">'
+    return '<div onclick="S.procId=\''+p.id+'\';render()" style="cursor:pointer;background:'+ac+';background-image:linear-gradient(160deg,rgba(255,255,255,.12),rgba(0,0,0,.30));border-radius:14px;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,.10)">'
       +'<div style="padding:18px 18px 15px;color:#fff">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><span style="font-size:13px;font-weight:700;letter-spacing:.05em;color:rgba(255,255,255,.75)">'+escH(p.codigo||'')+'</span><span style="font-size:18px;opacity:.85">📖</span></div>'
       +'<div style="font-size:19px;font-weight:700;line-height:1.35;margin-top:9px;min-height:50px">'+escH(p.titulo||'(sem título)')+'</div>'
@@ -3908,11 +3908,11 @@ function _procDetail(){
   var areaOpts='<option value="">— sem área —</option>'+D.processoAreas.map(function(a){return '<option value="'+escH(a)+'" '+(p.area===a?'selected':'')+'>'+escH(a)+'</option>';}).join('');
   var tipoOpts=PROC_TIPOS.map(function(t){return '<option value="'+t.id+'" '+(p.tipo===t.id?'selected':'')+'>'+t.id+'</option>';}).join('');
   var ac=_procAreaColor(p.area);
-  var header='<div style="background:linear-gradient(135deg,#3A4453,#272E39);border-radius:18px;padding:22px 26px;color:#fff;position:relative;overflow:hidden">'
+  var header='<div style="background:'+ac+';background-image:linear-gradient(155deg,rgba(255,255,255,.10),rgba(0,0,0,.34));border-radius:18px;padding:22px 26px;color:#fff;position:relative;overflow:hidden">'
     +'<div style="position:absolute;left:0;top:0;bottom:0;width:6px;background:'+ac+'"></div>'
     +'<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'
     +'<span style="font-size:13px;font-weight:800;letter-spacing:.05em;color:rgba(255,255,255,.85)">📖 '+escH((p.tipo||'').toUpperCase())+'</span>'
-    +'<span style="font-size:12px;font-weight:800;letter-spacing:.04em;color:#fff;background:'+ac+';border-radius:6px;padding:4px 11px">'+escH(p.codigo||'')+'</span>'
+    +'<span style="font-size:12px;font-weight:800;letter-spacing:.04em;color:#fff;background:rgba(0,0,0,.25);border-radius:6px;padding:4px 11px">'+escH(p.codigo||'')+'</span>'
     +(p.area?'<span style="font-size:12px;font-weight:700;color:#fff;background:rgba(255,255,255,.15);border-radius:6px;padding:4px 11px">'+escH(p.area)+'</span>':'')
     +'<span style="font-size:11px;font-weight:800;letter-spacing:.02em;color:#3A2A00;background:#F5B841;border-radius:6px;padding:5px 11px">🔒 USO INTERNO · NÃO COMPARTILHAR</span>'
     +'<span onclick="procToggleStatus(\''+p.id+'\')" style="cursor:pointer;margin-left:auto;font-size:12px;font-weight:700;padding:5px 12px;border-radius:99px;background:'+(rev?'rgba(134,239,172,.2)':'rgba(253,230,138,.2)')+';color:'+(rev?'#86EFAC':'#FDE68A')+'">'+(rev?'✅ Revisado':'⏳ A revisar')+' ↻</span></div>'
@@ -8422,7 +8422,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080444; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080445; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
