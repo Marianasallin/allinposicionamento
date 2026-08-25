@@ -6189,7 +6189,7 @@ function openProspectModal(cid, pid){
       <h3 style="margin:0;color:white;font-size:16px">${isEdit?'✏️ Editar Lead':'🎯 Novo Lead'} — ${c.name.split(' ')[0]}</h3>
       <button onclick="document.getElementById('pm-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>
     </div>
-    <div style="padding:24px">
+    <div style="padding:24px" oninput="clearTimeout(window._pmAf);window._pmAf=setTimeout(function(){saveProspect('${cid}','${v.id}',true)},600)" onchange="clearTimeout(window._pmAf);window._pmAf=setTimeout(function(){saveProspect('${cid}','${v.id}',true)},400)">
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E5E7EB">📋 Dados do Lead (Social Seller preenche)</div>
       <div class="fgrid3" style="margin-bottom:16px">
         <div class="fg"><label>Data *</label><input type="date" id="pm-date" value="${v.date}"></div>
@@ -6233,14 +6233,14 @@ function openProspectModal(cid, pid){
         <div class="fg" style="grid-column:1/-1"><label>Motivo não fechou</label><textarea id="pm-rsn" rows="3" style="width:100%;resize:vertical" placeholder="Se não fechou, escreva o motivo...">${escH(v.reasonNotClosed||'')}</textarea></div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button class="btn btn-o" onclick="document.getElementById('pm-overlay').remove()">Cancelar</button>
-        <button class="btn btn-p" onclick="saveProspect('${cid}','${v.id}')">💾 Salvar Lead</button>
+        <span id="pm-autoflag" style="font-size:12px;color:#16A34A;font-weight:600;margin-right:auto">salva sozinho enquanto você digita</span>
+        <button class="btn btn-p" onclick="saveProspect('${cid}','${v.id}')">✓ Concluir</button>
       </div>
     </div>
   </div>`;
   document.body.appendChild(overlay);
 }
-function saveProspect(cid,pid){
+function saveProspect(cid,pid,silent){
   const c=D.clients.find(c=>c.id===cid);
   if(!c)return;
   if(!c.prospects)c.prospects=[];
@@ -6270,13 +6270,15 @@ function saveProspect(cid,pid){
     convoDetails:$('pm-convo').value,
     notes:(idx>=0&&c.prospects[idx]?(c.prospects[idx].notes||''):'')
   };
-  if(!p.name){toast('⚠️ Nome é obrigatório');return;}
+  if(!p.name){if(!silent)toast('⚠️ Nome é obrigatório');return;}
   if(idx>=0)c.prospects[idx]=p;else c.prospects.push(p);
   save();
-  document.getElementById('pm-overlay').remove();
+  if(silent){_pmAutoFlag(true);return;} // auto-save: grava e continua na tela
+  var ov=document.getElementById('pm-overlay');if(ov)ov.remove();
   toast('✅ Lead salvo!');
   render();
 }
+function _pmAutoFlag(on){var el=document.getElementById('pm-autoflag');if(el)el.textContent=on?'✓ salvo automaticamente':'salva sozinho enquanto você digita';}
 function exportProspectsCSV(cid){
   const c=D.clients.find(c=>c.id===cid);
   if(!c||!(c.prospects||[]).length){toast('Nenhum lead para exportar');return;}
@@ -8422,7 +8424,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080447; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080448; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
