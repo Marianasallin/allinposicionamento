@@ -3829,11 +3829,11 @@ function rEstruturacaoBoard(){
 // BANCO DE PROCESSOS — acervo interno (POPs, playbooks, protocolos…)
 // ────────────────────────────────────────────────────────────
 var PROC_TIPOS=[
-  {id:'Protocolo',prefix:'PRT',cor:'#DC2626',sub:'Regras e diretrizes — o que sempre vale.'},
-  {id:'Playbook',prefix:'PLB',cor:'#7C3AED',sub:'A jogada completa de uma frente de trabalho.'},
-  {id:'Processo',prefix:'POP',cor:'#0891B2',sub:'Os POPs: o passo a passo de uma tarefa específica.'},
-  {id:'Job Description',prefix:'JOB',cor:'#0D3D9B',sub:'O papel de cada função no time.'},
-  {id:'Material',prefix:'MAT',cor:'#16A34A',sub:'Apoios, modelos e recursos de consulta.'}
+  {id:'Protocolo',prefix:'PRT',cor:'#CE7B7B',sub:'Regras e diretrizes — o que sempre vale.'},
+  {id:'Playbook',prefix:'PLB',cor:'#8E84D6',sub:'A jogada completa de uma frente de trabalho.'},
+  {id:'Processo',prefix:'POP',cor:'#4E9EB5',sub:'Os POPs: o passo a passo de uma tarefa específica.'},
+  {id:'Job Description',prefix:'JOB',cor:'#6E8BD9',sub:'O papel de cada função no time.'},
+  {id:'Material',prefix:'MAT',cor:'#68AE86',sub:'Apoios, modelos e recursos de consulta.'}
 ];
 function _procTipoMeta(t){for(var i=0;i<PROC_TIPOS.length;i++)if(PROC_TIPOS[i].id===t)return PROC_TIPOS[i];return PROC_TIPOS[2];}
 var PROC_AREA_CORES=['#6E8BD9','#4FB0A4','#D19A55','#C77E97','#68AE86','#8E84D6','#CE8C68','#5B9AC0','#B084C4','#8AA85C'];
@@ -3880,7 +3880,7 @@ function rProcessos(){
     return true;
   }).sort(function(a,b){return (''+(a.codigo||'')).localeCompare(''+(b.codigo||''),undefined,{numeric:true});});
   var cards=list.length?('<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">'+list.map(function(p){var m=_procTipoMeta(p.tipo);var rev=p.status==='revisado';var ac=_procAreaColor(p.area);
-    return '<div onclick="S.procId=\''+p.id+'\';render()" style="cursor:pointer;background:'+ac+';background-image:linear-gradient(160deg,rgba(255,255,255,.12),rgba(0,0,0,.30));border-radius:14px;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,.10)">'
+    return '<div onclick="S.procId=\''+p.id+'\';render()" style="cursor:pointer;background:'+m.cor+';background-image:linear-gradient(160deg,rgba(255,255,255,.12),rgba(0,0,0,.30));border-radius:14px;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,.10)">'
       +'<div style="padding:18px 18px 15px;color:#fff">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><span style="font-size:13px;font-weight:700;letter-spacing:.05em;color:rgba(255,255,255,.75)">'+escH(p.codigo||'')+'</span><span style="font-size:18px;opacity:.85">📖</span></div>'
       +'<div style="font-size:19px;font-weight:700;line-height:1.35;margin-top:9px;min-height:50px">'+escH(p.titulo||'(sem título)')+'</div>'
@@ -3890,7 +3890,7 @@ function rProcessos(){
       +(p.area?'<span style="font-size:12px;font-weight:800;letter-spacing:.03em;color:'+ac+';background:'+ac+'1A;border-radius:6px;padding:5px 10px">'+escH(p.area).toUpperCase()+'</span>':'')
       +'<span style="font-size:12px;font-weight:800;letter-spacing:.03em;color:'+m.cor+';background:'+m.cor+'18;border-radius:6px;padding:5px 10px">'+escH(p.tipo||'').toUpperCase()+'</span></div>'
       +(p.descricao?'<div style="font-size:14px;color:#475569;line-height:1.5;margin-top:11px">'+escH(p.descricao)+'</div>':'')
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:13px;padding-top:11px;border-top:1px solid #F1F5F9"><span style="font-size:13px;font-weight:700;color:'+ac+'">abrir →</span>'+(rev?'<span style="font-size:12px;font-weight:700;color:#16A34A">✅ revisado</span>':'<span style="font-size:12px;font-weight:700;color:#D97706">a revisar</span>')+'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:13px;padding-top:11px;border-top:1px solid #F1F5F9"><span style="font-size:13px;font-weight:700;color:'+m.cor+'">abrir →</span>'+(rev?'<span style="font-size:12px;font-weight:700;color:#16A34A">✅ revisado</span>':'<span style="font-size:12px;font-weight:700;color:#D97706">a revisar</span>')+'</div>'
       +'</div></div>';
   }).join('')+'</div>'):('<div class="card" style="text-align:center;padding:40px;color:var(--muted)">Nenhum item aqui ainda.<br><small>Clique em "＋ Novo item" para começar o acervo.</small></div>');
   return '<div>'
@@ -3908,8 +3908,8 @@ function _procDetail(){
   var areaOpts='<option value="">— sem área —</option>'+D.processoAreas.map(function(a){return '<option value="'+escH(a)+'" '+(p.area===a?'selected':'')+'>'+escH(a)+'</option>';}).join('');
   var tipoOpts=PROC_TIPOS.map(function(t){return '<option value="'+t.id+'" '+(p.tipo===t.id?'selected':'')+'>'+t.id+'</option>';}).join('');
   var ac=_procAreaColor(p.area);
-  var header='<div style="background:'+ac+';background-image:linear-gradient(155deg,rgba(255,255,255,.10),rgba(0,0,0,.34));border-radius:18px;padding:22px 26px;color:#fff;position:relative;overflow:hidden">'
-    +'<div style="position:absolute;left:0;top:0;bottom:0;width:6px;background:'+ac+'"></div>'
+  var header='<div style="background:'+m.cor+';background-image:linear-gradient(155deg,rgba(255,255,255,.10),rgba(0,0,0,.34));border-radius:18px;padding:22px 26px;color:#fff;position:relative;overflow:hidden">'
+    +'<div style="position:absolute;left:0;top:0;bottom:0;width:6px;background:rgba(0,0,0,.18)"></div>'
     +'<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'
     +'<span style="font-size:13px;font-weight:800;letter-spacing:.05em;color:rgba(255,255,255,.85)">📖 '+escH((p.tipo||'').toUpperCase())+'</span>'
     +'<span style="font-size:12px;font-weight:800;letter-spacing:.04em;color:#fff;background:rgba(0,0,0,.25);border-radius:6px;padding:4px 11px">'+escH(p.codigo||'')+'</span>'
@@ -8422,7 +8422,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080445; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080446; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
