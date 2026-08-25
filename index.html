@@ -8422,7 +8422,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080446; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080447; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
@@ -8872,16 +8872,26 @@ window.addEventListener('hashchange',handleNavigation);
     }
     var _syncStarted=false;
     function _goSync(){ if(_syncStarted)return; _syncStarted=true; _syncOk=true; _offlineWarn(false); startSync(); }
-    function _startAuth(){
-      _authTries++;
+    function _authRetry(){ var delay=Math.min(30000, 5000*_authTries); setTimeout(_startAuth, delay); }
+    function _authFallback(){
+      // Anônimo indisponível → usa a conta compartilhada (comportamento antigo), até ativarem o anônimo.
       _auth.signInWithEmailAndPassword('sistema@allinposicionamento.com.br','allin@time')
         .then(function(){ _goSync(); })
         .catch(function(e){
-          console.warn('Firebase auth falhou (tentativa '+_authTries+'):',(e&&e.code)||e);
-          _fbReady=true;              // app funciona local
-          if(!_syncStarted)_offlineWarn(true); // mas AVISA que não está salvando na nuvem
-          var delay=Math.min(30000, 5000*_authTries); // tenta de novo com espera crescente
-          setTimeout(_startAuth, delay);
+          console.warn('Firebase auth (compartilhada) falhou (tentativa '+_authTries+'):',(e&&e.code)||e);
+          _fbReady=true; if(!_syncStarted)_offlineWarn(true); _authRetry();
+        });
+    }
+    function _startAuth(){
+      _authTries++;
+      // LOGIN ANÔNIMO: cada aparelho tem o seu, sem senha compartilhada e SEM estourar o limite de login.
+      _auth.signInAnonymously()
+        .then(function(){ _goSync(); })
+        .catch(function(e){
+          var code=(e&&e.code)||'';
+          console.warn('Firebase auth anônima falhou (tentativa '+_authTries+'):',code||e);
+          if(code==='auth/operation-not-allowed'){ _authFallback(); return; } // anônimo ainda não ativado no console
+          _fbReady=true; if(!_syncStarted)_offlineWarn(true); _authRetry();
         });
     }
     // REAPROVEITA a sessão já salva no navegador — não faz login de novo a cada reload.
