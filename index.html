@@ -1121,31 +1121,36 @@ function finMarkParcela(cid,n){
   save();if(typeof toast==='function')toast('✅ Parcela '+n+' marcada como paga');render();
 }
 function finClearParcela(cid,n){var c=D.clients.find(function(x){return x.id===cid;});if(!c||!c.pagamentos||!c.pagamentos[n])return;if(!confirm('Desmarcar a parcela '+n+' (tirar o pago)?'))return;delete c.pagamentos[n];save();render();}
-function _finVencendoCard(){
+function _finVencendoCard(win,hideEmpty){
+  win=win||30;
   var hoje=new Date();hoje.setHours(0,0,0,0);
-  var brl=function(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
   var lista=D.clients.filter(function(c){return c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado';}).map(function(c){
-    var fim=_finFimDate(c);if(!fim)return null;
-    var dias=Math.round((fim-hoje)/86400000);
-    if(dias>30)return null; // só mostra vencendo/vencido (até 30 dias)
-    return {c:c,dias:dias,fim:fim};
+    var venc=c.contractDue?new Date(c.contractDue):_finFimDate(c);
+    if(!venc||isNaN(venc))return null;
+    var dias=Math.round((venc-hoje)/86400000);
+    if(c.contractStatus!=='vencido'&&dias>win)return null;
+    return {c:c,dias:dias};
   }).filter(Boolean).sort(function(a,b){return a.dias-b.dias;});
-  if(!lista.length)return '<div class="card" style="border:1px solid #BBF7D0;margin-bottom:16px"><div class="cb" style="padding:12px 16px;color:#166534;font-size:13px">✅ Nenhum contrato vencendo nos próximos 30 dias.</div></div>';
+  if(!lista.length)return hideEmpty?'':'<div class="card" style="border:1px solid #BBF7D0;margin-bottom:16px"><div class="cb" style="padding:12px 16px;color:#166534;font-size:13px">✅ Nenhum contrato vencendo nos próximos '+win+' dias.</div></div>';
   var chips=lista.map(function(x){
-    var venc=x.dias<0;var cor=venc?'#DC2626':'#D97706';var bg=venc?'#FEF2F2':'#FFFBEB';var bd=venc?'#FCA5A5':'#FCD34D';
-    var txt=venc?('venceu há '+Math.abs(x.dias)+' dia'+(Math.abs(x.dias)===1?'':'s')):(x.dias===0?'vence hoje':'vence em '+x.dias+' dia'+(x.dias===1?'':'s'));
+    var venc=x.dias<0||x.c.contractStatus==='vencido';var cor=venc?'#DC2626':'#D97706';var bg=venc?'#FEF2F2':'#FFFBEB';var bd=venc?'#FCA5A5':'#FCD34D';
+    var txt=venc?('venceu'+(x.dias<0?' há '+Math.abs(x.dias)+' dia'+(Math.abs(x.dias)===1?'':'s'):'')):(x.dias===0?'vence hoje':'vence em '+x.dias+' dia'+(x.dias===1?'':'s'));
     return '<div onclick="nav(\'clients\',{clientId:\''+x.c.id+'\',tab:\'contrato\'})" style="cursor:pointer;border:1px solid '+bd+';background:'+bg+';border-radius:10px;padding:10px 14px;min-width:210px"><div style="font-weight:700">'+escH(x.c.name)+'</div><div style="font-size:12px;color:'+cor+';font-weight:700">'+txt+'</div><div style="font-size:11px;color:var(--muted)">Renovar ou finalizar →</div></div>';
   }).join('');
   return '<div class="card" style="border:2px solid #DC2626;margin-bottom:16px"><div class="ch" style="background:#FEE2E2"><h3 style="color:#991B1B">🔴 Contratos vencendo — precisam de atenção</h3><span class="note" style="color:#991B1B;font-size:11px">'+lista.length+' contrato(s)</span></div><div class="cb" style="display:flex;gap:12px;flex-wrap:wrap">'+chips+'</div></div>';
 }
+function finSetPayStart(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;c.payStart=val;save();render();}
+function finSetParcelas(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var n=parseInt(val);c.parcelas=isNaN(n)?'':n;save();render();}
 function _finPagamentosCard(){
   var brl=function(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
   var now=new Date();var nowYm=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-  var clientes=D.clients.filter(function(c){return c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado'&&_finParcelas(c).length;})
+  var q=(S.finBusca||'').trim().toLowerCase();
+  var clientes=D.clients.filter(function(c){return c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado';})
+    .filter(function(c){return !q||(''+c.name).toLowerCase().indexOf(q)>=0;})
     .sort(function(a,b){return (''+a.name).localeCompare(''+b.name);});
   var sqCss='width:52px;height:30px;border-radius:7px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin:2px;cursor:pointer;position:relative';
   var rows=clientes.map(function(c){
-    var arr=_finParcelas(c);var pagas=0,pagoTot=0;
+    var arr=_finParcelas(c);var has=arr.length>0;var pagas=0,pagoTot=0;
     var strip=arr.map(function(p){
       var pg=_finPago(c,p.n);
       if(pg){pagas++;pagoTot+=_parseMoney(pg.value);
@@ -1154,20 +1159,24 @@ function _finPagamentosCard(){
       var st=atrasoOuVence?'background:#FEF3C7;color:#92400E;border:1px solid #FCD34D':'background:#F8FAFC;color:#94A3B8;border:1px dashed #E2E8F0';
       return '<span onclick="finMarkParcela(\''+c.id+'\','+p.n+')" title="clique p/ marcar como pago" style="'+sqCss+';'+st+'">'+p.label+'</span>';
     }).join('');
-    var faltam=arr.length-pagas;var tot=_parseMoney(c.contractValue);
+    var faltam=has?(arr.length-pagas):null;var tot=_parseMoney(c.contractValue);
+    var inicioInp='<input type="date" value="'+(c.payStart||c.startDate||'')+'" onchange="finSetPayStart(\''+c.id+'\',this.value)" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:145px">';
+    var parcInp='<input type="number" min="0" value="'+(c.parcelas!=null&&c.parcelas!==''?c.parcelas:'')+'" onchange="finSetParcelas(\''+c.id+'\',this.value)" placeholder="—" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:66px;text-align:center">';
     return '<tr>'
-      +'<td style="padding:9px 12px;border-top:1px solid #F1F5F9"><div style="font-weight:700">'+escH(c.name)+'</div><div style="font-size:11px;color:var(--muted)">'+arr.length+' parcelas'+(c.paymentMethod?' · '+escH(c.paymentMethod):'')+'</div></td>'
-      +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9;font-size:12px;white-space:nowrap">'+(arr[0]?arr[0].label:'—')+'</td>'
-      +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9"><div style="display:flex;flex-wrap:wrap;max-width:720px">'+strip+'</div></td>'
-      +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;font-size:12px;white-space:nowrap;text-align:right">'+(tot?'<div style="color:#16A34A;font-weight:600">'+brl(pagoTot)+'</div><div style="color:var(--muted)">de '+brl(tot)+'</div>':'—')+'</td>'
-      +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;text-align:center"><span style="font-size:16px;font-weight:800;color:'+(faltam===0?'#16A34A':'#0D3D9B')+'">'+faltam+'</span></td>'
+      +'<td style="padding:9px 12px;border-top:1px solid #F1F5F9"><div style="font-weight:700">'+escH(c.name)+'</div>'+(c.paymentMethod?'<div style="font-size:11px;color:var(--muted)">'+escH(c.paymentMethod)+'</div>':'')+'</td>'
+      +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9">'+inicioInp+'</td>'
+      +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9;text-align:center">'+parcInp+'</td>'
+      +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9">'+(has?'<div style="display:flex;flex-wrap:wrap;max-width:720px">'+strip+'</div>':'<span style="font-size:12px;color:#94A3B8">⬅ preencha o início e o nº de parcelas</span>')+'</td>'
+      +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;font-size:12px;white-space:nowrap;text-align:right">'+(has&&tot?'<div style="color:#16A34A;font-weight:600">'+brl(pagoTot)+'</div><div style="color:var(--muted)">de '+brl(tot)+'</div>':'—')+'</td>'
+      +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;text-align:center">'+(has?'<span style="font-size:16px;font-weight:800;color:'+(faltam===0?'#16A34A':'#0D3D9B')+'">'+faltam+'</span>':'—')+'</td>'
       +'</tr>';
   }).join('');
-  var body=clientes.length?('<div class="tw" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
-    +'<thead><tr>'+['Cliente','Início','Parcelas (mês a mês — clique p/ marcar pago)','Pago','Faltam'].map(function(h,i){return '<th style="text-align:'+(i>=3?(i===3?'right':'center'):'left')+';padding:8px 12px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B;text-transform:uppercase">'+h+'</th>';}).join('')+'</tr></thead>'
+  var search='<div style="padding:12px 16px 0"><input value="'+escH(S.finBusca||'')+'" oninput="S.finBusca=this.value;clearTimeout(window._finBt);window._finBt=setTimeout(render,250)" placeholder="🔎 buscar cliente…" style="width:100%;max-width:340px;padding:9px 12px;border:1px solid #E2E8F0;border-radius:9px;font-size:13px;box-sizing:border-box"></div>';
+  var body=search+(clientes.length?('<div class="tw" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
+    +'<thead><tr>'+['Cliente','Início do pagamento','Nº parc.','Parcelas (mês a mês — clique p/ marcar pago)','Pago','Faltam'].map(function(h,i){return '<th style="text-align:'+(i>=4?(i===4?'right':'center'):(i===2?'center':'left'))+';padding:8px 12px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B;text-transform:uppercase">'+h+'</th>';}).join('')+'</tr></thead>'
     +'<tbody>'+rows+'</tbody></table></div>'
-    +'<div class="note" style="margin-top:10px;padding:0 4px">🟩 pago · 🟨 vence/atrasado (clique p/ registrar valor e data) · ⬜ a vencer. O verde só aparece quando a Fernanda marca o pagamento.</div>')
-    :'<div class="cb" style="padding:20px;color:var(--muted);font-size:13px">Nenhum cliente com parcelas definidas ainda. Vá em <b>um cliente → aba Contrato</b> e preencha <b>Início do pagamento</b> e <b>Nº de parcelas</b> para o controle aparecer aqui.</div>';
+    +'<div class="note" style="margin:10px 16px 4px">🟩 pago · 🟨 vence/atrasado (clique p/ registrar valor e data) · ⬜ a vencer. Preencha <b>Início</b> e <b>Nº de parcelas</b> aqui mesmo — os quadradinhos nascem sozinhos.</div>')
+    :'<div class="cb" style="padding:20px;color:var(--muted);font-size:13px">Nenhum cliente encontrado.</div>');
   return '<div class="card" style="margin-bottom:16px"><div class="ch"><h3>📊 Controle de pagamentos por cliente</h3><span class="note" style="font-size:11px">'+clientes.length+' clientes</span></div>'+body+'</div>';
 }
 
@@ -1221,6 +1230,7 @@ function rDash(){
     <div class="stat" onclick="nav('clients',{statusFilter:'ativo'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--primary)">${ativos.length}</div><div class="stat-lbl">Clientes Ativos</div></div>
     <div class="stat" onclick="nav('clients',{statusFilter:'vencido'})" style="cursor:pointer;transition:all .2s" onmouseover="this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='var(--shadow)'"><div class="stat-num" style="color:var(--red)">${vencidos.length}</div><div class="stat-lbl">Contratos Vencidos</div></div>
   </div>
+  ${_finVencendoCard(60,true)}
   ${_metaThermometerCard()}
   ${_regrasCard()}
   <div class="card" style="margin-bottom:18px">
@@ -1231,7 +1241,6 @@ function rDash(){
         :`<div style="text-align:center;padding:16px 0;color:#9CA3AF;font-size:13px">Nenhum aniversário este mês</div>`}
     </div>
   </div>
-  ${vencidos.length?`<div class="card" style="margin-bottom:18px;border-color:#FDE68A"><div class="ch" style="background:#FFFBEB"><h3>⚠️ Contratos Vencidos</h3></div><div class="cb">${alertCards}</div></div>`:''}
   ${rDashProspeccao()}
   <div style="margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
     <div class="card"><div class="ch"><h3>📊 Volume Mensal de Leads Gerados</h3></div><div class="cb" style="padding:20px"><div style="height:240px;position:relative"><canvas id="chartMonthlyleads"></canvas></div></div></div>
@@ -4375,15 +4384,9 @@ function rMinhaSemanaGestao(user){
   });
   const overdue=ativos.flatMap(c=>(c.deliverables||[]).filter(d=>d.status==='atrasado').map(d=>({client:c.name,del:d.name,resp:d.responsible||'—'})));
   const noSeller=ativos.filter(function(c){const ss=(c.assignees||[])[0];return(!ss||ss==='')&&ss!=='N/A';});
-  const alertsHtml=(expiring.length===0&&overdue.length===0&&noSeller.length===0)
+  const alertsHtml=(overdue.length===0&&noSeller.length===0)
     ?'<div style="padding:16px;color:#16A34A;text-align:center;font-weight:600">✅ Nenhum alerta esta semana!</div>'
-    :(expiring.map(function(c){
-        const dr=getDaysUntil(c.contractDue);
-        const venc=(c.contractStatus==='vencido')||(dr!=null&&dr<0);
-        const txt=venc?('Contrato vencido'+(dr!=null&&dr<0?(' há '+Math.abs(dr)+' dia'+(Math.abs(dr)===1?'':'s')):'')):('Contrato vence em '+dr+' dia'+(dr===1?'':'s'));
-        return'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #FEF3C7"><span style="font-size:18px">'+(venc?'🔴':'⚠️')+'</span><div><strong style="font-size:12px">'+c.name+'</strong><br><span style="font-size:11px;color:'+(venc?'#DC2626':'#D97706')+'">'+txt+'</span></div></div>';
-      }).join('')
-    +overdue.slice(0,5).map(a=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #FEE2E2"><span style="font-size:18px">🔴</span><div><strong style="font-size:12px">'+a.client+'</strong> — '+a.del+'<br><span style="font-size:11px;color:#DC2626">Entrega atrasada · '+a.resp+'</span></div></div>').join('')
+    :(overdue.slice(0,5).map(a=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #FEE2E2"><span style="font-size:18px">🔴</span><div><strong style="font-size:12px">'+a.client+'</strong> — '+a.del+'<br><span style="font-size:11px;color:#DC2626">Entrega atrasada · '+a.resp+'</span></div></div>').join('')
     +noSeller.map(c=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #F3F4F6"><span style="font-size:18px">👤</span><div><strong style="font-size:12px">'+c.name+'</strong><br><span style="font-size:11px;color:#9CA3AF">Sem Social Seller atribuída</span></div></div>').join(''));
 
   // === BLOCO 3: Funil de prospecção da semana ===
@@ -8540,7 +8543,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080449; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080450; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
