@@ -1101,11 +1101,17 @@ function _canFin(u){u=u||S.currentUser;return _isGestao(u)||!!(u&&u.role==='Fina
 function _isFinOnly(u){u=u||S.currentUser;return !!(u&&u.role==='Financeiro'&&!_isGestao(u));}
 // ── Controle de parcelas por cliente ──
 var _FIN_MAB=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function _finBR(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
 function _finParcelas(c){
   var ps=c.payStart||c.startDate;var n=parseInt(c.parcelas)||0;
   if(!ps||n<=0)return [];
-  var d=new Date(ps+'T12:00:00');if(isNaN(d))return [];
-  var out=[];for(var i=0;i<n;i++){var y=d.getFullYear(),m=d.getMonth();out.push({n:i+1,ym:y+'-'+String(m+1).padStart(2,'0'),label:_FIN_MAB[m]+'/'+String(y).slice(2)});d.setMonth(d.getMonth()+1);}
+  var base=new Date(ps+'T12:00:00');if(isNaN(base))return [];
+  var out=[];for(var i=0;i<n;i++){
+    var ini=new Date(base);ini.setMonth(ini.getMonth()+i);
+    var fim=new Date(base);fim.setMonth(fim.getMonth()+i+1);fim.setDate(fim.getDate()-1);
+    var y=ini.getFullYear(),m=ini.getMonth();
+    out.push({n:i+1,ym:y+'-'+String(m+1).padStart(2,'0'),label:_FIN_MAB[m]+'/'+String(y).slice(2),comp:_finBR(ini)+' a '+_finBR(fim)});
+  }
   return out;
 }
 function _finPago(c,n){var pg=(c.pagamentos||{})[n];return (pg&&(pg.date||pg.dateBR||pg.value!=null))?pg:null;}
@@ -1121,6 +1127,16 @@ function finMarkParcela(cid,n){
   save();if(typeof toast==='function')toast('✅ Parcela '+n+' marcada como paga');render();
 }
 function finClearParcela(cid,n){var c=D.clients.find(function(x){return x.id===cid;});if(!c||!c.pagamentos||!c.pagamentos[n])return;if(!confirm('Desmarcar a parcela '+n+' (tirar o pago)?'))return;delete c.pagamentos[n];save();render();}
+function finMarkImpl(cid){
+  var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;
+  var v=prompt('🔧 Valor da IMPLANTAÇÃO (lançamento único, R$):',(c.implantacao&&c.implantacao.value)||'');if(v===null)return;
+  if(!(''+v).trim()){toast&&toast('Informe o valor.');return;}
+  var hj=new Date();var hojeBR=String(hj.getDate()).padStart(2,'0')+'/'+String(hj.getMonth()+1).padStart(2,'0')+'/'+hj.getFullYear();
+  var dt=prompt('📅 Data do pagamento da implantação (dd/mm/aaaa):',(c.implantacao&&c.implantacao.dateBR)||hojeBR);if(dt===null)return;
+  c.implantacao={value:(''+v).trim(),dateBR:(''+dt).trim(),at:Date.now(),by:(S.currentUser&&S.currentUser.name)||''};
+  save();if(typeof toast==='function')toast('✅ Implantação lançada');render();
+}
+function finClearImpl(cid){var c=D.clients.find(function(x){return x.id===cid;});if(!c||!c.implantacao)return;if(!confirm('Tirar o lançamento de implantação?'))return;delete c.implantacao;save();render();}
 function _finVencendoCard(win,hideEmpty){
   win=win||30;
   var hoje=new Date();hoje.setHours(0,0,0,0);
@@ -1154,11 +1170,16 @@ function _finPagamentosCard(){
     var strip=arr.map(function(p){
       var pg=_finPago(c,p.n);
       if(pg){pagas++;pagoTot+=_parseMoney(pg.value);
-        return '<span onclick="finClearParcela(\''+c.id+'\','+p.n+')" title="'+brl(_parseMoney(pg.value))+' · '+escH(pg.dateBR||'')+' — clique p/ desmarcar" style="'+sqCss+';background:#DCFCE7;color:#166534;border:1px solid #86EFAC">'+p.label+'<span style="position:absolute;top:-5px;right:-4px;background:#16A34A;color:#fff;border-radius:50%;width:13px;height:13px;font-size:9px;display:flex;align-items:center;justify-content:center">✓</span></span>';}
+        return '<span onclick="finClearParcela(\''+c.id+'\','+p.n+')" title="Competência: '+p.comp+' · pago '+brl(_parseMoney(pg.value))+' em '+escH(pg.dateBR||'')+' — clique p/ desmarcar" style="'+sqCss+';background:#DCFCE7;color:#166534;border:1px solid #86EFAC">'+p.label+'<span style="position:absolute;top:-5px;right:-4px;background:#16A34A;color:#fff;border-radius:50%;width:13px;height:13px;font-size:9px;display:flex;align-items:center;justify-content:center">✓</span></span>';}
       var atrasoOuVence=p.ym<=nowYm;
       var st=atrasoOuVence?'background:#FEF3C7;color:#92400E;border:1px solid #FCD34D':'background:#F8FAFC;color:#94A3B8;border:1px dashed #E2E8F0';
-      return '<span onclick="finMarkParcela(\''+c.id+'\','+p.n+')" title="clique p/ marcar como pago" style="'+sqCss+';'+st+'">'+p.label+'</span>';
+      return '<span onclick="finMarkParcela(\''+c.id+'\','+p.n+')" title="Competência: '+p.comp+' — clique p/ marcar como pago" style="'+sqCss+';'+st+'">'+p.label+'</span>';
     }).join('');
+    var isGP=(c.products||[]).includes('Gestão de Perfil');
+    var impl=c.implantacao;var implCell;
+    if(impl&&impl.value!=null&&impl.value!==''){implCell='<span onclick="finClearImpl(\''+c.id+'\')" title="Implantação paga: '+brl(_parseMoney(impl.value))+' em '+escH(impl.dateBR||'')+' — clique p/ desmarcar" style="height:30px;border-radius:7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 11px;cursor:pointer;background:#DCFCE7;color:#166534;border:1px solid #86EFAC">🔧 '+brl(_parseMoney(impl.value))+' ✓</span>';}
+    else if(isGP){implCell='<span onclick="finMarkImpl(\''+c.id+'\')" title="Lançar a implantação (valor + data)" style="height:30px;border-radius:7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 11px;cursor:pointer;background:#FEF3C7;color:#92400E;border:1px solid #FCD34D">🔧 lançar</span>';}
+    else{implCell='<span onclick="finMarkImpl(\''+c.id+'\')" title="Registrar implantação (opcional)" style="font-size:11px;color:#94A3B8;cursor:pointer">＋ impl.</span>';}
     var faltam=has?(arr.length-pagas):null;var tot=_parseMoney(c.contractValue);
     var inicioInp='<input type="date" value="'+(c.payStart||c.startDate||'')+'" onblur="finSetPayStart(\''+c.id+'\',this.value)" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:145px">';
     var parcInp='<input type="number" min="0" value="'+(c.parcelas!=null&&c.parcelas!==''?c.parcelas:'')+'" onblur="finSetParcelas(\''+c.id+'\',this.value)" placeholder="—" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:66px;text-align:center">';
@@ -1166,6 +1187,7 @@ function _finPagamentosCard(){
       +'<td style="padding:9px 12px;border-top:1px solid #F1F5F9"><div style="font-weight:700">'+escH(c.name)+'</div>'+(c.paymentMethod?'<div style="font-size:11px;color:var(--muted)">'+escH(c.paymentMethod)+'</div>':'')+'</td>'
       +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9">'+inicioInp+'</td>'
       +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9;text-align:center">'+parcInp+'</td>'
+      +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9;text-align:center">'+implCell+'</td>'
       +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9">'+(has?'<div style="display:flex;flex-wrap:wrap;max-width:720px">'+strip+'</div>':'<span style="font-size:12px;color:#94A3B8">⬅ preencha o início e o nº de parcelas</span>')+'</td>'
       +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;font-size:12px;white-space:nowrap;text-align:right">'+(has&&tot?'<div style="color:#16A34A;font-weight:600">'+brl(pagoTot)+'</div><div style="color:var(--muted)">de '+brl(tot)+'</div>':'—')+'</td>'
       +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;text-align:center">'+(has?'<span style="font-size:16px;font-weight:800;color:'+(faltam===0?'#16A34A':'#0D3D9B')+'">'+faltam+'</span>':'—')+'</td>'
@@ -1173,9 +1195,9 @@ function _finPagamentosCard(){
   }).join('');
   var search='<div style="padding:12px 16px 0"><input value="'+escH(S.finBusca||'')+'" oninput="S.finBusca=this.value;clearTimeout(window._finBt);window._finBt=setTimeout(render,250)" placeholder="🔎 buscar cliente…" style="width:100%;max-width:340px;padding:9px 12px;border:1px solid #E2E8F0;border-radius:9px;font-size:13px;box-sizing:border-box"></div>';
   var body=search+(clientes.length?('<div class="tw" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
-    +'<thead><tr>'+['Cliente','Início do pagamento','Nº parc.','Parcelas (mês a mês — clique p/ marcar pago)','Pago','Faltam'].map(function(h,i){return '<th style="text-align:'+(i>=4?(i===4?'right':'center'):(i===2?'center':'left'))+';padding:8px 12px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B;text-transform:uppercase">'+h+'</th>';}).join('')+'</tr></thead>'
+    +'<thead><tr>'+['Cliente','Início do pagamento','Nº parc.','Implantação','Parcelas (competências — clique p/ marcar pago)','Pago','Faltam'].map(function(h,i){return '<th style="text-align:'+(i===5?'right':((i===2||i===3||i===6)?'center':'left'))+';padding:8px 12px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B;text-transform:uppercase">'+h+'</th>';}).join('')+'</tr></thead>'
     +'<tbody>'+rows+'</tbody></table></div>'
-    +'<div class="note" style="margin:10px 16px 4px">🟩 pago · 🟨 vence/atrasado (clique p/ registrar valor e data) · ⬜ a vencer. Preencha <b>Início</b> e <b>Nº de parcelas</b> aqui mesmo — os quadradinhos nascem sozinhos.</div>')
+    +'<div class="note" style="margin:10px 16px 4px;line-height:1.6">🟩 pago · 🟨 vence/atrasado (clique p/ registrar valor e data) · ⬜ a vencer. Cada quadradinho é uma <b>competência mensal</b> — passe o mouse pra ver o período (ex.: 12/05 a 11/06), contado a partir do <b>dia do início do pagamento</b>.<br>🔧 <b>Implantação</b> (Gestão de Perfil) é um <b>lançamento único</b>, separado das parcelas mensais.</div>')
     :'<div class="cb" style="padding:20px;color:var(--muted);font-size:13px">Nenhum cliente encontrado.</div>');
   return '<div class="card" style="margin-bottom:16px"><div class="ch"><h3>📊 Controle de pagamentos por cliente</h3><span class="note" style="font-size:11px">'+clientes.length+' clientes</span></div>'+body+'</div>';
 }
@@ -8543,7 +8565,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080451; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080452; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
