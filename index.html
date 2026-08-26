@@ -1139,8 +1139,8 @@ function _finVencendoCard(win,hideEmpty){
   }).join('');
   return '<div class="card" style="border:2px solid #DC2626;margin-bottom:16px"><div class="ch" style="background:#FEE2E2"><h3 style="color:#991B1B">🔴 Contratos vencendo — precisam de atenção</h3><span class="note" style="color:#991B1B;font-size:11px">'+lista.length+' contrato(s)</span></div><div class="cb" style="display:flex;gap:12px;flex-wrap:wrap">'+chips+'</div></div>';
 }
-function finSetPayStart(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;c.payStart=val;save();render();}
-function finSetParcelas(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var n=parseInt(val);c.parcelas=isNaN(n)?'':n;save();render();}
+function finSetPayStart(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;if((c.payStart||'')===(val||''))return;c.payStart=val;save();render();}
+function finSetParcelas(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var n=parseInt(val);var nv=isNaN(n)?'':n;if((''+(c.parcelas||''))===(''+nv))return;c.parcelas=nv;save();render();}
 function _finPagamentosCard(){
   var brl=function(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
   var now=new Date();var nowYm=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
@@ -1160,8 +1160,8 @@ function _finPagamentosCard(){
       return '<span onclick="finMarkParcela(\''+c.id+'\','+p.n+')" title="clique p/ marcar como pago" style="'+sqCss+';'+st+'">'+p.label+'</span>';
     }).join('');
     var faltam=has?(arr.length-pagas):null;var tot=_parseMoney(c.contractValue);
-    var inicioInp='<input type="date" value="'+(c.payStart||c.startDate||'')+'" onchange="finSetPayStart(\''+c.id+'\',this.value)" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:145px">';
-    var parcInp='<input type="number" min="0" value="'+(c.parcelas!=null&&c.parcelas!==''?c.parcelas:'')+'" onchange="finSetParcelas(\''+c.id+'\',this.value)" placeholder="—" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:66px;text-align:center">';
+    var inicioInp='<input type="date" value="'+(c.payStart||c.startDate||'')+'" onblur="finSetPayStart(\''+c.id+'\',this.value)" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:145px">';
+    var parcInp='<input type="number" min="0" value="'+(c.parcelas!=null&&c.parcelas!==''?c.parcelas:'')+'" onblur="finSetParcelas(\''+c.id+'\',this.value)" placeholder="—" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:66px;text-align:center">';
     return '<tr>'
       +'<td style="padding:9px 12px;border-top:1px solid #F1F5F9"><div style="font-weight:700">'+escH(c.name)+'</div>'+(c.paymentMethod?'<div style="font-size:11px;color:var(--muted)">'+escH(c.paymentMethod)+'</div>':'')+'</td>'
       +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9">'+inicioInp+'</td>'
@@ -8543,7 +8543,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080450; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080451; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
