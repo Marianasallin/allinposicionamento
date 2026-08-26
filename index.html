@@ -280,7 +280,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
     <div id="nav-sec-fin" style="display:none;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.38);padding:14px 12px 4px">Financeiro</div>
     <div class="ni" id="ni-financeiro" onclick="nav('financeiro')" style="display:none"><span class="ni-icon">💰</span><span>Financeiro</span></div>
     <div class="ni" id="ni-comissoes" onclick="nav('comissoes')" style="display:none"><span class="ni-icon">🤝</span><span>Comissões</span></div>
-    <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
+    <div id="nav-utils" style="margin-top:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
       <div class="ni" onclick="window.open(window.location.origin+window.location.pathname+'#portal','_blank')" style="background:rgba(0,160,220,.15);border:1px solid rgba(0,160,220,.3)"><span class="ni-icon">🌐</span><span>Portal do Cliente</span></div>
       <div class="ni" onclick="forcarAtualizacao()" title="Recarrega os dados mais recentes do servidor (resolve tela desatualizada)"><span class="ni-icon">🔄</span><span>Atualizar dados</span></div>
       <div class="ni" onclick="trocarMinhaSenha()" title="Alterar a sua senha de acesso"><span class="ni-icon">🔑</span><span>Minha senha</span></div>
@@ -905,10 +905,23 @@ function render(){
   const sbFooter=$('sb-user-info');
   if(sbFooter) sbFooter.innerHTML=`${S.currentUser.name}<br><span style="font-size:10px;opacity:.7">${S.currentUser.role||'ALL IN'}</span>`;
   // Abas Financeiro e Comissões: só a Gestão vê (e acessa)
-  var _finNi=document.getElementById('ni-financeiro');if(_finNi)_finNi.style.display=_isGestao(S.currentUser)?'':'none';
-  var _comNi=document.getElementById('ni-comissoes');if(_comNi)_comNi.style.display=_isGestao(S.currentUser)?'':'none';
-  var _finSec=document.getElementById('nav-sec-fin');if(_finSec)_finSec.style.display=_isGestao(S.currentUser)?'':'none';
-  if((S.view==='financeiro'||S.view==='comissoes'||S.view==='carteira')&&!_isGestao(S.currentUser)){S.view='dash';}
+  var _cf=_canFin(S.currentUser);
+  // Fernanda (papel Financeiro) vê SÓ Financeiro + Comissões; os demais veem o menu normal
+  var _sbnav=document.querySelector('#sidebar .sb-nav');
+  if(_sbnav){
+    if(_isFinOnly(S.currentUser)){
+      var _allow={'ni-financeiro':1,'ni-comissoes':1,'nav-sec-fin':1,'nav-utils':1};
+      Array.prototype.forEach.call(_sbnav.children,function(el){el.style.display=(el.id&&_allow[el.id])?'':'none';});
+    } else {
+      Array.prototype.forEach.call(_sbnav.children,function(el){el.style.display='';});
+    }
+  }
+  var _finNi=document.getElementById('ni-financeiro');if(_finNi)_finNi.style.display=_cf?'':'none';
+  var _comNi=document.getElementById('ni-comissoes');if(_comNi)_comNi.style.display=_cf?'':'none';
+  var _finSec=document.getElementById('nav-sec-fin');if(_finSec)_finSec.style.display=_cf?'':'none';
+  if(S.view==='carteira'&&!_isGestao(S.currentUser))S.view='dash';
+  if((S.view==='financeiro'||S.view==='comissoes')&&!_cf)S.view='dash';
+  if(_isFinOnly(S.currentUser)&&S.view!=='financeiro'&&S.view!=='comissoes')S.view='financeiro';
   // Banner "Vendo como" (impersonação da Gestão)
   var _vb=document.getElementById('veras-banner');if(_vb)_vb.remove();
   if(S._realUser){document.body.insertAdjacentHTML('beforeend','<div id="veras-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#7C3AED,#9333EA);color:#fff;padding:9px 14px;text-align:center;font-size:13px;font-weight:600;box-shadow:0 -2px 10px rgba(0,0,0,.2)">👁 Você está vendo como <strong>'+(S.currentUser.name||'').split(' ')[0]+'</strong> (só visualização) <button onclick="voltarMeuPerfil()" style="margin-left:12px;background:#fff;color:#7C3AED;border:none;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer">Voltar ao meu perfil</button></div>');}
@@ -1043,7 +1056,7 @@ function _metaThermometerCard(){
     +'</div></div>';
 }
 function rFinanceiro(){
-  if(!_isGestao(S.currentUser))return '<div class="card"><div class="cb" style="padding:30px;text-align:center;color:var(--muted)">🔒 Acesso restrito à Gestão.</div></div>';
+  if(!_canFin(S.currentUser))return '<div class="card"><div class="cb" style="padding:30px;text-align:center;color:var(--muted)">🔒 Acesso restrito.</div></div>';
   var f=_finance();
   var now=new Date();var months=[];for(var i=0;i<6;i++){months.push(getMonthKey(new Date(now.getFullYear(),now.getMonth()-i,1)));}
   Object.keys(f.revenue).forEach(function(k){if(months.indexOf(k)<0)months.push(k);});
@@ -1056,7 +1069,9 @@ function rFinanceiro(){
     +'<td style="padding:6px 8px"><input type="text" id="fin-b'+i+'" value="'+(m.bonus||'')+'" style="width:120px" placeholder="1500"></td></tr>';}).join('');
   var pctColor=st.pct>=100?'#16A34A':st.pct>=60?'#0D9488':'#EA580C';
   var regras=f.regras.map(function(r){return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;color:#334155"><span style="color:#16A34A">✔</span> '+escH(r)+'</div>';}).join('');
-  return '<div style="margin-bottom:8px"><h2 style="font-size:18px;margin:0">💰 Financeiro</h2><div style="font-size:12px;color:var(--muted)">Metas & bonificação corporativa · visível só para a Gestão</div></div>'
+  return '<div style="margin-bottom:12px"><h2 style="font-size:18px;margin:0">💰 Financeiro</h2><div style="font-size:12px;color:var(--muted)">Pagamentos por cliente, contratos e metas · Gestão e Financeiro</div></div>'
+    +_finVencendoCard()
+    +_finPagamentosCard()
     +'<div class="card" style="margin-bottom:16px"><div class="ch"><h3>📈 Faturamento do mês</h3></div><div class="cb">'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px;align-self:center">Mês:</span>'+chips+'</div>'
     +'<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div class="fg" style="max-width:220px;margin:0"><label>Faturamento em '+mk+' (R$)</label><input type="text" id="fin-rev" value="'+(f.revenue[mk]||'')+'" placeholder="Ex: 72.000,00"></div>'
@@ -1071,8 +1086,7 @@ function rFinanceiro(){
     +'<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px">🏆 Bônus a distribuir: <strong style="color:#16A34A">'+(st.bonusReached?brl(st.bonusReached)+' (Meta '+st.reachedNum+' batida)':'—')+'</strong></div>'
     +'<div style="font-size:11px;color:var(--muted);margin-top:4px">A bonificação corporativa será distribuída entre os ativos no mês (sem ausências superiores a 1 dia).</div></div></div>'
     +'<div class="card" style="margin-bottom:16px"><div class="ch"><h3>🎚️ Metas corporativas</h3></div><div class="cb"><div class="tw"><table><thead><tr><th></th><th style="text-align:left">Faturamento / mês (R$)</th><th style="text-align:left">Valor a distribuir (R$)</th></tr></thead><tbody>'+metaRows+'</tbody></table></div>'
-    +'<button class="btn btn-o btn-s" style="margin-top:10px" onclick="saveFinanceMetas()">💾 Salvar metas</button></div></div>'
-    +_regrasCard();
+    +'<button class="btn btn-o btn-s" style="margin-top:10px" onclick="saveFinanceMetas()">💾 Salvar metas</button></div></div>';
 }
 function _regrasCard(){
   var f=_finance();
@@ -1081,6 +1095,81 @@ function _regrasCard(){
 }
 function saveFinanceRevenue(mk){var f=_finance();var el=$('fin-rev');f.revenue[mk]=el?el.value.trim():'';save();if(typeof toast==='function')toast('💾 Faturamento salvo!');render();}
 function saveFinanceMetas(){var f=_finance();for(var i=0;i<3;i++){var t=$('fin-t'+i),b=$('fin-b'+i);f.metas[i]={target:t?_parseMoney(t.value):f.metas[i].target,bonus:b?_parseMoney(b.value):f.metas[i].bonus};}save();if(typeof toast==='function')toast('💾 Metas salvas!');render();}
+
+// ── Quem pode ver o Financeiro/Comissões: Gestão + papel "Financeiro" (Fernanda) ──
+function _canFin(u){u=u||S.currentUser;return _isGestao(u)||!!(u&&u.role==='Financeiro');}
+function _isFinOnly(u){u=u||S.currentUser;return !!(u&&u.role==='Financeiro'&&!_isGestao(u));}
+// ── Controle de parcelas por cliente ──
+var _FIN_MAB=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function _finParcelas(c){
+  var ps=c.payStart||c.startDate;var n=parseInt(c.parcelas)||0;
+  if(!ps||n<=0)return [];
+  var d=new Date(ps+'T12:00:00');if(isNaN(d))return [];
+  var out=[];for(var i=0;i<n;i++){var y=d.getFullYear(),m=d.getMonth();out.push({n:i+1,ym:y+'-'+String(m+1).padStart(2,'0'),label:_FIN_MAB[m]+'/'+String(y).slice(2)});d.setMonth(d.getMonth()+1);}
+  return out;
+}
+function _finPago(c,n){var pg=(c.pagamentos||{})[n];return (pg&&(pg.date||pg.dateBR||pg.value!=null))?pg:null;}
+function _finFimDate(c){var ps=c.payStart||c.startDate;var n=parseInt(c.parcelas)||0;if(!ps||n<=0)return null;var d=new Date(ps+'T12:00:00');if(isNaN(d))return null;d.setMonth(d.getMonth()+n);return d;}
+function finMarkParcela(cid,n){
+  var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;
+  var sug=(c.pagamentos&&c.pagamentos[n]&&c.pagamentos[n].value)||((c.contractValue&&parseInt(c.parcelas))?(_parseMoney(c.contractValue)/parseInt(c.parcelas)).toFixed(2).replace('.',','):'');
+  var v=prompt('💰 Valor pago na parcela '+n+' (R$):',sug);if(v===null)return;
+  var hj=new Date();var hojeBR=String(hj.getDate()).padStart(2,'0')+'/'+String(hj.getMonth()+1).padStart(2,'0')+'/'+hj.getFullYear();
+  var dt=prompt('📅 Data do pagamento (dd/mm/aaaa):',(c.pagamentos&&c.pagamentos[n]&&c.pagamentos[n].dateBR)||hojeBR);if(dt===null)return;
+  if(!c.pagamentos)c.pagamentos={};
+  c.pagamentos[n]={value:(''+v).trim(),dateBR:(''+dt).trim(),at:Date.now(),by:(S.currentUser&&S.currentUser.name)||''};
+  save();if(typeof toast==='function')toast('✅ Parcela '+n+' marcada como paga');render();
+}
+function finClearParcela(cid,n){var c=D.clients.find(function(x){return x.id===cid;});if(!c||!c.pagamentos||!c.pagamentos[n])return;if(!confirm('Desmarcar a parcela '+n+' (tirar o pago)?'))return;delete c.pagamentos[n];save();render();}
+function _finVencendoCard(){
+  var hoje=new Date();hoje.setHours(0,0,0,0);
+  var brl=function(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var lista=D.clients.filter(function(c){return c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado';}).map(function(c){
+    var fim=_finFimDate(c);if(!fim)return null;
+    var dias=Math.round((fim-hoje)/86400000);
+    if(dias>30)return null; // só mostra vencendo/vencido (até 30 dias)
+    return {c:c,dias:dias,fim:fim};
+  }).filter(Boolean).sort(function(a,b){return a.dias-b.dias;});
+  if(!lista.length)return '<div class="card" style="border:1px solid #BBF7D0;margin-bottom:16px"><div class="cb" style="padding:12px 16px;color:#166534;font-size:13px">✅ Nenhum contrato vencendo nos próximos 30 dias.</div></div>';
+  var chips=lista.map(function(x){
+    var venc=x.dias<0;var cor=venc?'#DC2626':'#D97706';var bg=venc?'#FEF2F2':'#FFFBEB';var bd=venc?'#FCA5A5':'#FCD34D';
+    var txt=venc?('venceu há '+Math.abs(x.dias)+' dia'+(Math.abs(x.dias)===1?'':'s')):(x.dias===0?'vence hoje':'vence em '+x.dias+' dia'+(x.dias===1?'':'s'));
+    return '<div onclick="nav(\'clients\',{clientId:\''+x.c.id+'\',tab:\'contrato\'})" style="cursor:pointer;border:1px solid '+bd+';background:'+bg+';border-radius:10px;padding:10px 14px;min-width:210px"><div style="font-weight:700">'+escH(x.c.name)+'</div><div style="font-size:12px;color:'+cor+';font-weight:700">'+txt+'</div><div style="font-size:11px;color:var(--muted)">Renovar ou finalizar →</div></div>';
+  }).join('');
+  return '<div class="card" style="border:2px solid #DC2626;margin-bottom:16px"><div class="ch" style="background:#FEE2E2"><h3 style="color:#991B1B">🔴 Contratos vencendo — precisam de atenção</h3><span class="note" style="color:#991B1B;font-size:11px">'+lista.length+' contrato(s)</span></div><div class="cb" style="display:flex;gap:12px;flex-wrap:wrap">'+chips+'</div></div>';
+}
+function _finPagamentosCard(){
+  var brl=function(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var now=new Date();var nowYm=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  var clientes=D.clients.filter(function(c){return c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado'&&_finParcelas(c).length;})
+    .sort(function(a,b){return (''+a.name).localeCompare(''+b.name);});
+  var sqCss='width:52px;height:30px;border-radius:7px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin:2px;cursor:pointer;position:relative';
+  var rows=clientes.map(function(c){
+    var arr=_finParcelas(c);var pagas=0,pagoTot=0;
+    var strip=arr.map(function(p){
+      var pg=_finPago(c,p.n);
+      if(pg){pagas++;pagoTot+=_parseMoney(pg.value);
+        return '<span onclick="finClearParcela(\''+c.id+'\','+p.n+')" title="'+brl(_parseMoney(pg.value))+' · '+escH(pg.dateBR||'')+' — clique p/ desmarcar" style="'+sqCss+';background:#DCFCE7;color:#166534;border:1px solid #86EFAC">'+p.label+'<span style="position:absolute;top:-5px;right:-4px;background:#16A34A;color:#fff;border-radius:50%;width:13px;height:13px;font-size:9px;display:flex;align-items:center;justify-content:center">✓</span></span>';}
+      var atrasoOuVence=p.ym<=nowYm;
+      var st=atrasoOuVence?'background:#FEF3C7;color:#92400E;border:1px solid #FCD34D':'background:#F8FAFC;color:#94A3B8;border:1px dashed #E2E8F0';
+      return '<span onclick="finMarkParcela(\''+c.id+'\','+p.n+')" title="clique p/ marcar como pago" style="'+sqCss+';'+st+'">'+p.label+'</span>';
+    }).join('');
+    var faltam=arr.length-pagas;var tot=_parseMoney(c.contractValue);
+    return '<tr>'
+      +'<td style="padding:9px 12px;border-top:1px solid #F1F5F9"><div style="font-weight:700">'+escH(c.name)+'</div><div style="font-size:11px;color:var(--muted)">'+arr.length+' parcelas'+(c.paymentMethod?' · '+escH(c.paymentMethod):'')+'</div></td>'
+      +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9;font-size:12px;white-space:nowrap">'+(arr[0]?arr[0].label:'—')+'</td>'
+      +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9"><div style="display:flex;flex-wrap:wrap;max-width:720px">'+strip+'</div></td>'
+      +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;font-size:12px;white-space:nowrap;text-align:right">'+(tot?'<div style="color:#16A34A;font-weight:600">'+brl(pagoTot)+'</div><div style="color:var(--muted)">de '+brl(tot)+'</div>':'—')+'</td>'
+      +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;text-align:center"><span style="font-size:16px;font-weight:800;color:'+(faltam===0?'#16A34A':'#0D3D9B')+'">'+faltam+'</span></td>'
+      +'</tr>';
+  }).join('');
+  var body=clientes.length?('<div class="tw" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
+    +'<thead><tr>'+['Cliente','Início','Parcelas (mês a mês — clique p/ marcar pago)','Pago','Faltam'].map(function(h,i){return '<th style="text-align:'+(i>=3?(i===3?'right':'center'):'left')+';padding:8px 12px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B;text-transform:uppercase">'+h+'</th>';}).join('')+'</tr></thead>'
+    +'<tbody>'+rows+'</tbody></table></div>'
+    +'<div class="note" style="margin-top:10px;padding:0 4px">🟩 pago · 🟨 vence/atrasado (clique p/ registrar valor e data) · ⬜ a vencer. O verde só aparece quando a Fernanda marca o pagamento.</div>')
+    :'<div class="cb" style="padding:20px;color:var(--muted);font-size:13px">Nenhum cliente com parcelas definidas ainda. Vá em <b>um cliente → aba Contrato</b> e preencha <b>Início do pagamento</b> e <b>Nº de parcelas</b> para o controle aparecer aqui.</div>';
+  return '<div class="card" style="margin-bottom:16px"><div class="ch"><h3>📊 Controle de pagamentos por cliente</h3><span class="note" style="font-size:11px">'+clientes.length+' clientes</span></div>'+body+'</div>';
+}
 
 function rDash(){
   const ativos=D.clients.filter(c=>c.contractStatus==='ativo');
@@ -1703,7 +1792,7 @@ function rComissoes(){
       +'<td style="'+tdb+';text-align:center"><input type="date" value="'+(i.faturadoData||'')+'" onchange="setFaturadoData(\''+i.cid+'\',\''+i.pid+'\',this.value)" style="padding:4px 6px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px"></td>'
       +'</tr>';
   }).join('');
-  return '<div class="sh" style="margin-bottom:14px"><h2>🤝 Comissões</h2></div>'
+  return '<div class="sh" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h2>🤝 Comissões</h2><button class="btn btn-p btn-s" style="background:#16A34A" onclick="comExportMes()">📄 Exportar relatório do mês</button></div>'
     +'<div style="font-size:12px;color:var(--muted);margin-bottom:14px">Aparecem só os clientes marcados com <b>comissão</b> no cadastro (aba Contrato). A comissão é <b>valor-base × %</b> por fechamento. Marque o que já foi <b>faturado</b> e registre a <b>data do faturamento</b>.</div>'
     +'<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">'
     +'<div class="res-card"><div class="res-num" style="color:#0D3D9B">'+comAll.length+'</div><div class="res-lbl">Com comissão '+(fMes==='todos'?'':'('+fMes+')')+'</div></div>'
@@ -3163,6 +3252,29 @@ function contTogglePublished(cid,cardId){
   var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
   card.published=!card.published;save();if(typeof toast==='function')toast(card.published?'✅ Marcado como publicado':'Desmarcado');render();
 }
+function comExportMes(){
+  var ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var mkOf=function(ds){if(!ds)return'';var d=new Date(ds+'T12:00:00');return isNaN(d)?'':ptM[d.getMonth()]+' '+d.getFullYear();};
+  var fd=function(ds){if(!ds)return'—';var d=new Date(ds+'T12:00:00');return isNaN(d)?ds:d.toLocaleDateString('pt-BR');};
+  var money=function(v){return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var alvo=(S.comMonth&&S.comMonth!=='todos')?S.comMonth:null;
+  var items=[];
+  D.clients.forEach(function(c){if(c.contractStatus==='inativo'||!c.comissaoAplica)return;
+    var valorBase=_parseMoney(c.comissaoValor||c.contractValue);var pct=(c.comissaoPct!=null&&c.comissaoPct!=='')?Number(c.comissaoPct):null;
+    (c.prospects||[]).forEach(function(p){if(!p.contractClosed)return;var mk=mkOf(p.closedDate||p.date);if(alvo&&mk!==alvo)return;
+      items.push({client:c.name,vend:(c.assignees||[])[0]||'—',lead:p.name||'—',valorBase:valorBase,pct:pct,com:(valorBase!=null&&pct!=null)?valorBase*pct/100:0,closed:fd(p.closedDate||p.date),fat:!!p.faturado,mk:mk});});
+  });
+  items.sort(function(a,b){return (''+b.closed).localeCompare(''+a.closed);});
+  var tot=items.reduce(function(s,i){return s+i.com;},0);
+  var e=function(s){return (''+s).replace(/[&<>]/g,function(x){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[x];});};
+  var w=window.open('','_blank');if(!w){toast('Permita pop-ups para exportar.');return;}
+  var rows=items.map(function(i){return '<tr><td>'+e(i.client)+'</td><td>'+e(i.vend)+'</td><td>'+e(i.lead)+'</td><td style="text-align:right">'+money(i.valorBase||0)+'</td><td style="text-align:center">'+(i.pct!=null?i.pct+'%':'—')+'</td><td style="text-align:right;font-weight:700">'+money(i.com)+'</td><td>'+e(i.closed)+'</td><td style="text-align:center">'+(i.fat?'✅':'⏳')+'</td></tr>';}).join('');
+  w.document.write('<html><head><meta charset="utf-8"><title>Comissões — '+e(alvo||'Todos os meses')+'</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:30px auto;padding:0 20px;color:#1a1a1a}h1{font-size:20px}table{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px}th,td{border-bottom:1px solid #ddd;padding:7px 8px;text-align:left}th{background:#F1F5F9;font-size:11px;text-transform:uppercase}.tot{font-size:16px;font-weight:800;color:#16A34A;margin-top:16px;text-align:right}</style></head><body>'
+    +'<h1>🤝 Relatório de Comissões — '+e(alvo||'Todos os meses')+'</h1><div style="color:#666;font-size:12px">ALL IN · gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'
+    +'<table><thead><tr><th>Cliente</th><th>Vendedor(a)</th><th>Lead</th><th>Valor-base</th><th>%</th><th>Comissão</th><th>Fechamento</th><th>Fat.</th></tr></thead><tbody>'+(rows||'<tr><td colspan="8" style="text-align:center;color:#999;padding:20px">Sem comissões neste mês.</td></tr>')+'</tbody></table>'
+    +'<div class="tot">Total de comissões: '+money(tot)+'</div></body></html>');
+  w.document.close();setTimeout(function(){try{w.print();}catch(_e){}},350);
+}
 function rDetail(){
   const c=getC();if(!c)return'';
   const p=prog(c);
@@ -3546,6 +3658,8 @@ function rDetail(){
         <div class="fg"><label>Data de início do contrato</label><input id="ct-sd" type="date" value="${c.startDate||''}" onchange="setContractDate('${c.id}','startDate',this.value)"></div>
         <div class="fg"><label>Data de início da prospecção</label><input id="ct-prosp" type="date" value="${c.prospectionStart||''}" onchange="_setVencFromProsp('ct-prosp','ct-cd',12);setContractDate('${c.id}','prospectionStart',this.value);setContractDate('${c.id}','contractDue',(document.getElementById('ct-cd')||{}).value)"></div>
         ${_fin?`<div class="fg"><label>Valor do Contrato 🔒</label><input id="ct-val" placeholder="R$ 0,00" value="${c.contractValue||''}"></div>
+        <div class="fg"><label>💳 Início do pagamento <span style="font-weight:400;text-transform:none;color:var(--muted)">(gera as parcelas)</span></label><input id="ct-paystart" type="date" value="${c.payStart||c.startDate||''}"></div>
+        <div class="fg"><label>🔢 Nº de parcelas <span style="font-weight:400;text-transform:none;color:var(--muted)">(mensais)</span></label><input id="ct-parcelas" type="number" min="0" placeholder="ex: 12" value="${c.parcelas||''}"></div>
         <div class="fg"><label>Forma de Pagamento 🔒</label>
           <select id="ct-pm">
             <option value="">— Selecionar —</option>
@@ -5673,6 +5787,8 @@ function saveContrato(cid){
   c.startDate=$('ct-sd').value;
   if($('ct-prosp'))c.prospectionStart=$('ct-prosp').value;
   if($('ct-val'))c.contractValue=$('ct-val').value;
+  if($('ct-paystart'))c.payStart=$('ct-paystart').value;
+  if($('ct-parcelas')){var _pc=parseInt($('ct-parcelas').value);c.parcelas=isNaN(_pc)?'':_pc;}
   if($('ct-pm'))c.paymentMethod=$('ct-pm').value;
   if($('ct-ps'))c.paymentStatus=$('ct-ps').value;
   if($('ct-com-aplica'))c.comissaoAplica=$('ct-com-aplica').checked;
@@ -8424,7 +8540,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080448; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080449; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
