@@ -4515,6 +4515,7 @@ function rMinhaSemanaGestao(user){
 
     // Meta de leads
     +rLeadGoalEquipe(S.gestaoFilterMonth)
+    +_leadRangeReport()
 
     // Performance da equipe (recolhível)
     +'<details class="card" style="margin-bottom:20px" open>'
@@ -4575,6 +4576,50 @@ function rMinhaSemanaGestao(user){
     +'<div>'+alertsHtml+'</div></div>';
 }
 
+function _leadRangeData(from,to){
+  var sellers={};
+  D.clients.forEach(function(c){
+    if(c.contractStatus==='inativo')return;
+    var ss=(c.assignees||[])[0]||'— sem vendedor —';
+    (c.prospects||[]).forEach(function(p){
+      if(!p.date||p.date<from||p.date>to)return;
+      var b=sellers[ss]||(sellers[ss]={ss:ss,leads:0,resp:0,reun:0,fech:0});
+      b.leads++;if(p.replied)b.resp++;if(p.hadMeeting)b.reun++;if(p.contractClosed)b.fech++;
+    });
+  });
+  var rows=Object.keys(sellers).map(function(k){return sellers[k];}).sort(function(a,b){return b.leads-a.leads;});
+  var tot={leads:0,resp:0,reun:0,fech:0};rows.forEach(function(r){tot.leads+=r.leads;tot.resp+=r.resp;tot.reun+=r.reun;tot.fech+=r.fech;});
+  return {rows:rows,tot:tot};
+}
+function _leadRangeDefaults(){var today=new Date();var to=today.toISOString().slice(0,10);var d=new Date(today);d.setDate(d.getDate()-30);return {from:d.toISOString().slice(0,10),to:to};}
+function _leadRangeReport(){
+  var dd=_leadRangeDefaults();var from=S.leadRepFrom||dd.from,to=S.leadRepTo||dd.to;
+  var data=_leadRangeData(from,to);
+  var rows=data.rows.map(function(r){return '<tr><td style="padding:8px 12px;border-top:1px solid #F1F5F9;font-weight:600">'+escH(r.ss)+'</td>'
+    +'<td style="padding:8px 12px;border-top:1px solid #F1F5F9;text-align:center;font-weight:800;color:#0D3D9B">'+r.leads+'</td>'
+    +'<td style="padding:8px 12px;border-top:1px solid #F1F5F9;text-align:center">'+r.resp+'</td>'
+    +'<td style="padding:8px 12px;border-top:1px solid #F1F5F9;text-align:center">'+r.reun+'</td>'
+    +'<td style="padding:8px 12px;border-top:1px solid #F1F5F9;text-align:center;color:#16A34A;font-weight:700">'+r.fech+'</td></tr>';}).join('');
+  var totalRow='<tr style="background:#F8FAFC"><td style="padding:8px 12px;font-weight:800">TOTAL</td><td style="padding:8px 12px;text-align:center;font-weight:800;color:#0D3D9B">'+data.tot.leads+'</td><td style="padding:8px 12px;text-align:center;font-weight:700">'+data.tot.resp+'</td><td style="padding:8px 12px;text-align:center;font-weight:700">'+data.tot.reun+'</td><td style="padding:8px 12px;text-align:center;font-weight:800;color:#16A34A">'+data.tot.fech+'</td></tr>';
+  return '<div class="card" style="margin-bottom:20px">'
+    +'<div class="ch" style="background:linear-gradient(135deg,#0D3D9B,#0891B2);flex-wrap:wrap;gap:10px"><h3 style="color:#fff;margin:0">📊 Relatório de Leads — período</h3>'
+    +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="font-size:11px;color:rgba(255,255,255,.85)">De</span><input type="date" value="'+from+'" onchange="S.leadRepFrom=this.value;render()" style="padding:5px 8px;border:none;border-radius:7px;font-size:12px"><span style="font-size:11px;color:rgba(255,255,255,.85)">até</span><input type="date" value="'+to+'" onchange="S.leadRepTo=this.value;render()" style="padding:5px 8px;border:none;border-radius:7px;font-size:12px"><button class="btn btn-s" style="background:#fff;color:#0D3D9B;border:none;font-weight:700" onclick="leadRangePrint()">📄 Exportar</button></div></div>'
+    +'<div class="cb"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Leads gerados por Social Seller de <b>'+_finBR(new Date(from+'T12:00:00'))+'</b> a <b>'+_finBR(new Date(to+'T12:00:00'))+'</b> (o time todo).</div>'
+    +'<div class="tw" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>'+['Social Seller','Leads','Responderam','Reuniões','Fechamentos'].map(function(h,i){return '<th style="text-align:'+(i===0?'left':'center')+';padding:8px 12px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B;text-transform:uppercase">'+h+'</th>';}).join('')+'</tr></thead>'
+    +'<tbody>'+(rows||'<tr><td colspan="5" style="padding:20px;text-align:center;color:#94A3B8">Nenhum lead cadastrado neste período.</td></tr>')+totalRow+'</tbody></table></div></div></div>';
+}
+function leadRangePrint(){
+  var dd=_leadRangeDefaults();var from=S.leadRepFrom||dd.from,to=S.leadRepTo||dd.to;
+  var data=_leadRangeData(from,to);
+  var e=function(s){return (''+s).replace(/[&<>]/g,function(x){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[x];});};
+  var w=window.open('','_blank');if(!w){if(typeof toast==='function')toast('Permita pop-ups para exportar.');return;}
+  var rows=data.rows.map(function(r){return '<tr><td>'+e(r.ss)+'</td><td style="text-align:center">'+r.leads+'</td><td style="text-align:center">'+r.resp+'</td><td style="text-align:center">'+r.reun+'</td><td style="text-align:center">'+r.fech+'</td></tr>';}).join('');
+  w.document.write('<html><head><meta charset="utf-8"><title>Relatório de Leads</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:30px auto;padding:0 20px;color:#1a1a1a}h1{font-size:20px}table{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px}th,td{border-bottom:1px solid #ddd;padding:8px}th{background:#F1F5F9;font-size:11px;text-transform:uppercase}tr.tot td{font-weight:800;border-top:2px solid #333}</style></head><body>'
+    +'<h1>📊 Relatório de Leads por período</h1><div style="color:#666;font-size:12px">ALL IN · '+e(_finBR(new Date(from+"T12:00:00")))+' a '+e(_finBR(new Date(to+"T12:00:00")))+' · gerado em '+new Date().toLocaleDateString("pt-BR")+'</div>'
+    +'<table><thead><tr><th>Social Seller</th><th>Leads</th><th>Responderam</th><th>Reuniões</th><th>Fechamentos</th></tr></thead><tbody>'+rows
+    +'<tr class="tot"><td>TOTAL</td><td style="text-align:center">'+data.tot.leads+'</td><td style="text-align:center">'+data.tot.resp+'</td><td style="text-align:center">'+data.tot.reun+'</td><td style="text-align:center">'+data.tot.fech+'</td></tr></tbody></table></body></html>');
+  w.document.close();setTimeout(function(){try{w.print();}catch(_e){}},350);
+}
 function rLeadGoalEquipe(monthKey){
   const sellers=D.team.filter(m=>(/social sell/i.test(m.role||'')||m.role==='Assistente')&&_memberActive(m));
   const _ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -8565,7 +8610,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080452; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080453; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
