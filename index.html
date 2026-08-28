@@ -4583,9 +4583,15 @@ function _leadRangeData(from,to,ssFilter){
     var ss=(c.assignees||[])[0]||'— sem vendedor —';
     if(ssFilter&&ssFilter!=='todos'&&ss!==ssFilter)return;
     (c.prospects||[]).forEach(function(p){
-      if(!p.date||p.date<from||p.date>to)return;
+      // Leads / responderam / reuniões: contam pela data de ENTRADA do lead
+      var inLead=p.date&&p.date>=from&&p.date<=to;
+      // Fechamento: conta pela DATA DO FECHAMENTO (closedDate), não pela do lead
+      var cd=p.closedDate||p.date;
+      var inFech=p.contractClosed&&cd&&cd>=from&&cd<=to;
+      if(!inLead&&!inFech)return;
       var b=sellers[ss]||(sellers[ss]={ss:ss,leads:0,resp:0,reun:0,fech:0});
-      b.leads++;if(p.replied)b.resp++;if(p.hadMeeting)b.reun++;if(p.contractClosed)b.fech++;
+      if(inLead){b.leads++;if(p.replied)b.resp++;if(p.hadMeeting)b.reun++;}
+      if(inFech)b.fech++;
     });
   });
   var rows=Object.keys(sellers).map(function(k){return sellers[k];}).sort(function(a,b){return b.leads-a.leads;});
@@ -8614,7 +8620,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080454; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080455; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
