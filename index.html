@@ -1072,6 +1072,7 @@ function rFinanceiro(){
   return '<div style="margin-bottom:12px"><h2 style="font-size:18px;margin:0">💰 Financeiro</h2><div style="font-size:12px;color:var(--muted)">Pagamentos por cliente, contratos e metas · Gestão e Financeiro</div></div>'
     +_finVencendoCard()
     +_finPagamentosCard()
+    +_finArtesCard()
     +'<div class="card" style="margin-bottom:16px"><div class="ch"><h3>📈 Faturamento do mês</h3></div><div class="cb">'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-right:4px;align-self:center">Mês:</span>'+chips+'</div>'
     +'<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div class="fg" style="max-width:220px;margin:0"><label>Faturamento em '+mk+' (R$)</label><input type="text" id="fin-rev" value="'+(f.revenue[mk]||'')+'" placeholder="Ex: 72.000,00"></div>'
@@ -1087,6 +1088,44 @@ function rFinanceiro(){
     +'<div style="font-size:11px;color:var(--muted);margin-top:4px">A bonificação corporativa será distribuída entre os ativos no mês (sem ausências superiores a 1 dia).</div></div></div>'
     +'<div class="card" style="margin-bottom:16px"><div class="ch"><h3>🎚️ Metas corporativas</h3></div><div class="cb"><div class="tw"><table><thead><tr><th></th><th style="text-align:left">Faturamento / mês (R$)</th><th style="text-align:left">Valor a distribuir (R$)</th></tr></thead><tbody>'+metaRows+'</tbody></table></div>'
     +'<button class="btn btn-o btn-s" style="margin-top:10px" onclick="saveFinanceMetas()">💾 Salvar metas</button></div></div>';
+}
+// ── Card de artes no Financeiro: Título · Cliente · Tipo · Valor (por período) ──
+function _finArtesCard(){
+  var money=function(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var fd=function(ts){var d=new Date(ts);return isNaN(d)?'—':d.toLocaleDateString('pt-BR');};
+  var log=(D.artLog||[]).slice();
+  var _cardCreated={};(D.clients||[]).forEach(function(c){(_conteudos(c).cards||[]).forEach(function(k){if(k&&k.id&&k.createdAt){var t=new Date(k.createdAt).getTime();if(t)_cardCreated[k.id]=t;}});});
+  var bd=function(l){if(l.reqAt)return l.reqAt;if(l.cardId&&_cardCreated[l.cardId])return _cardCreated[l.cardId];return l.at;};
+  var deTs=S.pagArtDe?(new Date(S.pagArtDe+'T00:00:00').getTime()||null):null;
+  var ateTs=S.pagArtAte?(new Date(S.pagArtAte+'T23:59:59').getTime()||null):null;
+  var rangeOn=(deTs!=null||ateTs!=null);
+  var list=log.filter(function(l){if(deTs!=null&&bd(l)<deTs)return false;if(ateTs!=null&&bd(l)>ateTs)return false;return true;}).sort(function(a,b){return bd(b)-bd(a);});
+  var periodoLbl=rangeOn?((S.pagArtDe?fd(deTs):'início')+' a '+(S.pagArtAte?fd(ateTs):'hoje')):'todas as artes';
+  var tipoLbl=function(l){return _artEhCarrossel(l)?('Carrossel'+(l.qty?' ('+l.qty+' imgs)':'')):(l.formato||'Arte única');};
+  var total=0;var byDes={};
+  var rows=list.map(function(l){var v=_artValor(l);total+=v;
+    var dn=l.by||'(sem designer)';var g=byDes[dn]=byDes[dn]||{rows:[],sub:0};
+    g.rows.push([fd(bd(l)),l.client||'',l.cardTitle||'',tipoLbl(l),l.requestedBy||'',money(v)]);g.sub+=v;
+    return '<tr style="border-top:1px solid #F1F5F9"><td style="padding:7px 8px;font-size:12px">'+escH(l.cardTitle||'(sem título)')+'</td>'
+      +'<td style="padding:7px 8px;font-size:12px">'+escH(l.client||'')+'</td>'
+      +'<td style="padding:7px 8px;font-size:11px;color:#64748B;white-space:nowrap">'+escH(tipoLbl(l))+' · '+escH(l.by||'')+'</td>'
+      +'<td style="padding:7px 8px;font-size:12px;text-align:right;font-weight:700;color:#16A34A;white-space:nowrap">'+money(v)+'</td></tr>';}).join('');
+  window._pagArtPrint={periodo:periodoLbl,total:money(total),designers:Object.keys(byDes).sort().map(function(n){return {n:n,sub:money(byDes[n].sub),count:byDes[n].rows.length,rows:byDes[n].rows};})};
+  var deVal=S.pagArtDe||'';var ateVal=S.pagArtAte||'';
+  var periodUI='<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">'
+    +'<div><div style="font-size:10px;color:var(--muted);margin-bottom:3px">De</div><input type="date" value="'+deVal+'" onchange="S.pagArtDe=this.value;render()" style="padding:8px 10px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px"></div>'
+    +'<div><div style="font-size:10px;color:var(--muted);margin-bottom:3px">Até</div><input type="date" value="'+ateVal+'" onchange="S.pagArtAte=this.value;render()" style="padding:8px 10px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px"></div>'
+    +(rangeOn?'<button onclick="S.pagArtDe=\'\';S.pagArtAte=\'\';render()" style="padding:8px 12px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;color:#64748B;font-size:12px;cursor:pointer">✕ Limpar</button>':'')
+    +'<button onclick="pagArtPrint()" style="padding:8px 14px;border:none;border-radius:8px;background:#16A34A;color:#fff;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto">📄 Exportar</button>'
+    +'</div>';
+  var tabela=list.length?('<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>'
+    +['Título da arte','Cliente','Tipo · Designer','Valor'].map(function(h,i){return '<th style="text-align:'+(i===3?'right':'left')+';padding:6px 8px;font-size:10px;color:#94A3B8;text-transform:uppercase;border-bottom:2px solid #E5E7EB;white-space:nowrap">'+h+'</th>';}).join('')
+    +'</tr></thead><tbody>'+rows+'</tbody>'
+    +'<tfoot><tr><td colspan="3" style="padding:9px 8px;text-align:right;font-weight:800;color:#1E293B">Total do período</td><td style="padding:9px 8px;text-align:right;font-weight:900;color:#16A34A">'+money(total)+'</td></tr></tfoot>'
+    +'</table></div>'):'<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">Nenhuma arte registrada neste período. As artes aparecem aqui automaticamente quando o designer as sobe no sistema.</div>';
+  return '<div class="card" style="margin-bottom:16px"><div class="ch" style="background:linear-gradient(135deg,#16A34A,#0D9488)"><h3 style="color:white;margin:0">🎨 Artes — pagamento aos designers</h3><span style="font-size:11px;color:rgba(255,255,255,.9)">'+list.length+' arte(s) · '+money(total)+'</span></div>'
+    +'<div class="cb"><div style="font-size:11px;color:var(--muted);margin-bottom:10px">Valor calculado pelo tipo (carrossel / arte única) e conta pela data em que a arte foi <strong>solicitada</strong>. Selecione o período que a Mari vai pagar:</div>'
+    +periodUI+tabela+'</div></div>';
 }
 function _regrasCard(){
   var f=_finance();
@@ -8724,7 +8763,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080465; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080466; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
