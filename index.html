@@ -2272,6 +2272,7 @@ function _contCard(c,card){
     +((fmtBadge||designerBadge||badge||rede)?'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px">'+fmtBadge+designerBadge+badge+(rede?'<span style="font-size:11px;color:#64748B">'+rede+'</span>':'')+'</div>':'')
     +(link?'<div style="margin-top:7px"><a href="'+escH(link)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">🔗 Abrir material</a></div>':'')
     +(function(){var im=_cardImgs(card);if(!im.length)return '';return '<div style="margin-top:8px;position:relative"><img src="'+escH(im[0].url||im[0].bg||'')+'" onclick="contArteView(\''+c.id+'\',\''+card.id+'\')" style="width:100%;max-height:300px;object-fit:contain;border-radius:8px;cursor:pointer;display:block;border:1px solid #EEE;background:#F8FAFC" title="Ver arte">'+(im.length>1?'<span style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:2px 8px">📚 '+im.length+'</span>':'')+'</div>';})()
+    +((card.arquivos&&card.arquivos.length)?'<div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:6px">'+card.arquivos.map(function(f){return '<a href="'+escH(f.url)+'" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:#B91C1C;text-decoration:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:7px;padding:3px 9px;font-weight:600">📄 '+escH((''+(f.name||'PDF')).slice(0,24))+'</a>';}).join('')+'</div>':'')
     +(card.caption?'<div onclick="contAIViewLegenda(\''+c.id+'\',\''+card.id+'\')" style="margin-top:7px;font-size:11px;color:#7C3AED;cursor:pointer;text-decoration:underline" title="Ver a legenda salva">📝 ver legenda salva</div>':'')
     +'<div style="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:4px;margin-top:10px;padding-top:8px;border-top:1px solid #F1F5F9">'
     +'<button class="btn btn-s" style="font-size:11px;padding:3px 9px;background:linear-gradient(135deg,#7C3AED,#0D3D9B);color:#fff;border:none" title="Gerar legenda com a IA" onclick="contAIPreGen(\''+c.id+'\',\'legenda\',\''+card.id+'\')">✨ Legenda</button>'
@@ -2328,8 +2329,10 @@ function _contPubCols(c,cards){
   var keys=Object.keys(byM);
   var curMk=getMonthKey(new Date());
   if(keys.indexOf(curMk)<0){keys.push(curMk);byM[curMk]=[];}
+  (_conteudos(c).extraMonths||[]).forEach(function(mk){if(keys.indexOf(mk)<0){keys.push(mk);byM[mk]=byM[mk]||[];}});
   keys.sort(function(a,b){return _pubMonthRank(b)-_pubMonthRank(a);});
   var meta=_contStMeta('publicado');
+  var addBtn='<div onclick="contAddMonth(\''+c.id+'\')" title="Criar a coluna do próximo mês" style="cursor:pointer;min-width:140px;max-width:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:2px dashed #CBD5E1;border-radius:12px;padding:12px;color:#64748B;font-size:13px;font-weight:700;background:#fff;align-self:stretch">＋<span>novo mês</span></div>';
   return keys.map(function(mk){
     var list=(byM[mk]||[]).slice().sort(function(a,b){return (''+(b.date||'')).localeCompare(''+(a.date||''));});
     var dISO=_monthKeyToDateISO(mk);
@@ -2339,7 +2342,20 @@ function _contPubCols(c,cards){
       +'style="flex:1;min-width:210px;max-width:280px;background:#F8FAFC;border-radius:12px;padding:12px;transition:background .15s">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12px;font-weight:700;color:'+meta[2]+'">📢 '+escH(mk)+' <span style="color:#94A3B8">('+list.length+')</span></span></div>'
       +body+'</div>';
-  }).join('');
+  }).join('')+addBtn;
+}
+function contAddMonth(cid){
+  var c=_findClient(cid);if(!c)return;var co=_conteudos(c);
+  if(!Array.isArray(co.extraMonths))co.extraMonths=[];
+  var present={};(co.cards||[]).forEach(function(k){if((k.status||'')==='publicado')present[_pubMonthKey(k)]=1;});
+  present[getMonthKey(new Date())]=1;co.extraMonths.forEach(function(m){present[m]=1;});
+  var ms=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var maxRank=-999,maxMk=getMonthKey(new Date());
+  Object.keys(present).forEach(function(m){var r=_pubMonthRank(m);if(r>maxRank){maxRank=r;maxMk=m;}});
+  var p=(''+maxMk).split(' ');var mi=ms.indexOf(p[0]);var y=parseInt(p[1]);mi++;if(mi>11){mi=0;y++;}
+  var novo=ms[mi]+' '+y;
+  if(co.extraMonths.indexOf(novo)<0&&!present[novo]){co.extraMonths.push(novo);if(typeof toast==='function')toast('📅 Mês criado: '+novo);}
+  save();render();
 }
 function contDropPubMonth(ev,cid,dISO){
   ev.preventDefault();var d=_contDrag;_contDrag=null;if(!d||d.cid!==cid)return;
@@ -3218,8 +3234,8 @@ function contArteAdd(cid,cardId,by){
     +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🖼️ Subir arte — '+escH(card.title||'')+'</h3><button onclick="document.getElementById(\'arte-add\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
     +'<div style="padding:20px;display:flex;flex-direction:column;gap:12px">'
     +'<div id="arte-drop" style="border:2px dashed #93C5FD;border-radius:12px;padding:28px 16px;text-align:center;cursor:pointer;background:#F5FAFF;transition:background .15s">'
-    +'<div style="font-size:34px">📤</div><div style="font-size:14px;font-weight:600;color:#0D3D9B;margin-top:6px">Arraste a arte aqui</div><div style="font-size:12px;color:#64748B;margin-top:2px">ou clique para escolher · carrossel: solte várias</div></div>'
-    +'<input type="file" id="arte-add-file" accept="image/*" multiple style="display:none">'
+    +'<div style="font-size:34px">📤</div><div style="font-size:14px;font-weight:600;color:#0D3D9B;margin-top:6px">Arraste a arte ou o PDF aqui</div><div style="font-size:12px;color:#64748B;margin-top:2px">ou clique para escolher · carrossel: solte várias · aceita PDF</div></div>'
+    +'<input type="file" id="arte-add-file" accept="image/*,application/pdf" multiple style="display:none">'
     +'<div id="arte-add-status" style="font-size:12px;color:#0891B2"></div>'
     +'<div id="arte-add-thumbs" style="display:flex;gap:8px;flex-wrap:wrap"></div>'
     +'</div>'
@@ -3229,6 +3245,7 @@ function contArteAdd(cid,cardId,by){
   document.body.appendChild(ov);
   ov._pending=_cardImgs(card).map(function(x){return x.url||x.bg||'';}).filter(Boolean);
   ov._added=0;
+  ov._files=(card.arquivos||[]).slice();
   _arteAddRenderThumbs();
   var drop=document.getElementById('arte-drop');var fi=document.getElementById('arte-add-file');
   drop.onclick=function(){fi.click();};
@@ -3237,26 +3254,47 @@ function contArteAdd(cid,cardId,by){
   drop.ondragleave=function(){drop.style.background='#F5FAFF';};
   drop.ondrop=function(e){e.preventDefault();drop.style.background='#F5FAFF';_arteAddFiles(e.dataTransfer.files);};
 }
+function _arteUploadPdf(file){
+  return new Promise(function(resolve,reject){
+    if(typeof _fbStorage==='undefined'||!_fbStorage){reject(new Error('armazenamento de arquivos indisponível'));return;}
+    if(file.size>50*1024*1024){reject(new Error('PDF acima de 50 MB'));return;}
+    var safe=function(s){return (''+s).replace(/[^a-zA-Z0-9._-]/g,'_');};
+    var ref=_fbStorage.ref().child('conteudos/pdf/'+Date.now()+'_'+safe(file.name));
+    ref.put(file).then(function(){return ref.getDownloadURL();}).then(function(url){resolve({name:file.name,url:url});}).catch(reject);
+  });
+}
 function _arteAddFiles(fileList){
-  var files=Array.prototype.slice.call(fileList||[]).filter(function(f){return /image\//.test(f.type);});
-  if(!files.length)return;
+  var all=Array.prototype.slice.call(fileList||[]);
+  var imgs=all.filter(function(f){return /image\//.test(f.type);});
+  var pdfs=all.filter(function(f){return /pdf/.test(f.type||'')||/\.pdf$/i.test(f.name||'');});
+  if(!imgs.length&&!pdfs.length)return;
   var ov=document.getElementById('arte-add');if(!ov)return;var st=document.getElementById('arte-add-status');var btn=document.getElementById('arte-add-btn');
-  if(btn)btn.disabled=true;var i=0;
-  var nxt=function(){
-    if(i>=files.length){if(st)st.textContent='';if(btn)btn.disabled=false;return;}
-    if(st)st.textContent='Subindo '+(i+1)+' de '+files.length+'...';
-    _arteUploadFile(files[i]).then(function(u){ov._pending.push(u);ov._added=(ov._added||0)+1;_arteAddRenderThumbs();i++;nxt();}).catch(function(e){if(st)st.textContent='';if(btn)btn.disabled=false;if(typeof toast==='function')toast('❌ Falha no upload: '+(e.message||e));});
-  };nxt();
+  if(btn)btn.disabled=true;
+  var done=function(){if(st)st.textContent='';if(btn)btn.disabled=false;};
+  var pj=0;var nxtPdf=function(){
+    if(pj>=pdfs.length){done();return;}
+    if(st)st.textContent='Subindo PDF '+(pj+1)+' de '+pdfs.length+'...';
+    _arteUploadPdf(pdfs[pj]).then(function(f){ov._files=ov._files||[];ov._files.push(f);ov._added=(ov._added||0)+1;_arteAddRenderThumbs();pj++;nxtPdf();}).catch(function(e){done();if(typeof toast==='function')toast('❌ PDF: '+(e.message||e));});
+  };
+  var i=0;var nxtImg=function(){
+    if(i>=imgs.length){nxtPdf();return;}
+    if(st)st.textContent='Subindo '+(i+1)+' de '+imgs.length+'...';
+    _arteUploadFile(imgs[i]).then(function(u){ov._pending.push(u);ov._added=(ov._added||0)+1;_arteAddRenderThumbs();i++;nxtImg();}).catch(function(e){done();if(typeof toast==='function')toast('❌ Falha no upload: '+(e.message||e));});
+  };nxtImg();
 }
 function _arteAddRenderThumbs(){
   var ov=document.getElementById('arte-add');if(!ov)return;var el=document.getElementById('arte-add-thumbs');if(!el)return;
-  el.innerHTML=(ov._pending||[]).map(function(u,i){return '<div style="position:relative"><img src="'+escH(u)+'" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:1px solid #E5E7EB;display:block"><span onclick="_arteAddDel('+i+')" title="Remover" style="position:absolute;top:-7px;right:-7px;background:#EF4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;text-align:center;line-height:18px;cursor:pointer">×</span></div>';}).join('');
+  var imgsHtml=(ov._pending||[]).map(function(u,i){return '<div style="position:relative"><img src="'+escH(u)+'" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:1px solid #E5E7EB;display:block"><span onclick="_arteAddDel('+i+')" title="Remover" style="position:absolute;top:-7px;right:-7px;background:#EF4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;text-align:center;line-height:18px;cursor:pointer">×</span></div>';}).join('');
+  var pdfHtml=(ov._files||[]).map(function(f,i){return '<div style="position:relative;display:inline-flex;align-items:center;gap:6px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:8px 12px;font-size:12px;color:#B91C1C;font-weight:600">📄 '+escH((''+(f.name||'PDF')).slice(0,22))+'<span onclick="_arteAddDelFile('+i+')" title="Remover" style="cursor:pointer;color:#EF4444;font-weight:800">×</span></div>';}).join('');
+  el.innerHTML=imgsHtml+pdfHtml;
 }
 function _arteAddDel(i){var ov=document.getElementById('arte-add');if(!ov)return;ov._pending.splice(i,1);_arteAddRenderThumbs();}
+function _arteAddDelFile(i){var ov=document.getElementById('arte-add');if(!ov||!ov._files)return;ov._files.splice(i,1);_arteAddRenderThumbs();}
 function contArteAddSave(cid,cardId,by){
   var c=_findClient(cid);if(!c)return;var card=_conteudos(c).cards.find(function(x){return x.id===cardId;});if(!card)return;
-  var ov=document.getElementById('arte-add');var urls=(ov&&ov._pending)||[];var added=(ov&&ov._added)||0;
+  var ov=document.getElementById('arte-add');var urls=(ov&&ov._pending)||[];var added=(ov&&ov._added)||0;var files=(ov&&ov._files)||[];
   if(urls.length){card.images=urls.map(function(u){return {url:u};});delete card.imageUrl;}else{delete card.images;delete card.imageUrl;}
+  if(files.length)card.arquivos=files;else delete card.arquivos;
   if(added>0){_artLogRecord(c,card,added,by);card.artBy=by||((S.currentUser&&S.currentUser.name)||'equipe');card.artAt=Date.now();
     if(card.status==='ideias'||card.status==='arte')card.status='cliente';}
   save();if(ov)ov.remove();if(typeof toast==='function')toast('✅ Arte salva!');render();
@@ -8620,7 +8658,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080456; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080457; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
