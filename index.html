@@ -2241,7 +2241,7 @@ function _contOwnerAv(name,withName){
     +'<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:'+mt.color+';color:#fff;font-size:9px;font-weight:700;flex-shrink:0">'+escH(mt.initials)+'</span>'
     +(withName?'<span>'+escH(mt.first)+'</span>':'')+'</span>';
 }
-function _contFmtBadge(fmt){if(!fmt)return '';var m={'Carrossel':'📚 Carrossel','Estático':'🖼️ Estático','Enquete':'📊 Enquete'};return '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:#F5F3FF;color:#7C3AED;border:1px solid #DDD6FE">'+(m[fmt]||escH(fmt))+'</span>';}
+function _contFmtBadge(fmt){if(!fmt)return '';var m={'Carrossel':'📚 Carrossel','Estático':'🖼️ Estático','Enquete':'📊 Enquete','Artigo':'📝 Artigo','Vídeo':'🎬 Vídeo'};return '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:#F5F3FF;color:#7C3AED;border:1px solid #DDD6FE">'+(m[fmt]||escH(fmt))+'</span>';}
 function _cardRedes(card){return (card.redes&&card.redes.length)?card.redes:(card.rede?[card.rede]:[]);}
 function _contCard(c,card){
   var isIdea=(card.status||'ideias')==='ideias';
@@ -2555,7 +2555,7 @@ function contCardOpen(cid,editId,status){
   var c=_findClient(cid);if(!c)return;
   var card=editId?_conteudos(c).cards.find(function(x){return x.id===editId;}):null;
   var st=(card&&card.status)||status||'ideias';
-  var fmtOpts=['','Carrossel','Estático','Enquete'].map(function(f){return '<option value="'+f+'" '+(((card&&card.formato)===f)?'selected':'')+'>'+(f||'— indiferente —')+'</option>';}).join('');
+  var fmtOpts=['','Carrossel','Estático','Enquete','Artigo','Vídeo'].map(function(f){return '<option value="'+f+'" '+(((card&&card.formato)===f)?'selected':'')+'>'+(f||'— indiferente —')+'</option>';}).join('');
   var _redes=card?_cardRedes(card):[];
   var ck=function(r){return _redes.indexOf(r)>=0?'checked':'';};
   var ov=document.createElement('div');ov.id='cont-overlay';
@@ -2677,7 +2677,7 @@ function contAIPreGen(cid,kind,cardId){
   ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
     +'<div style="background:linear-gradient(135deg,#7C3AED,#0D3D9B);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">✨ '+(isLeg?'Gerar legenda':'Sugerir temas')+' — '+escH(c.name)+'</h3><button onclick="document.getElementById(\'ai-pregen\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
     +'<div style="padding:20px;display:flex;flex-direction:column;gap:12px">'
-    +'<div class="fg"><label>Formato do post</label><select id="ai-formato">'+fo('','— indiferente —')+fo('Carrossel','📚 Carrossel')+fo('Estático','🖼️ Estático')+fo('Enquete','📊 Enquete')+'</select></div>'
+    +'<div class="fg"><label>Formato do post</label><select id="ai-formato">'+fo('','— indiferente —')+fo('Carrossel','📚 Carrossel')+fo('Estático','🖼️ Estático')+fo('Enquete','📊 Enquete')+fo('Artigo','📝 Artigo')+fo('Vídeo','🎬 Vídeo')+'</select></div>'
     +'<div class="fg"><label>Observações para a IA <span style="font-weight:400;color:#94A3B8">(opcional)</span></label><textarea id="ai-obs" rows="3" style="width:100%;resize:vertical" placeholder="Ex: o Gabriel pediu para falar sobre planejamento de agosto"></textarea></div>'
     +'<div style="font-size:11px;color:#94A3B8">💡 A IA lê a linha editorial do cliente + o que você escrever aqui.</div>'
     +'</div>'
@@ -2915,7 +2915,7 @@ function contArtePreGen(cid,cardId){
     +'<div style="background:linear-gradient(135deg,#EC4899,#7C3AED);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">🎨 Gerar arte — '+escH(c.name)+'</h3><button onclick="document.getElementById(\'arte-pregen\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
     +'<div style="padding:20px;display:flex;flex-direction:column;gap:12px">'
     +'<div class="fg"><label>✍️ Texto que vai escrito na arte</label><input id="arte-texto" value="'+escH(card.title||'')+'" placeholder="O texto que aparece na imagem" style="width:100%"><div style="font-size:11px;color:#059669;margin-top:3px">✅ O sistema escreve este texto por cima da arte — grafia sempre certa. Você ajusta fonte, cor e posição depois.</div></div>'
-    +'<div class="fg"><label>Formato</label><select id="arte-formato">'+fo('','— livre —')+fo('Carrossel','📚 Carrossel')+fo('Estático','🖼️ Estático')+fo('Enquete','📊 Enquete')+'</select></div>'
+    +'<div class="fg"><label>Formato</label><select id="arte-formato">'+fo('','— livre —')+fo('Carrossel','📚 Carrossel')+fo('Estático','🖼️ Estático')+fo('Enquete','📊 Enquete')+fo('Artigo','📝 Artigo')+fo('Vídeo','🎬 Vídeo')+'</select></div>'
     +'<div class="fg"><label>O que você quer na arte? <span style="font-weight:400;color:#94A3B8">(opcional)</span></label><textarea id="arte-obs" rows="3" style="width:100%;resize:vertical" placeholder="Ex: fundo azul claro, sensação de segurança, estilo clean, uma família ao fundo"></textarea></div>'
     +'<div class="fg"><label>🖼️ Fundo</label><select id="arte-fundo" onchange="_arteFundoToggle()"><option value="foto">Com foto do cliente</option><option value="semfoto">Sem foto — só cenário/cores</option></select></div>'
     +'<div class="fg" id="arte-base-wrap"><label>📐 Modelo/template do cliente <span style="font-weight:400;color:#94A3B8">(o design pronto — de preferência SEM texto)</span></label><select id="arte-refbase-sel" onchange="_arteRefToggle(\'base\')">'+refOpts(modelos,'Modelo')+'</select><input id="arte-refbase-man" placeholder="Cole o link do modelo/template" style="width:100%;margin-top:6px;display:none"><div style="font-size:11px;color:#0891B2;margin-top:4px">✅ Sem custo de IA. O sistema usa este design como fundo e você escreve o texto por cima.</div></div>'
@@ -8483,7 +8483,7 @@ function rPortalConteudos(c){
   var cardCover=function(k,tag,tagColor){var im=_cardImgs(k);var cover=im[0]?(im[0].url||im[0].bg||''):'';
     var hasMedia=im.length||(k.arquivos&&k.arquivos.length);
     var txt=(k.formato||'')+' '+(k.title||'');
-    var ph=/enquete/i.test(txt)?{ic:'📊',lbl:'Enquete',col:'#7C3AED'}:(/v[ií]deo/i.test(txt)?{ic:'🎬',lbl:'Vídeo',col:'#DC2626'}:{ic:'📄',lbl:'Publicado',col:'#334155'});
+    var ph=/enquete/i.test(txt)?{ic:'📊',lbl:'Enquete',col:'#7C3AED'}:(/v[ií]deo/i.test(txt)?{ic:'🎬',lbl:'Vídeo',col:'#DC2626'}:(/artigo/i.test(txt)?{ic:'📝',lbl:'Artigo',col:'#0891B2'}:{ic:'📄',lbl:'Publicado',col:'#334155'}));
     var top=cover
       ? '<div style="position:relative"><img src="'+escH(cover)+'" style="width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#F1F5F9">'+(im.length>1?'<span style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);color:#fff;font-size:11px;font-weight:700;border-radius:99px;padding:2px 9px">📚 '+im.length+'</span>':'')+'<span style="position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;color:#fff;background:'+tagColor+';padding:3px 9px;border-radius:99px">'+tag+'</span></div>'
       : '<div style="position:relative;aspect-ratio:4/5;display:flex;flex-direction:column;align-items:center;justify-content:center;background:'+ph.col+'14;color:'+ph.col+'"><div style="font-size:44px">'+ph.ic+'</div><div style="font-size:13px;font-weight:800;margin-top:6px">'+ph.lbl+'</div><span style="position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;color:#fff;background:'+tagColor+';padding:3px 9px;border-radius:99px">'+tag+'</span></div>';
@@ -8686,7 +8686,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080461; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080462; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
