@@ -2191,7 +2191,7 @@ function rDesignerPortal(){
     return true;
   });
   // pendentes primeiro, depois por data
-  list.sort(function(a,b){var ta=_cardImgs(a.card).length>0?1:0,tb=_cardImgs(b.card).length>0?1:0;if(ta!==tb)return ta-tb;return (''+(a.card.date||'9999')).localeCompare(''+(b.card.date||'9999'));});
+  list.sort(function(a,b){var ra=a.card.clientChangeReq?1:0,rb=b.card.clientChangeReq?1:0;if(ra!==rb)return rb-ra;var ta=_cardImgs(a.card).length>0?1:0,tb=_cardImgs(b.card).length>0?1:0;if(ta!==tb)return ta-tb;return (''+(a.card.date||'9999')).localeCompare(''+(b.card.date||'9999'));});
   var pend=items.filter(function(i){return !_cardImgs(i.card).length;}).length;
   var chip=function(v,l,cur,key){return '<span onclick="S.'+key+'=\''+v+'\';render()" style="cursor:pointer;font-size:12px;padding:5px 12px;border-radius:99px;background:'+(cur===v?'#0D3D9B':'#F1F5F9')+';color:'+(cur===v?'#fff':'#475569')+'">'+l+'</span>';};
   var cards=list.map(function(i){
@@ -2205,8 +2205,8 @@ function rDesignerPortal(){
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:11px;font-weight:700;background:#EFF6FF;color:#0D3D9B;border-radius:99px;padding:3px 10px">'+escH(c.name)+'</span>'+(tem?'<span style="font-size:11px;color:#16A34A;font-weight:700">✅ enviada</span>':'<span style="font-size:11px;color:#B45309;font-weight:700">⏳ pendente</span>')+'</div>'
       +'<div style="font-size:15px;font-weight:600;color:#1E293B;line-height:1.35;margin-bottom:8px">'+escH(card.title||'(sem título)')+'</div>'
       +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">'+fmt+(dateStr?'<span style="font-size:12px;font-weight:700;color:#0D3D9B;background:#EFF6FF;border-radius:8px;padding:3px 9px">📅 '+dateStr+'</span>':'')+'</div>'
-      +(linha?'<div style="font-size:11px;font-weight:700;color:#7C3AED;margin-bottom:2px">🧭 Linha editorial</div><div style="font-size:12px;color:#475569;white-space:pre-wrap;background:#FAFAFF;border:1px solid #EEF;border-radius:8px;padding:8px 10px;margin-bottom:10px;max-height:120px;overflow:auto">'+escH(linha)+'</div>':'')
-      +(card.caption?'<div style="font-size:11px;font-weight:700;color:#0891B2;margin-bottom:2px">📝 Legenda</div><div style="font-size:12px;color:#334155;white-space:pre-wrap;background:#F0FDFF;border:1px solid #CFF;border-radius:8px;padding:8px 10px;margin-bottom:10px;max-height:140px;overflow:auto">'+escH(card.caption)+'</div>':'')
+      +(card.clientChangeReq?'<div style="font-size:12px;font-weight:800;color:#B45309;margin-bottom:3px">✍️ Ajuste pedido pelo cliente</div><div style="font-size:14px;color:#7C2D12;white-space:pre-wrap;line-height:1.55;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:11px 13px;margin-bottom:12px">'+escH(card.clientChangeReq)+'</div>':'')
+      +(card.caption?'<div style="font-size:13px;font-weight:800;color:#0891B2;margin-bottom:4px">📝 Legenda</div><div style="font-size:15px;color:#1E293B;white-space:pre-wrap;line-height:1.65;background:#F0FDFF;border:1px solid #A5F3FC;border-radius:10px;padding:13px 15px;margin-bottom:12px">'+escH(card.caption)+'</div>':'')
       +(pasta?'<div style="margin-bottom:10px"><a href="'+escH(pasta)+'" target="_blank" style="font-size:12px;color:#0369A1;text-decoration:none;font-weight:600">📁 Materiais e fotos do cliente ↗</a></div>':'')
       +(tem?'<div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:10px">'+imgs.map(function(it){return '<img src="'+escH(it.url||it.bg||'')+'" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid #E5E7EB;flex:0 0 auto">';}).join('')+'</div>':'')
       +'<button onclick="contArteAdd(\''+c.id+'\',\''+card.id+'\',\''+escH(name)+'\')" style="width:100%;padding:11px;border:none;border-radius:10px;background:'+(tem?'#F1F5F9;color:#0D3D9B':'linear-gradient(135deg,#0D3D9B,#0891B2);color:#fff')+';font-size:14px;font-weight:600;cursor:pointer">'+(tem?'🔄 Trocar / adicionar arte':'📤 Subir arte')+'</button>'
@@ -8435,16 +8435,23 @@ function portalDownloadCard(cardId){
 function portalApproveArt(cardId){
   var c=_portalClient();if(!c)return;
   var card=(_conteudos(c).cards||[]).find(function(x){return x.id===cardId;});if(!card)return;
+  var lg=(typeof document!=='undefined')?document.getElementById('pleg-'+cardId):null;
+  if(lg&&(''+lg.value).trim()!==(''+(card.caption||'')).trim())card.caption=lg.value;
   card.status='aprovado';card.clientApproved=true;card.clientApprovedAt=new Date().toISOString();delete card.clientChangeReq;
   save();if(typeof toast==='function')toast('✅ Arte aprovada! Obrigado 💙');render();
 }
 function portalRequestArtChange(cardId){
   var c=_portalClient();if(!c)return;
   var card=(_conteudos(c).cards||[]).find(function(x){return x.id===cardId;});if(!card)return;
-  var obs=prompt('O que você gostaria de ajustar nesta arte?');
-  if(obs===null)return;
-  card.clientChangeReq=(''+obs).trim();card.clientChangeAt=new Date().toISOString();card.status='arte';
-  save();if(typeof toast==='function')toast('✍️ Pedido de ajuste enviado pra equipe');render();
+  var com=document.getElementById('pcom-'+cardId);var lg=document.getElementById('pleg-'+cardId);
+  var obs=com?(''+com.value).trim():'';
+  var legEdit=lg?(''+lg.value):null;
+  var legMudou=lg&&legEdit.trim()!==(''+(card.caption||'')).trim();
+  if(!obs&&!legMudou){if(typeof toast==='function')toast('✍️ Escreva um comentário ou edite a legenda antes de enviar');else alert('Escreva um comentário ou edite a legenda.');return;}
+  if(lg)card.caption=legEdit;
+  card.clientChangeReq=obs||'(o cliente ajustou a legenda — ver acima)';
+  card.clientChangeAt=new Date().toISOString();card.status='arte';
+  save();if(typeof toast==='function')toast('✍️ Enviado pro designer! Vamos ajustar 💙');render();
 }
 function rPortalConteudos(c){
   var cards=(_conteudos(c).cards||[]).filter(function(k){return _cardImgs(k).length>0;});
@@ -8459,11 +8466,14 @@ function rPortalConteudos(c){
   var cardAguard=function(k){return '<div class="portal-card" style="padding:18px 20px">'
     +'<div style="font-size:16px;font-weight:700;color:#1E293B">'+escH(k.title||'Arte')+' <span style="font-size:12px;font-weight:400;color:#94A3B8">'+fmtLbl(k)+'</span></div>'
     +'<div style="margin-top:10px">'+imgsHtml(k)+'</div>'
-    +legenda(k)
-    +(k.clientChangeReq?'<div style="margin-top:10px;font-size:12px;color:#B45309;background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:8px 10px">✍️ Ajuste pedido: '+escH(k.clientChangeReq)+'</div>':'')
+    +((k.arquivos&&k.arquivos.length)?'<div style="margin-top:8px">'+k.arquivos.map(function(f){return '<a href="'+escH(f.url)+'" target="_blank" style="font-size:12px;color:#B91C1C;text-decoration:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:7px;padding:4px 10px;margin-right:6px;display:inline-block">📄 '+escH((''+(f.name||'PDF')).slice(0,26))+'</a>';}).join('')+'</div>':'')
+    +'<div style="margin-top:12px"><div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px">Legenda <span style="font-weight:400;text-transform:none;color:#94A3B8">— você pode editar aqui</span></div>'
+    +'<textarea id="pleg-'+k.id+'" style="width:100%;box-sizing:border-box;font-size:14px;color:#1E293B;line-height:1.55;border:1px solid #CBD5E1;border-radius:8px;padding:11px 13px;resize:vertical;min-height:100px">'+escH(k.caption||'')+'</textarea></div>'
+    +'<div style="margin-top:10px"><div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px">Comentário para o designer <span style="font-weight:400;text-transform:none;color:#94A3B8">(o que ajustar)</span></div>'
+    +'<textarea id="pcom-'+k.id+'" placeholder="Ex.: trocar a cor do fundo, corrigir o texto do 2º slide…" style="width:100%;box-sizing:border-box;font-size:14px;border:1px solid #FCA5A5;border-radius:8px;padding:11px 13px;resize:vertical;min-height:74px">'+escH(k.clientChangeReq||'')+'</textarea></div>'
     +'<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'
     +'<button onclick="portalApproveArt(\''+k.id+'\')" style="flex:1;min-width:140px;padding:12px;border:none;border-radius:10px;background:#16A34A;color:#fff;font-size:14px;font-weight:700;cursor:pointer">✅ Aprovar</button>'
-    +'<button onclick="portalRequestArtChange(\''+k.id+'\')" style="flex:1;min-width:140px;padding:12px;border:1px solid #FCA5A5;border-radius:10px;background:#fff;color:#DC2626;font-size:14px;font-weight:600;cursor:pointer">✏️ Pedir ajuste</button>'
+    +'<button onclick="portalRequestArtChange(\''+k.id+'\')" style="flex:1;min-width:140px;padding:12px;border:1px solid #FCA5A5;border-radius:10px;background:#fff;color:#DC2626;font-size:14px;font-weight:600;cursor:pointer">✏️ Enviar ajuste ao designer</button>'
     +'</div></div>';};
   var cardSimple=function(k,tag,tagColor){return '<div class="portal-card" style="padding:18px 20px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px"><div style="font-size:16px;font-weight:700;color:#1E293B">'+escH(k.title||'Arte')+' <span style="font-size:12px;font-weight:400;color:#94A3B8">'+fmtLbl(k)+'</span></div><span style="font-size:11px;font-weight:700;color:'+tagColor+';background:'+tagColor+'18;padding:3px 10px;border-radius:99px;white-space:nowrap">'+tag+'</span></div>'
@@ -8676,7 +8686,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080459; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080460; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
