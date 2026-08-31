@@ -2421,9 +2421,12 @@ function openPagamentoArtes(){
   var money=function(v){return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
   var fd=function(ts){var d=new Date(ts);return isNaN(d)?'—':d.toLocaleDateString('pt-BR');};
   var log=(D.artLog||[]).slice();
-  var meses=['todos'].concat([...new Set(log.map(function(l){return mkOf(l.at);}).filter(Boolean))].sort(function(a,b){var A=a.split(' '),B=b.split(' ');return (parseInt(B[1])*12+ptM.indexOf(B[0]))-(parseInt(A[1])*12+ptM.indexOf(A[0]));}));
+  // data de faturamento = dia em que a arte foi SOLICITADA (criação do tema); fallback: card existente, senão o envio
+  var _cardCreated={};(D.clients||[]).forEach(function(c){(_conteudos(c).cards||[]).forEach(function(k){if(k&&k.id&&k.createdAt){var t=new Date(k.createdAt).getTime();if(t)_cardCreated[k.id]=t;}});});
+  var bd=function(l){if(l.reqAt)return l.reqAt;if(l.cardId&&_cardCreated[l.cardId])return _cardCreated[l.cardId];return l.at;};
+  var meses=['todos'].concat([...new Set(log.map(function(l){return mkOf(bd(l));}).filter(Boolean))].sort(function(a,b){var A=a.split(' '),B=b.split(' ');return (parseInt(B[1])*12+ptM.indexOf(B[0]))-(parseInt(A[1])*12+ptM.indexOf(A[0]));}));
   var mSel=(S.pagArtMes&&meses.indexOf(S.pagArtMes)>=0)?S.pagArtMes:'todos';
-  var lista=(mSel==='todos'?log:log.filter(function(l){return mkOf(l.at)===mSel;})).slice().sort(function(a,b){return b.at-a.at;});
+  var lista=(mSel==='todos'?log:log.filter(function(l){return mkOf(bd(l))===mSel;})).slice().sort(function(a,b){return bd(b)-bd(a);});
   var priceCfg=_DESIGNERS.map(function(n){var p=_designerPrice(n);
     return '<div style="border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px;margin-bottom:8px"><div style="font-weight:700;color:#0D3D9B;margin-bottom:6px">'+escH(n)+'</div>'
       +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px">'
@@ -2436,10 +2439,10 @@ function openPagamentoArtes(){
   var blocos=Object.keys(porDes).sort().map(function(n){
     var arr=porDes[n];var sub=0;
     var rows=arr.map(function(l){var v=_artValor(l);sub+=v;
-      return '<tr style="border-top:1px solid #F1F5F9"><td style="padding:6px 8px;font-size:12px;white-space:nowrap">'+fd(l.at)+'</td><td style="padding:6px 8px;font-size:12px">'+escH(l.client||'')+'</td><td style="padding:6px 8px;font-size:12px">'+escH(l.cardTitle||'')+'</td><td style="padding:6px 8px;font-size:11px;color:#64748B;white-space:nowrap">'+escH(l.formato||(_artEhCarrossel(l)?'Carrossel':'Única'))+(_artEhCarrossel(l)?(' ('+(l.qty||1)+')'):'')+'</td><td style="padding:6px 8px;font-size:11px;color:#64748B">'+escH(l.requestedBy||'')+'</td><td style="padding:6px 8px;font-size:12px;text-align:right;font-weight:700;color:#16A34A;white-space:nowrap">'+money(v)+'</td></tr>';}).join('');
+      return '<tr style="border-top:1px solid #F1F5F9"><td style="padding:6px 8px;font-size:12px;white-space:nowrap">'+fd(bd(l))+'</td><td style="padding:6px 8px;font-size:12px">'+escH(l.client||'')+'</td><td style="padding:6px 8px;font-size:12px">'+escH(l.cardTitle||'')+'</td><td style="padding:6px 8px;font-size:11px;color:#64748B;white-space:nowrap">'+escH(l.formato||(_artEhCarrossel(l)?'Carrossel':'Única'))+(_artEhCarrossel(l)?(' ('+(l.qty||1)+')'):'')+'</td><td style="padding:6px 8px;font-size:11px;color:#64748B">'+escH(l.requestedBy||'')+'</td><td style="padding:6px 8px;font-size:12px;text-align:right;font-weight:700;color:#16A34A;white-space:nowrap">'+money(v)+'</td></tr>';}).join('');
     totalGeral+=sub;
     return '<div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:800;color:#1E293B">👤 '+escH(n)+' <span style="font-weight:400;color:#94A3B8;font-size:12px">· '+arr.length+' entrega(s)</span></div><div style="font-weight:800;color:#16A34A">'+money(sub)+'</div></div>'
-      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>'+['Data','Cliente','Tema','Formato','Pediu','Valor'].map(function(h,i){return '<th style="text-align:'+(i===5?'right':'left')+';padding:6px 8px;font-size:10px;color:#94A3B8;text-transform:uppercase;border-bottom:2px solid #E5E7EB;white-space:nowrap">'+h+'</th>';}).join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>'+['Solicitado','Cliente','Tema','Formato','Pediu','Valor'].map(function(h,i){return '<th style="text-align:'+(i===5?'right':'left')+';padding:6px 8px;font-size:10px;color:#94A3B8;text-transform:uppercase;border-bottom:2px solid #E5E7EB;white-space:nowrap">'+h+'</th>';}).join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }).join('');
   var mChips=meses.map(function(m){return '<span onclick="S.pagArtMes=\''+m+'\';document.getElementById(\'pagart-modal\').remove();openPagamentoArtes()" style="cursor:pointer;font-size:11px;padding:5px 11px;border-radius:99px;border:1px solid '+(mSel===m?'#16A34A':'#D8E0EE')+';background:'+(mSel===m?'#16A34A':'#fff')+';color:'+(mSel===m?'#fff':'#475569')+'">'+(m==='todos'?'Todos':m)+'</span>';}).join('');
   var ov=document.createElement('div');ov.id='pagart-modal';
@@ -3223,7 +3226,8 @@ function _arteUploadFile(file){
 // registra o envio de arte (pra pagamento do designer)
 function _artLogRecord(c,card,qty,by){
   D.artLog=D.artLog||[];
-  D.artLog.push({at:Date.now(),by:by||((S.currentUser&&S.currentUser.name)||'equipe'),clientId:c.id,client:c.name,cardId:card.id,cardTitle:card.title||'',qty:qty||0,requestedBy:card.createdBy||((c.contentOwners||[])[0])||'',formato:card.formato||''});
+  var _reqAt=card.createdAt?(new Date(card.createdAt).getTime()||Date.now()):Date.now();
+  D.artLog.push({at:Date.now(),reqAt:_reqAt,by:by||((S.currentUser&&S.currentUser.name)||'equipe'),clientId:c.id,client:c.name,cardId:card.id,cardTitle:card.title||'',qty:qty||0,requestedBy:card.createdBy||((c.contentOwners||[])[0])||'',formato:card.formato||''});
 }
 // Subir a arte pronta — arrastar ou clicar (sem link). by = quem enviou (designer)
 function contArteAdd(cid,cardId,by){
@@ -8686,7 +8690,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080463; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080464; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
