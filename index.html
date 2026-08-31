@@ -2426,7 +2426,13 @@ function openPagamentoArtes(){
   var bd=function(l){if(l.reqAt)return l.reqAt;if(l.cardId&&_cardCreated[l.cardId])return _cardCreated[l.cardId];return l.at;};
   var meses=['todos'].concat([...new Set(log.map(function(l){return mkOf(bd(l));}).filter(Boolean))].sort(function(a,b){var A=a.split(' '),B=b.split(' ');return (parseInt(B[1])*12+ptM.indexOf(B[0]))-(parseInt(A[1])*12+ptM.indexOf(A[0]));}));
   var mSel=(S.pagArtMes&&meses.indexOf(S.pagArtMes)>=0)?S.pagArtMes:'todos';
-  var lista=(mSel==='todos'?log:log.filter(function(l){return mkOf(bd(l))===mSel;})).slice().sort(function(a,b){return bd(b)-bd(a);});
+  // período personalizado (do dia X ao dia Y) — tem prioridade sobre o mês
+  var deTs=S.pagArtDe?(new Date(S.pagArtDe+'T00:00:00').getTime()||null):null;
+  var ateTs=S.pagArtAte?(new Date(S.pagArtAte+'T23:59:59').getTime()||null):null;
+  var rangeOn=(deTs!=null||ateTs!=null);
+  var inRange=function(l){var t=bd(l);if(deTs!=null&&t<deTs)return false;if(ateTs!=null&&t>ateTs)return false;return true;};
+  var lista=log.filter(function(l){if(rangeOn)return inRange(l);return mSel==='todos'||mkOf(bd(l))===mSel;}).slice().sort(function(a,b){return bd(b)-bd(a);});
+  var periodoLbl=rangeOn?((S.pagArtDe?fd(deTs):'início')+' a '+(S.pagArtAte?fd(ateTs):'hoje')):(mSel==='todos'?'geral':mSel);
   var priceCfg=_DESIGNERS.map(function(n){var p=_designerPrice(n);
     return '<div style="border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px;margin-bottom:8px"><div style="font-weight:700;color:#0D3D9B;margin-bottom:6px">'+escH(n)+'</div>'
       +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px">'
@@ -2435,28 +2441,56 @@ function openPagamentoArtes(){
       +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" '+(p.porSlide?'checked':'')+' onchange="saveDesignerPrice(\''+escH(n)+'\',\'porSlide\',this.checked)"> por slide</label>'
       +'</div></div>';}).join('');
   var porDes={};lista.forEach(function(l){var n=l.by||'(sem designer)';(porDes[n]=porDes[n]||[]).push(l);});
-  var totalGeral=0;
+  var totalGeral=0;var _printDes=[];
   var blocos=Object.keys(porDes).sort().map(function(n){
-    var arr=porDes[n];var sub=0;
+    var arr=porDes[n];var sub=0;var _prows=[];
     var rows=arr.map(function(l){var v=_artValor(l);sub+=v;
+      _prows.push([fd(bd(l)),l.client||'',l.cardTitle||'',(l.formato||(_artEhCarrossel(l)?'Carrossel':'Única'))+(_artEhCarrossel(l)?(' ('+(l.qty||1)+')'):''),l.requestedBy||'',money(v)]);
       return '<tr style="border-top:1px solid #F1F5F9"><td style="padding:6px 8px;font-size:12px;white-space:nowrap">'+fd(bd(l))+'</td><td style="padding:6px 8px;font-size:12px">'+escH(l.client||'')+'</td><td style="padding:6px 8px;font-size:12px">'+escH(l.cardTitle||'')+'</td><td style="padding:6px 8px;font-size:11px;color:#64748B;white-space:nowrap">'+escH(l.formato||(_artEhCarrossel(l)?'Carrossel':'Única'))+(_artEhCarrossel(l)?(' ('+(l.qty||1)+')'):'')+'</td><td style="padding:6px 8px;font-size:11px;color:#64748B">'+escH(l.requestedBy||'')+'</td><td style="padding:6px 8px;font-size:12px;text-align:right;font-weight:700;color:#16A34A;white-space:nowrap">'+money(v)+'</td></tr>';}).join('');
-    totalGeral+=sub;
+    totalGeral+=sub;_printDes.push({n:n,sub:money(sub),count:arr.length,rows:_prows});
     return '<div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:800;color:#1E293B">👤 '+escH(n)+' <span style="font-weight:400;color:#94A3B8;font-size:12px">· '+arr.length+' entrega(s)</span></div><div style="font-weight:800;color:#16A34A">'+money(sub)+'</div></div>'
       +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>'+['Solicitado','Cliente','Tema','Formato','Pediu','Valor'].map(function(h,i){return '<th style="text-align:'+(i===5?'right':'left')+';padding:6px 8px;font-size:10px;color:#94A3B8;text-transform:uppercase;border-bottom:2px solid #E5E7EB;white-space:nowrap">'+h+'</th>';}).join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }).join('');
   var mChips=meses.map(function(m){return '<span onclick="S.pagArtMes=\''+m+'\';document.getElementById(\'pagart-modal\').remove();openPagamentoArtes()" style="cursor:pointer;font-size:11px;padding:5px 11px;border-radius:99px;border:1px solid '+(mSel===m?'#16A34A':'#D8E0EE')+';background:'+(mSel===m?'#16A34A':'#fff')+';color:'+(mSel===m?'#fff':'#475569')+'">'+(m==='todos'?'Todos':m)+'</span>';}).join('');
+  window._pagArtPrint={periodo:periodoLbl,total:money(totalGeral),designers:_printDes};
+  var deVal=S.pagArtDe||'';var ateVal=S.pagArtAte||'';
+  var rangeUI='<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:12px 14px;margin-bottom:12px">'
+    +'<div style="font-size:11px;font-weight:800;color:#166534;text-transform:uppercase;margin-bottom:8px">📅 Período de pagamento (do dia ao dia)</div>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'
+    +'<div><div style="font-size:10px;color:#64748B;margin-bottom:3px">De</div><input type="date" value="'+deVal+'" onchange="S.pagArtDe=this.value;document.getElementById(\'pagart-modal\').remove();openPagamentoArtes()" style="padding:8px 10px;border:1px solid #86EFAC;border-radius:8px;font-size:13px"></div>'
+    +'<div><div style="font-size:10px;color:#64748B;margin-bottom:3px">Até</div><input type="date" value="'+ateVal+'" onchange="S.pagArtAte=this.value;document.getElementById(\'pagart-modal\').remove();openPagamentoArtes()" style="padding:8px 10px;border:1px solid #86EFAC;border-radius:8px;font-size:13px"></div>'
+    +(rangeOn?'<button onclick="S.pagArtDe=\'\';S.pagArtAte=\'\';document.getElementById(\'pagart-modal\').remove();openPagamentoArtes()" style="padding:8px 12px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;color:#64748B;font-size:12px;cursor:pointer">✕ Limpar período</button>':'')
+    +'<button onclick="pagArtPrint()" style="padding:8px 14px;border:none;border-radius:8px;background:#16A34A;color:#fff;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto">📄 Exportar relatório</button>'
+    +'</div>'+(rangeOn?'<div style="font-size:11px;color:#166534;margin-top:8px;font-weight:600">Mostrando de '+escH(periodoLbl)+' · o mês fica desativado enquanto o período estiver preenchido</div>':'')+'</div>';
   var ov=document.createElement('div');ov.id='pagart-modal';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML='<div style="background:white;border-radius:16px;width:100%;max-width:760px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
     +'<div style="background:linear-gradient(135deg,#16A34A,#0D9488);padding:16px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;color:white;font-size:15px">💵 Pagamento das artes</h3><button onclick="document.getElementById(\'pagart-modal\').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button></div>'
     +'<div style="padding:18px 20px;overflow:auto">'
     +'<details style="margin-bottom:14px"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#0D3D9B">💰 Valores por designer (clique pra editar)</summary><div style="margin-top:10px">'+priceCfg+'</div></details>'
+    +rangeUI
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center"><span style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Mês:</span>'+mChips+'</div>'
-    +'<div style="text-align:right;font-size:14px;font-weight:800;color:#16A34A;margin-bottom:14px">Total '+(mSel==='todos'?'geral':mSel)+': '+money(totalGeral)+'</div>'
+    +'<div style="text-align:right;font-size:14px;font-weight:800;color:#16A34A;margin-bottom:14px">Total '+escH(periodoLbl)+': '+money(totalGeral)+'</div>'
     +(blocos||'<div style="text-align:center;padding:30px;color:#94A3B8">Nenhuma arte registrada ainda. Aparecem aqui automaticamente quando o designer sobe as artes.</div>')
     +'</div></div>';
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
   document.body.appendChild(ov);
+}
+function pagArtPrint(){
+  var d=window._pagArtPrint;if(!d){if(typeof toast==='function')toast('Nada para exportar');return;}
+  var esc=function(s){return (''+s).replace(/[&<>]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[m];});};
+  var body=(d.designers&&d.designers.length)?d.designers.map(function(dz){
+    var rows=dz.rows.map(function(r){return '<tr>'+r.map(function(cx,i){return '<td class="'+(i===5?'r':'')+'">'+esc(cx)+'</td>';}).join('')+'</tr>';}).join('');
+    return '<h3>'+esc(dz.n)+' — '+dz.count+' entrega(s) · '+esc(dz.sub)+'</h3>'
+      +'<table><thead><tr><th>Solicitado</th><th>Cliente</th><th>Tema</th><th>Formato</th><th>Pediu</th><th class="r">Valor</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }).join(''):'<p>Nenhuma arte no período selecionado.</p>';
+  var html='<html><head><meta charset="utf-8"><title>Pagamento de artes — '+esc(d.periodo)+'</title>'
+    +'<style>body{font-family:system-ui,Arial,sans-serif;color:#1E293B;padding:28px;max-width:820px;margin:0 auto}h1{font-size:20px;margin:0 0 2px}.sub{color:#64748B;font-size:13px;margin-bottom:18px}h3{font-size:14px;margin:18px 0 6px;color:#0D3D9B}table{width:100%;border-collapse:collapse;margin-bottom:8px}th{font-size:10px;text-transform:uppercase;color:#94A3B8;text-align:left;border-bottom:2px solid #E5E7EB;padding:6px 8px}td{font-size:12px;border-top:1px solid #F1F5F9;padding:6px 8px}.r{text-align:right}.tot{text-align:right;font-size:16px;font-weight:800;color:#16A34A;border-top:2px solid #16A34A;padding-top:10px;margin-top:10px}@media print{body{padding:0}}</style></head><body>'
+    +'<h1>💵 Pagamento de artes</h1><div class="sub">Período: '+esc(d.periodo)+' · gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'
+    +body+'<div class="tot">Total: '+esc(d.total)+'</div>'
+    +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},250);}</scr'+'ipt></body></html>';
+  var w=window.open('','_blank');if(!w){if(typeof toast==='function')toast('Permita pop-ups pra exportar o relatório');return;}
+  w.document.write(html);w.document.close();
 }
 function openDesignersModal(){
   var link=window.location.origin+window.location.pathname+'#designer';
@@ -8690,7 +8724,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080464; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080465; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
