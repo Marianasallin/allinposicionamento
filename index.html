@@ -8424,6 +8424,14 @@ function rPortalRelatorios(c){
 
 // === PORTAL DO CLIENTE — CONTEÚDOS: aprovar artes e ver publicadas ===
 function _portalClient(){return D.clients.find(function(c){return c.id===S.authenticatedClientId;});}
+function portalDownloadCard(cardId){
+  var c=_portalClient();if(!c)return;
+  var card=(_conteudos(c).cards||[]).find(function(x){return x.id===cardId;});if(!card)return;
+  var ims=_cardImgs(card);var base=(''+(card.title||'arte')).replace(/[^a-z0-9]+/gi,'_').slice(0,30)||'arte';
+  ims.forEach(function(it,i){var u=it.url||it.bg;if(u)_arteDL(u,base+(ims.length>1?('_'+(i+1)):'')+'.jpg');});
+  (card.arquivos||[]).forEach(function(f){if(f.url)_arteDL(f.url,f.name||(base+'.pdf'));});
+  if((ims.length||(card.arquivos&&card.arquivos.length))&&typeof toast==='function')toast('📥 Baixando…');
+}
 function portalApproveArt(cardId){
   var c=_portalClient();if(!c)return;
   var card=(_conteudos(c).cards||[]).find(function(x){return x.id===cardId;});if(!card)return;
@@ -8463,7 +8471,10 @@ function rPortalConteudos(c){
   var cardCover=function(k,tag,tagColor){var im=_cardImgs(k);var cover=im[0]?(im[0].url||im[0].bg||''):'';
     return '<div class="portal-card" style="padding:0;overflow:hidden">'
       +(cover?'<div style="position:relative"><img src="'+escH(cover)+'" style="width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#F1F5F9">'+(im.length>1?'<span style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);color:#fff;font-size:11px;font-weight:700;border-radius:99px;padding:2px 9px">📚 '+im.length+'</span>':'')+'<span style="position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;color:#fff;background:'+tagColor+';padding:3px 9px;border-radius:99px">'+tag+'</span></div>':'')
-      +'<div style="padding:10px 12px"><div style="font-size:12px;font-weight:600;color:#1E293B;line-height:1.35">'+escH(k.title||'Arte')+'</div>'+(k.formato?'<div style="font-size:11px;color:#94A3B8;margin-top:3px">'+escH(k.formato)+'</div>':'')+'</div>'
+      +'<div style="padding:10px 12px"><div style="font-size:12px;font-weight:600;color:#1E293B;line-height:1.35">'+escH(k.title||'Arte')+'</div>'+(k.formato?'<div style="font-size:11px;color:#94A3B8;margin-top:3px">'+escH(k.formato)+'</div>':'')
+      +'<button onclick="portalDownloadCard(\''+k.id+'\')" style="margin-top:9px;width:100%;padding:8px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;color:#0D3D9B;font-size:12px;font-weight:700;cursor:pointer">📥 Baixar</button>'
+      +((k.arquivos&&k.arquivos.length)?'<a href="'+escH(k.arquivos[0].url)+'" target="_blank" style="display:block;text-align:center;margin-top:6px;font-size:11px;color:#B91C1C;text-decoration:none">📄 abrir PDF</a>':'')
+      +'</div>'
       +'</div>';};
   var grid=function(html){return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px">'+html+'</div>';};
   var secGrid=function(title,sub,html){return '<div style="margin-bottom:22px"><div style="font-size:14px;font-weight:800;color:#1E293B;margin-bottom:2px">'+title+'</div><div style="font-size:12px;color:#64748B;margin-bottom:12px">'+sub+'</div>'+grid(html)+'</div>';};
@@ -8658,7 +8669,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080457; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080458; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
