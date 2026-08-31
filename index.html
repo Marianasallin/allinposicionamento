@@ -8451,9 +8451,11 @@ function rPortalConteudos(c){
   var fmtLbl=function(k){return k.formato?('· '+escH(k.formato)):'';};
   var imgsHtml=function(k){var im=_cardImgs(k);return '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">'+im.map(function(it){return '<img src="'+escH(it.url||it.bg||'')+'" style="width:150px;height:150px;object-fit:cover;border-radius:12px;border:1px solid #E5E7EB;flex:0 0 auto">';}).join('')+'</div>';};
   var legenda=function(k){return k.caption?('<div style="margin-top:10px"><div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:3px">Legenda</div><div style="font-size:13px;color:#334155;white-space:pre-wrap;line-height:1.5;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px">'+escH(k.caption)+'</div></div>'):'';};
+  var allCards=(_conteudos(c).cards||[]);
   var aguardando=cards.filter(function(k){return (k.status||'')==='cliente';});
   var aprovadas=cards.filter(function(k){return (k.status||'')==='aprovado';});
-  var publicadas=cards.filter(function(k){return (k.status||'')==='publicado';});
+  // Publicadas: TUDO que foi publicado (inclui enquetes e vídeos, mesmo sem arte) — o cliente vê tudo
+  var publicadas=allCards.filter(function(k){return (k.status||'')==='publicado';});
   var cardAguard=function(k){return '<div class="portal-card" style="padding:18px 20px">'
     +'<div style="font-size:16px;font-weight:700;color:#1E293B">'+escH(k.title||'Arte')+' <span style="font-size:12px;font-weight:400;color:#94A3B8">'+fmtLbl(k)+'</span></div>'
     +'<div style="margin-top:10px">'+imgsHtml(k)+'</div>'
@@ -8469,10 +8471,15 @@ function rPortalConteudos(c){
   var sec=function(title,sub,html){return '<div style="margin-bottom:22px"><div style="font-size:14px;font-weight:800;color:#1E293B;margin-bottom:2px">'+title+'</div><div style="font-size:12px;color:#64748B;margin-bottom:12px">'+sub+'</div><div style="display:flex;flex-direction:column;gap:14px">'+html+'</div></div>';};
   // Card compacto (capa + título) para grade de aprovadas/publicadas
   var cardCover=function(k,tag,tagColor){var im=_cardImgs(k);var cover=im[0]?(im[0].url||im[0].bg||''):'';
-    return '<div class="portal-card" style="padding:0;overflow:hidden">'
-      +(cover?'<div style="position:relative"><img src="'+escH(cover)+'" style="width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#F1F5F9">'+(im.length>1?'<span style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);color:#fff;font-size:11px;font-weight:700;border-radius:99px;padding:2px 9px">📚 '+im.length+'</span>':'')+'<span style="position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;color:#fff;background:'+tagColor+';padding:3px 9px;border-radius:99px">'+tag+'</span></div>':'')
+    var hasMedia=im.length||(k.arquivos&&k.arquivos.length);
+    var txt=(k.formato||'')+' '+(k.title||'');
+    var ph=/enquete/i.test(txt)?{ic:'📊',lbl:'Enquete',col:'#7C3AED'}:(/v[ií]deo/i.test(txt)?{ic:'🎬',lbl:'Vídeo',col:'#DC2626'}:{ic:'📄',lbl:'Publicado',col:'#334155'});
+    var top=cover
+      ? '<div style="position:relative"><img src="'+escH(cover)+'" style="width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#F1F5F9">'+(im.length>1?'<span style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);color:#fff;font-size:11px;font-weight:700;border-radius:99px;padding:2px 9px">📚 '+im.length+'</span>':'')+'<span style="position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;color:#fff;background:'+tagColor+';padding:3px 9px;border-radius:99px">'+tag+'</span></div>'
+      : '<div style="position:relative;aspect-ratio:4/5;display:flex;flex-direction:column;align-items:center;justify-content:center;background:'+ph.col+'14;color:'+ph.col+'"><div style="font-size:44px">'+ph.ic+'</div><div style="font-size:13px;font-weight:800;margin-top:6px">'+ph.lbl+'</div><span style="position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;color:#fff;background:'+tagColor+';padding:3px 9px;border-radius:99px">'+tag+'</span></div>';
+    return '<div class="portal-card" style="padding:0;overflow:hidden">'+top
       +'<div style="padding:10px 12px"><div style="font-size:12px;font-weight:600;color:#1E293B;line-height:1.35">'+escH(k.title||'Arte')+'</div>'+(k.formato?'<div style="font-size:11px;color:#94A3B8;margin-top:3px">'+escH(k.formato)+'</div>':'')
-      +'<button onclick="portalDownloadCard(\''+k.id+'\')" style="margin-top:9px;width:100%;padding:8px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;color:#0D3D9B;font-size:12px;font-weight:700;cursor:pointer">📥 Baixar</button>'
+      +(hasMedia?'<button onclick="portalDownloadCard(\''+k.id+'\')" style="margin-top:9px;width:100%;padding:8px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;color:#0D3D9B;font-size:12px;font-weight:700;cursor:pointer">📥 Baixar</button>':'')
       +((k.arquivos&&k.arquivos.length)?'<a href="'+escH(k.arquivos[0].url)+'" target="_blank" style="display:block;text-align:center;margin-top:6px;font-size:11px;color:#B91C1C;text-decoration:none">📄 abrir PDF</a>':'')
       +'</div>'
       +'</div>';};
@@ -8669,7 +8676,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080458; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080459; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
