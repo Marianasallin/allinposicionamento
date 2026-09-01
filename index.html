@@ -1101,7 +1101,7 @@ function _finArtesCard(){
   var rangeOn=(deTs!=null||ateTs!=null);
   var list=log.filter(function(l){if(deTs!=null&&bd(l)<deTs)return false;if(ateTs!=null&&bd(l)>ateTs)return false;return true;}).sort(function(a,b){return bd(b)-bd(a);});
   var periodoLbl=rangeOn?((S.pagArtDe?fd(deTs):'início')+' a '+(S.pagArtAte?fd(ateTs):'hoje')):'todas as artes';
-  var tipoLbl=function(l){return _artEhCarrossel(l)?('Carrossel'+(l.qty?' ('+l.qty+' imgs)':'')):(l.formato||'Arte única');};
+  var tipoLbl=function(l){var pg=(l.imgs!=null&&l.imgs>0)?l.imgs:l.qty;return _artEhCarrossel(l)?('Carrossel'+(pg?' ('+pg+' pág.)':'')):(l.formato||'Arte única');};
   var total=0;var byDes={};
   var rows=list.map(function(l){var v=_artValor(l);total+=v;
     var dn=l.by||'(sem designer)';var g=byDes[dn]=byDes[dn]||{rows:[],sub:0};
@@ -2442,17 +2442,29 @@ function saveDesignerSenha(name,val){if(!D.designerSenhas)D.designerSenhas={};D.
 // ── Preços por designer + relatório de pagamento das artes ──
 function _designerPrice(name){
   var d=(D.designerPrices||{})[name]||{};
-  var def=({'Marcos':{unica:20,carrossel:10,porSlide:true},'Karine':{unica:30,carrossel:70,porSlide:false}})[name]||{unica:0,carrossel:0,porSlide:false};
-  return {unica:(d.unica!=null&&d.unica!==''?Number(d.unica):def.unica), carrossel:(d.carrossel!=null&&d.carrossel!==''?Number(d.carrossel):def.carrossel), porSlide:(d.porSlide!=null?!!d.porSlide:def.porSlide)};
+  // pgTier: carrossel cobrado por página em faixas — até pgLim páginas a pg1/pág, acima disso a pg2/pág
+  var DEF={'Marcos':{unica:20,carrossel:10,porSlide:true,pgTier:true,pg1:10,pg2:5,pgLim:5},'Karine':{unica:30,carrossel:70,porSlide:false,pgTier:false,pg1:10,pg2:5,pgLim:5}};
+  var def=DEF[name]||{unica:0,carrossel:0,porSlide:false,pgTier:false,pg1:10,pg2:5,pgLim:5};
+  var num=function(k){return (d[k]!=null&&d[k]!=='')?Number(d[k]):def[k];};
+  return {unica:num('unica'),carrossel:num('carrossel'),porSlide:(d.porSlide!=null?!!d.porSlide:def.porSlide),pgTier:(d.pgTier!=null?!!d.pgTier:def.pgTier),pg1:num('pg1'),pg2:num('pg2'),pgLim:num('pgLim')};
 }
 function saveDesignerPrice(name,field,val){
   if(!D.designerPrices)D.designerPrices={};if(!D.designerPrices[name])D.designerPrices[name]={};
-  if(field==='porSlide')D.designerPrices[name][field]=(val===true||val==='true');
+  if(field==='porSlide'||field==='pgTier')D.designerPrices[name][field]=(val===true||val==='true');
   else{var n=parseFloat((''+val).replace(',','.'));D.designerPrices[name][field]=isNaN(n)?0:n;}
   save();
+  var m=document.getElementById('pagart-modal');
+  if(m){m.remove();openPagamentoArtes();}
+  else if(typeof render==='function')render();
 }
 function _artEhCarrossel(l){return /carrossel|carousel/i.test(l.formato||'')||((l.qty||0)>1);}
-function _artValor(l){var p=_designerPrice(l.by);if(_artEhCarrossel(l))return p.porSlide?(p.carrossel*(l.qty||1)):p.carrossel;return p.unica;}
+function _artValor(l){var p=_designerPrice(l.by);
+  if(_artEhCarrossel(l)){
+    if(p.pgTier){var q=(l.imgs!=null&&l.imgs>0)?l.imgs:(l.qty||1);var lim=p.pgLim||5;return Math.min(q,lim)*p.pg1+Math.max(q-lim,0)*p.pg2;}
+    return p.porSlide?(p.carrossel*(l.qty||1)):p.carrossel;
+  }
+  return p.unica;
+}
 function openPagamentoArtes(){
   if(!_isGestao(S.currentUser)){if(typeof toast==='function')toast('🔒 Só a Gestão vê o pagamento.');return;}
   var ptM=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -2477,8 +2489,14 @@ function openPagamentoArtes(){
       +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px">'
       +'<label style="display:flex;align-items:center;gap:5px">Arte única R$ <input type="number" value="'+p.unica+'" onchange="saveDesignerPrice(\''+escH(n)+'\',\'unica\',this.value)" style="width:72px;padding:5px;border:1px solid #E5E7EB;border-radius:6px"></label>'
       +'<label style="display:flex;align-items:center;gap:5px">Carrossel R$ <input type="number" value="'+p.carrossel+'" onchange="saveDesignerPrice(\''+escH(n)+'\',\'carrossel\',this.value)" style="width:72px;padding:5px;border:1px solid #E5E7EB;border-radius:6px"></label>'
-      +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" '+(p.porSlide?'checked':'')+' onchange="saveDesignerPrice(\''+escH(n)+'\',\'porSlide\',this.checked)"> por slide</label>'
-      +'</div></div>';}).join('');
+      +(p.pgTier?'':'<label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" '+(p.porSlide?'checked':'')+' onchange="saveDesignerPrice(\''+escH(n)+'\',\'porSlide\',this.checked)"> por slide</label>')
+      +'</div>'
+      +'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;margin-top:8px;color:#0D3D9B;font-weight:600"><input type="checkbox" '+(p.pgTier?'checked':'')+' onchange="saveDesignerPrice(\''+escH(n)+'\',\'pgTier\',this.checked)"> 📚 Carrossel por página em faixas</label>'
+      +(p.pgTier?'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:12px;margin-top:6px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:8px 10px">'
+        +'<label style="display:flex;align-items:center;gap:4px">até <input type="number" value="'+p.pgLim+'" onchange="saveDesignerPrice(\''+escH(n)+'\',\'pgLim\',this.value)" style="width:52px;padding:5px;border:1px solid #86EFAC;border-radius:6px"> pág.: R$ <input type="number" value="'+p.pg1+'" onchange="saveDesignerPrice(\''+escH(n)+'\',\'pg1\',this.value)" style="width:60px;padding:5px;border:1px solid #86EFAC;border-radius:6px"> /pág.</label>'
+        +'<label style="display:flex;align-items:center;gap:4px">acima de '+p.pgLim+': R$ <input type="number" value="'+p.pg2+'" onchange="saveDesignerPrice(\''+escH(n)+'\',\'pg2\',this.value)" style="width:60px;padding:5px;border:1px solid #86EFAC;border-radius:6px"> /pág.</label>'
+        +'</div>':'')
+      +'</div>';}).join('');
   var porDes={};lista.forEach(function(l){var n=l.by||'(sem designer)';(porDes[n]=porDes[n]||[]).push(l);});
   var totalGeral=0;var _printDes=[];
   var blocos=Object.keys(porDes).sort().map(function(n){
@@ -3300,7 +3318,8 @@ function _arteUploadFile(file){
 function _artLogRecord(c,card,qty,by){
   D.artLog=D.artLog||[];
   var _reqAt=card.createdAt?(new Date(card.createdAt).getTime()||Date.now()):Date.now();
-  D.artLog.push({at:Date.now(),reqAt:_reqAt,by:by||((S.currentUser&&S.currentUser.name)||'equipe'),clientId:c.id,client:c.name,cardId:card.id,cardTitle:card.title||'',qty:qty||0,requestedBy:card.createdBy||((c.contentOwners||[])[0])||'',formato:card.formato||''});
+  var _imgs=(typeof _cardImgs==='function')?_cardImgs(card).length:0;
+  D.artLog.push({at:Date.now(),reqAt:_reqAt,by:by||((S.currentUser&&S.currentUser.name)||'equipe'),clientId:c.id,client:c.name,cardId:card.id,cardTitle:card.title||'',qty:qty||0,imgs:_imgs,requestedBy:card.createdBy||((c.contentOwners||[])[0])||'',formato:card.formato||''});
 }
 // Subir a arte pronta — arrastar ou clicar (sem link). by = quem enviou (designer)
 function contArteAdd(cid,cardId,by){
@@ -8763,7 +8782,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080466; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080467; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
