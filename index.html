@@ -3854,6 +3854,20 @@ function rDetail(){
             <div class="fg"><label>% da comissão</label><input id="ct-com-pct" type="number" step="0.1" value="${c.comissaoPct!=null?c.comissaoPct:''}" placeholder="Ex: 5"></div>
           </div>
           <div style="font-size:11px;color:#7C3AED;margin-top:6px">A cada fechamento desse cliente, a comissão = <b>valor-base × %</b>. Aparece na tela 🤝 Comissões.</div>
+        </div>
+        <div class="fg" style="grid-column:1/-1;margin-top:4px;padding:12px 14px;border:1px dashed #93C5FD;border-radius:10px;background:#F0F9FF">
+          <label style="margin:0;text-transform:none;font-weight:700;color:#0369A1;font-size:13px">📄 Aditivos do contrato</label>
+          <div style="font-size:11px;color:var(--muted);margin:2px 0 10px">Quando houver aditivo, registre a nova data de vencimento, o novo valor e a nova comissão. Fica o histórico e os valores atuais do contrato são atualizados.</div>
+          ${_aditivosHtml(c)}
+          <div class="fgrid" style="margin-top:8px">
+            <div class="fg"><label>Data do aditivo</label><input id="adi-date" type="date"></div>
+            <div class="fg"><label>Nova data de vencimento</label><input id="adi-venc" type="date"></div>
+            <div class="fg"><label>Novo valor do contrato (R$)</label><input id="adi-valor" placeholder="Ex: 2.500,00"></div>
+            <div class="fg"><label>Nova % de comissão</label><input id="adi-compct" type="number" step="0.1" placeholder="Ex: 5"></div>
+            <div class="fg"><label>Novo valor-base comissão (R$)</label><input id="adi-comvalor" placeholder="opcional"></div>
+            <div class="fg" style="grid-column:1/-1"><label>Observação</label><input id="adi-obs" placeholder="Ex: renovação por mais 6 meses"></div>
+          </div>
+          <button type="button" class="btn btn-p btn-s" style="margin-top:8px" onclick="addAditivo('${c.id}')">➕ Registrar aditivo</button>
         </div>`:''}
         <div class="fg"><label>Social Seller Responsável 👤</label>
           <select id="ct-asgn">
@@ -6039,6 +6053,43 @@ function saveContrato(cid){
   }else{
     save();toast('✅ Contrato salvo!');render();
   }
+}
+function _adiBR(s){if(!s)return '—';var m=(''+s).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+'/'+m[2]+'/'+m[1]):(''+s);}
+function _aditivosHtml(c){
+  var ad=(c&&c.aditivos)||[];
+  if(!ad.length)return '<div style="font-size:12px;color:#94A3B8;font-style:italic">Nenhum aditivo registrado.</div>';
+  return '<div>'+ad.slice().reverse().map(function(a){
+    return '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:12px;background:#fff;border:1px solid #BAE6FD;border-radius:8px;padding:8px 10px;margin-bottom:6px">'
+      +'<span style="font-weight:700;color:#0369A1;white-space:nowrap">'+_adiBR(a.date)+'</span>'
+      +(a.novaData?'<span>📅 Novo venc.: <b>'+_adiBR(a.novaData)+'</b></span>':'')
+      +(a.novoValor?'<span>💰 Valor: <b>'+escH(a.novoValor)+'</b></span>':'')
+      +((a.comPct!=null&&a.comPct!=='')?'<span>🤝 Comissão: <b>'+escH(a.comPct)+'%</b></span>':'')
+      +(a.comValor?'<span>base: <b>'+escH(a.comValor)+'</b></span>':'')
+      +(a.obs?'<span style="color:var(--muted)">— '+escH(a.obs)+'</span>':'')
+      +'<span onclick="delAditivo(\''+c.id+'\',\''+a.id+'\')" title="Remover do histórico" style="margin-left:auto;cursor:pointer;color:#CBD5E1">🗑</span>'
+      +'</div>';
+  }).join('')+'</div>';
+}
+function addAditivo(cid){
+  var c=_findClient(cid);if(!c)return;
+  var g=function(id){var e=document.getElementById(id);return e?(''+e.value).trim():'';};
+  var date=g('adi-date'),venc=g('adi-venc'),valor=g('adi-valor'),compct=g('adi-compct'),comvalor=g('adi-comvalor'),obs=g('adi-obs');
+  if(!date&&!venc&&!valor&&compct===''&&!comvalor&&!obs){if(typeof toast==='function')toast('Preencha a data e o que mudou no aditivo.');return;}
+  if(!c.aditivos)c.aditivos=[];
+  c.aditivos.push({id:'adi'+Date.now(),date:date||new Date().toISOString().slice(0,10),novaData:venc||'',novoValor:valor||'',comPct:(compct===''?'':compct),comValor:comvalor||'',obs:obs||''});
+  // aplica os novos valores como atuais (o histórico fica guardado nos aditivos)
+  if(venc&&document.getElementById('ct-cd'))document.getElementById('ct-cd').value=venc;
+  if(valor&&document.getElementById('ct-val'))document.getElementById('ct-val').value=valor;
+  if(compct!==''&&document.getElementById('ct-com-pct'))document.getElementById('ct-com-pct').value=compct;
+  if(comvalor&&document.getElementById('ct-com-valor'))document.getElementById('ct-com-valor').value=comvalor;
+  saveContrato(cid); // persiste os campos atualizados + o aditivo e re-renderiza
+  if(typeof toast==='function')toast('📄 Aditivo registrado!');
+}
+function delAditivo(cid,aid){
+  var c=_findClient(cid);if(!c||!c.aditivos)return;
+  if(!confirm('Remover este aditivo do histórico? Os valores atuais do contrato não mudam.'))return;
+  c.aditivos=c.aditivos.filter(function(a){return a.id!==aid;});
+  save();render();
 }
 async function lerContratoPDF(cid,inputEl){
   const file=inputEl.files&&inputEl.files[0];
@@ -8782,7 +8833,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080467; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080468; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
     function _resnap(){
