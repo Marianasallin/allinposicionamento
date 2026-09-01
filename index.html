@@ -2246,7 +2246,7 @@ function rDesignerPortal(){
       +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">'+fmt+(dateStr?'<span style="font-size:12px;font-weight:700;color:#0D3D9B;background:#EFF6FF;border-radius:8px;padding:3px 9px">📅 '+dateStr+'</span>':'')+'</div>'
       +(card.clientChangeReq?'<div style="font-size:12px;font-weight:800;color:#B45309;margin-bottom:3px">✍️ Ajuste pedido pelo cliente</div><div style="font-size:14px;color:#7C2D12;white-space:pre-wrap;line-height:1.55;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:11px 13px;margin-bottom:12px">'+escH(card.clientChangeReq)+'</div>':'')
       +(function(){
-        var legendaHtml=card.caption?'<div style="font-size:13px;font-weight:800;color:#0891B2;margin-bottom:4px">📝 Legenda</div><div style="font-size:15px;color:#1E293B;white-space:pre-wrap;line-height:1.65;background:#F0FDFF;border:1px solid #A5F3FC;border-radius:10px;padding:13px 15px">'+escH(card.caption)+'</div>':'';
+        var legendaHtml=card.caption?'<div style="font-size:11px;font-weight:700;color:#0891B2;margin-bottom:3px">📝 Legenda</div><div style="font-size:12px;color:#475569;white-space:pre-wrap;line-height:1.5;background:#F0FDFF;border:1px solid #CFF;border-radius:8px;padding:9px 11px">'+escH(card.caption)+'</div>':'';
         var artHtml=tem?imgs.map(function(it){return '<img src="'+escH(it.url||it.bg||'')+'" onclick="window.open(this.src,\'_blank\')" style="width:100%;height:auto;border-radius:10px;border:1px solid #E5E7EB;display:block;margin-bottom:8px;cursor:zoom-in;background:#F8FAFC">';}).join(''):'';
         if(tem&&card.caption){
           return '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:12px"><div style="flex:0 0 240px;max-width:100%">'+artHtml+'</div><div style="flex:1;min-width:220px">'+legendaHtml+'</div></div>';
@@ -8632,13 +8632,19 @@ function rPortalConteudos(c){
   var aprovadas=cards.filter(function(k){return (k.status||'')==='aprovado';});
   // Publicadas: TUDO que foi publicado (inclui enquetes e vídeos, mesmo sem arte) — o cliente vê tudo
   var publicadas=allCards.filter(function(k){return (k.status||'')==='publicado';});
+  var imgsBig=function(k){var im=_cardImgs(k);return im.map(function(it){return '<img src="'+escH(it.url||it.bg||'')+'" onclick="window.open(this.src,\'_blank\')" style="width:100%;height:auto;border-radius:12px;border:1px solid #E5E7EB;display:block;margin-bottom:10px;cursor:zoom-in;background:#F8FAFC">';}).join('');};
   var cardAguard=function(k){return '<div class="portal-card" style="padding:18px 20px">'
-    +'<div style="font-size:16px;font-weight:700;color:#1E293B">'+escH(k.title||'Arte')+' <span style="font-size:12px;font-weight:400;color:#94A3B8">'+fmtLbl(k)+'</span></div>'
-    +'<div style="margin-top:10px">'+imgsHtml(k)+'</div>'
-    +((k.arquivos&&k.arquivos.length)?'<div style="margin-top:8px">'+k.arquivos.map(function(f){return '<a href="'+escH(f.url)+'" target="_blank" style="font-size:12px;color:#B91C1C;text-decoration:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:7px;padding:4px 10px;margin-right:6px;display:inline-block">📄 '+escH((''+(f.name||'PDF')).slice(0,26))+'</a>';}).join('')+'</div>':'')
-    +'<div style="margin-top:12px"><div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px">Legenda <span style="font-weight:400;text-transform:none;color:#94A3B8">— você pode editar aqui</span></div>'
-    +'<textarea id="pleg-'+k.id+'" style="width:100%;box-sizing:border-box;font-size:14px;color:#1E293B;line-height:1.55;border:1px solid #CBD5E1;border-radius:8px;padding:11px 13px;resize:vertical;min-height:100px">'+escH(k.caption||'')+'</textarea></div>'
-    +'<div style="margin-top:10px"><div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px">Comentário para o designer <span style="font-weight:400;text-transform:none;color:#94A3B8">(o que ajustar)</span></div>'
+    +'<div style="font-size:17px;font-weight:700;color:#1E293B;margin-bottom:14px">'+escH(k.title||'Arte')+' <span style="font-size:12px;font-weight:400;color:#94A3B8">'+fmtLbl(k)+'</span></div>'
+    +'<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">'
+      +'<div style="flex:1 1 320px;min-width:280px">'+imgsBig(k)
+        +((k.arquivos&&k.arquivos.length)?'<div style="margin-top:2px">'+k.arquivos.map(function(f){return '<a href="'+escH(f.url)+'" target="_blank" style="font-size:12px;color:#B91C1C;text-decoration:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:7px;padding:4px 10px;margin-right:6px;display:inline-block">📄 '+escH((''+(f.name||'PDF')).slice(0,26))+'</a>';}).join('')+'</div>':'')
+      +'</div>'
+      +'<div style="flex:1 1 300px;min-width:260px">'
+        +'<div style="font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:5px">Legenda <span style="font-weight:400;text-transform:none;color:#94A3B8">— você pode editar aqui</span></div>'
+        +'<textarea id="pleg-'+k.id+'" style="width:100%;box-sizing:border-box;font-size:16px;color:#1E293B;line-height:1.6;border:1px solid #CBD5E1;border-radius:10px;padding:13px 15px;resize:vertical;min-height:230px">'+escH(k.caption||'')+'</textarea>'
+      +'</div>'
+    +'</div>'
+    +'<div style="margin-top:14px"><div style="font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px">Observação para o designer <span style="font-weight:400;text-transform:none;color:#94A3B8">(o que ajustar)</span></div>'
     +'<textarea id="pcom-'+k.id+'" placeholder="Ex.: trocar a cor do fundo, corrigir o texto do 2º slide…" style="width:100%;box-sizing:border-box;font-size:14px;border:1px solid #FCA5A5;border-radius:8px;padding:11px 13px;resize:vertical;min-height:74px">'+escH(k.clientChangeReq||'')+'</textarea></div>'
     +'<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'
     +'<button onclick="portalApproveArt(\''+k.id+'\')" style="flex:1;min-width:140px;padding:12px;border:none;border-radius:10px;background:#16A34A;color:#fff;font-size:14px;font-weight:700;cursor:pointer">✅ Aprovar</button>'
@@ -8855,7 +8861,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080470; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080471; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
