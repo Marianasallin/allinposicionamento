@@ -1197,6 +1197,7 @@ function _finVencendoCard(win,hideEmpty){
 function finSetPayStart(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;if((c.payStart||'')===(val||''))return;c.payStart=val;save();render();}
 function finSetProspStart(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;if((c.prospectionStart||'')===(val||''))return;c.prospectionStart=val;save();render();}
 function finSetParcelas(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var n=parseInt(val);var nv=isNaN(n)?'':n;if((''+(c.parcelas||''))===(''+nv))return;c.parcelas=nv;save();render();}
+function finSetValor(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var nv=(''+val).trim();if((''+(c.contractValue||''))===nv)return;c.contractValue=nv;save();render();}
 function _finPagamentosCard(){
   var brl=function(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
   var now=new Date();var nowYm=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
@@ -1211,9 +1212,10 @@ function _finPagamentosCard(){
       var pg=_finPago(c,p.n);
       if(pg){pagas++;pagoTot+=_parseMoney(pg.value);
         return '<span onclick="finClearParcela(\''+c.id+'\','+p.n+')" title="Competência: '+p.comp+' · pago '+brl(_parseMoney(pg.value))+' em '+escH(pg.dateBR||'')+' — clique p/ desmarcar" style="'+sqCss+';background:#DCFCE7;color:#166534;border:1px solid #86EFAC">'+p.label+'<span style="position:absolute;top:-5px;right:-4px;background:#16A34A;color:#fff;border-radius:50%;width:13px;height:13px;font-size:9px;display:flex;align-items:center;justify-content:center">✓</span></span>';}
-      var atrasoOuVence=p.ym<=nowYm;
-      var st=atrasoOuVence?'background:#FEF3C7;color:#92400E;border:1px solid #FCD34D':'background:#F8FAFC;color:#94A3B8;border:1px dashed #E2E8F0';
-      return '<span onclick="finMarkParcela(\''+c.id+'\','+p.n+')" title="Competência: '+p.comp+' — clique p/ marcar como pago" style="'+sqCss+';'+st+'">'+p.label+'</span>';
+      var vencido=p.ym<nowYm; // mês já passou e não foi pago → vencido (vermelho)
+      var st=vencido?'background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5':'background:#FEF3C7;color:#92400E;border:1px solid #FCD34D';
+      var ttl=vencido?'Competência: '+p.comp+' — VENCIDO, não pago · clique p/ marcar como pago':'Competência: '+p.comp+' — a pagar · clique p/ marcar como pago';
+      return '<span onclick="finMarkParcela(\''+c.id+'\','+p.n+')" title="'+ttl+'" style="'+sqCss+';'+st+'">'+p.label+'</span>';
     }).join('');
     var isGP=(c.products||[]).includes('Gestão de Perfil');
     var impl=c.implantacao;var implCell;
@@ -1221,23 +1223,26 @@ function _finPagamentosCard(){
     else if(isGP){implCell='<span onclick="finMarkImpl(\''+c.id+'\')" title="Lançar a implantação (valor + data)" style="height:30px;border-radius:7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 11px;cursor:pointer;background:#FEF3C7;color:#92400E;border:1px solid #FCD34D">🔧 lançar</span>';}
     else{implCell='<span onclick="finMarkImpl(\''+c.id+'\')" title="Registrar implantação (opcional)" style="font-size:11px;color:#94A3B8;cursor:pointer">＋ impl.</span>';}
     var faltam=has?(arr.length-pagas):null;var tot=_parseMoney(c.contractValue);
-    var inicioInp='<input type="date" value="'+(c.prospectionStart||c.payStart||c.startDate||'')+'" onblur="finSetProspStart(\''+c.id+'\',this.value)" title="Início da prospecção — gera as competências (ex.: dia 16 → competência 16 a 15)" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:145px">';
+    var inicioInp='<input type="date" value="'+(c.prospectionStart||c.payStart||c.startDate||'')+'" onblur="finSetProspStart(\''+c.id+'\',this.value)" title="Início da prospecção (clientes de Gestão) ou início do contrato (demais clientes) — gera as competências (ex.: dia 16 → competência 16 a 15)" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:145px">';
     var parcInp='<input type="number" min="0" value="'+(c.parcelas!=null&&c.parcelas!==''?c.parcelas:'')+'" onblur="finSetParcelas(\''+c.id+'\',this.value)" placeholder="—" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:66px;text-align:center">';
+    var vpp=(tot&&parseInt(c.parcelas))?brl(tot/parseInt(c.parcelas)):'';
+    var valorInp='<input value="'+escH(c.contractValue||'')+'" onblur="finSetValor(\''+c.id+'\',this.value)" placeholder="R$ —" title="Valor do contrato" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:100px;text-align:right">'+(vpp?'<div style="font-size:10px;color:var(--muted);margin-top:2px;text-align:right">parcela: '+vpp+'</div>':'');
     return '<tr>'
       +'<td style="padding:9px 12px;border-top:1px solid #F1F5F9"><div style="font-weight:700">'+escH(c.name)+'</div>'+(c.paymentMethod?'<div style="font-size:11px;color:var(--muted)">'+escH(c.paymentMethod)+'</div>':'')+'</td>'
       +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9">'+inicioInp+'</td>'
       +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9;text-align:center">'+parcInp+'</td>'
+      +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9;text-align:right">'+valorInp+'</td>'
       +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9;text-align:center">'+implCell+'</td>'
       +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9">'+(has?'<div style="display:flex;flex-wrap:wrap;max-width:720px">'+strip+'</div>':'<span style="font-size:12px;color:#94A3B8">⬅ preencha o início e o nº de parcelas</span>')+'</td>'
-      +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;font-size:12px;white-space:nowrap;text-align:right">'+(has&&tot?'<div style="color:#16A34A;font-weight:600">'+brl(pagoTot)+'</div><div style="color:var(--muted)">de '+brl(tot)+'</div>':'—')+'</td>'
+      +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;font-size:12px;white-space:nowrap;text-align:right">'+(has?('<div style="color:#16A34A;font-weight:600">'+brl(pagoTot)+'</div>'+(tot?'<div style="color:var(--muted)">de '+brl(tot)+'</div>':'')):'—')+'</td>'
       +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;text-align:center">'+(has?'<span style="font-size:16px;font-weight:800;color:'+(faltam===0?'#16A34A':'#0D3D9B')+'">'+faltam+'</span>':'—')+'</td>'
       +'</tr>';
   }).join('');
   var search='<div style="padding:12px 16px 0"><input value="'+escH(S.finBusca||'')+'" oninput="S.finBusca=this.value;clearTimeout(window._finBt);window._finBt=setTimeout(render,250)" placeholder="🔎 buscar cliente…" style="width:100%;max-width:340px;padding:9px 12px;border:1px solid #E2E8F0;border-radius:9px;font-size:13px;box-sizing:border-box"></div>';
   var body=search+(clientes.length?('<div class="tw" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
-    +'<thead><tr>'+['Cliente','Início prospecção','Nº parc.','Implantação','Parcelas (competências — clique p/ marcar pago)','Pago','Faltam'].map(function(h,i){return '<th style="text-align:'+(i===5?'right':((i===2||i===3||i===6)?'center':'left'))+';padding:8px 12px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B;text-transform:uppercase">'+h+'</th>';}).join('')+'</tr></thead>'
+    +'<thead><tr>'+[['Cliente','left'],['Início prospecção / contrato','left'],['Nº parc.','center'],['Valor','right'],['Implantação','center'],['Parcelas (competências — clique p/ marcar pago)','left'],['Pago','right'],['Faltam','center']].map(function(h){return '<th style="text-align:'+h[1]+';padding:8px 12px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B;text-transform:uppercase">'+h[0]+'</th>';}).join('')+'</tr></thead>'
     +'<tbody>'+rows+'</tbody></table></div>'
-    +'<div class="note" style="margin:10px 16px 4px;line-height:1.6">🟩 pago · 🟨 vence/atrasado (clique p/ registrar valor e data) · ⬜ a vencer. Cada quadradinho é uma <b>competência mensal</b> — passe o mouse pra ver o período (ex.: 16/05 a 15/06), contado a partir do <b>dia do início da prospecção</b> (não do pagamento).<br>🔧 <b>Implantação</b> (Gestão de Perfil) é um <b>lançamento único</b>, separado das parcelas mensais.</div>')
+    +'<div class="note" style="margin:10px 16px 4px;line-height:1.6">🟩 pago · 🟥 vencido (o mês já passou e não foi pago) · 🟧 a pagar (clique p/ registrar valor e data). Cada quadradinho é uma <b>competência mensal</b> — passe o mouse pra ver o período (ex.: 16/05 a 15/06), contado a partir do <b>início da prospecção</b> (clientes de Gestão) ou do <b>início do contrato</b> (demais clientes).<br>🔧 <b>Implantação</b> (Gestão de Perfil) é um <b>lançamento único</b>, separado das parcelas mensais.</div>')
     :'<div class="cb" style="padding:20px;color:var(--muted);font-size:13px">Nenhum cliente encontrado.</div>');
   return '<div class="card" style="margin-bottom:16px"><div class="ch"><h3>📊 Controle de pagamentos por cliente</h3><span class="note" style="font-size:11px">'+clientes.length+' clientes</span></div>'+body+'</div>';
 }
@@ -8861,7 +8866,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080472; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080473; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
