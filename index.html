@@ -2262,9 +2262,9 @@ function rDesignerPortal(){
     +'<div style="background:linear-gradient(135deg,#0D3D9B,#0891B2);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:16px;font-weight:700">🎨 Portal do Designer</div><div style="font-size:12px;opacity:.9">Olá, '+escH(name)+'</div></div><button onclick="'+(S.designerPreview?'exitDesignerPreview()':'designerLogout()')+'" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer">'+(S.designerPreview?'← Voltar':'Sair')+'</button></div>'
     +'<div style="max-width:720px;margin:0 auto;padding:16px 16px 60px">'
     +'<div style="display:flex;gap:10px;margin-bottom:16px">'
-    +'<div style="flex:1;background:#fff;border-radius:12px;padding:12px;text-align:center;border:1px solid #E5E7EB"><div style="font-size:22px;font-weight:800;color:#B45309">'+pend+'</div><div style="font-size:11px;color:#64748B">Artes pendentes</div></div>'
-    +'<div style="flex:1;background:#fff;border-radius:12px;padding:12px;text-align:center;border:1px solid #E5E7EB"><div style="font-size:22px;font-weight:800;color:#0D3D9B">'+artesHoje+'</div><div style="font-size:11px;color:#64748B">Enviadas hoje</div></div>'
-    +'<div style="flex:1;background:#fff;border-radius:12px;padding:12px;text-align:center;border:1px solid #E5E7EB"><div style="font-size:22px;font-weight:800;color:#16A34A">'+artesTotal+'</div><div style="font-size:11px;color:#64748B">Total enviadas</div></div>'
+    +'<div onclick="S.dpStatus=\'afazer\';render()" style="flex:1;background:#fff;border-radius:12px;padding:12px;text-align:center;border:1px solid '+(fSt==='afazer'?'#B45309':'#E5E7EB')+';cursor:pointer;box-shadow:'+(fSt==='afazer'?'0 2px 8px rgba(180,83,9,.18)':'none')+'"><div style="font-size:22px;font-weight:800;color:#B45309">'+pend+'</div><div style="font-size:11px;color:#64748B">Artes pendentes</div><div style="font-size:9px;color:#B45309;font-weight:700;margin-top:2px">👉 clique pra fazer</div></div>'
+    +'<div onclick="S.dpStatus=\'feitas\';render()" style="flex:1;background:#fff;border-radius:12px;padding:12px;text-align:center;border:1px solid #E5E7EB;cursor:pointer"><div style="font-size:22px;font-weight:800;color:#0D3D9B">'+artesHoje+'</div><div style="font-size:11px;color:#64748B">Enviadas hoje</div></div>'
+    +'<div onclick="S.dpStatus=\'feitas\';render()" style="flex:1;background:#fff;border-radius:12px;padding:12px;text-align:center;border:1px solid '+(fSt==='feitas'?'#16A34A':'#E5E7EB')+';cursor:pointer;box-shadow:'+(fSt==='feitas'?'0 2px 8px rgba(22,163,74,.18)':'none')+'"><div style="font-size:22px;font-weight:800;color:#16A34A">'+artesTotal+'</div><div style="font-size:11px;color:#64748B">Total enviadas</div></div>'
     +'</div>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><span style="font-size:11px;color:#94A3B8;align-self:center">Status:</span>'+chip('todos','Todos',fSt,'dpStatus')+chip('afazer','⏳ A fazer',fSt,'dpStatus')+chip('feitas','✅ Feitas',fSt,'dpStatus')+'</div>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"><span style="font-size:11px;color:#94A3B8;align-self:center">Cliente:</span>'+clientes.map(function(cl){return chip(cl,cl==='todos'?'Todos':cl,fCli,'dpClient');}).join('')+'</div>'
@@ -8635,13 +8635,13 @@ function rPortalConteudos(c){
   var imgsBig=function(k){var im=_cardImgs(k);return im.map(function(it){return '<img src="'+escH(it.url||it.bg||'')+'" onclick="window.open(this.src,\'_blank\')" style="width:100%;height:auto;border-radius:12px;border:1px solid #E5E7EB;display:block;margin-bottom:10px;cursor:zoom-in;background:#F8FAFC">';}).join('');};
   var cardAguard=function(k){return '<div class="portal-card" style="padding:18px 20px">'
     +'<div style="font-size:17px;font-weight:700;color:#1E293B;margin-bottom:14px">'+escH(k.title||'Arte')+' <span style="font-size:12px;font-weight:400;color:#94A3B8">'+fmtLbl(k)+'</span></div>'
-    +'<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">'
+    +'<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:stretch">'
       +'<div style="flex:1 1 320px;min-width:280px">'+imgsBig(k)
         +((k.arquivos&&k.arquivos.length)?'<div style="margin-top:2px">'+k.arquivos.map(function(f){return '<a href="'+escH(f.url)+'" target="_blank" style="font-size:12px;color:#B91C1C;text-decoration:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:7px;padding:4px 10px;margin-right:6px;display:inline-block">📄 '+escH((''+(f.name||'PDF')).slice(0,26))+'</a>';}).join('')+'</div>':'')
       +'</div>'
-      +'<div style="flex:1 1 300px;min-width:260px">'
+      +'<div style="flex:1 1 300px;min-width:260px;display:flex;flex-direction:column">'
         +'<div style="font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:5px">Legenda <span style="font-weight:400;text-transform:none;color:#94A3B8">— você pode editar aqui</span></div>'
-        +'<textarea id="pleg-'+k.id+'" style="width:100%;box-sizing:border-box;font-size:16px;color:#1E293B;line-height:1.6;border:1px solid #CBD5E1;border-radius:10px;padding:13px 15px;resize:vertical;min-height:230px">'+escH(k.caption||'')+'</textarea>'
+        +'<textarea id="pleg-'+k.id+'" style="width:100%;box-sizing:border-box;flex:1;font-size:16px;color:#1E293B;line-height:1.6;border:1px solid #CBD5E1;border-radius:10px;padding:13px 15px;resize:vertical;min-height:230px">'+escH(k.caption||'')+'</textarea>'
       +'</div>'
     +'</div>'
     +'<div style="margin-top:14px"><div style="font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px">Observação para o designer <span style="font-weight:400;text-transform:none;color:#94A3B8">(o que ajustar)</span></div>'
@@ -8861,7 +8861,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080471; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080472; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
