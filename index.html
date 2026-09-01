@@ -1141,8 +1141,14 @@ function _isFinOnly(u){u=u||S.currentUser;return !!(u&&u.role==='Financeiro'&&!_
 // ── Controle de parcelas por cliente ──
 var _FIN_MAB=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 function _finBR(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+// Data-base das competências, puxada do que JÁ está no cadastro:
+// cliente de Gestão de Perfil → início da prospecção; demais clientes → início do contrato.
+function _finBaseDate(c){
+  var isGP=(c.products||[]).includes('Gestão de Perfil');
+  return (isGP?(c.prospectionStart||c.startDate):(c.startDate||c.prospectionStart))||c.payStart||'';
+}
 function _finParcelas(c){
-  var ps=c.prospectionStart||c.payStart||c.startDate;var n=parseInt(c.parcelas)||0;
+  var ps=_finBaseDate(c);var n=parseInt(c.parcelas)||0;
   if(!ps||n<=0)return [];
   var base=new Date(ps+'T12:00:00');if(isNaN(base))return [];
   var out=[];for(var i=0;i<n;i++){
@@ -1154,7 +1160,7 @@ function _finParcelas(c){
   return out;
 }
 function _finPago(c,n){var pg=(c.pagamentos||{})[n];return (pg&&(pg.date||pg.dateBR||pg.value!=null))?pg:null;}
-function _finFimDate(c){var ps=c.prospectionStart||c.payStart||c.startDate;var n=parseInt(c.parcelas)||0;if(!ps||n<=0)return null;var d=new Date(ps+'T12:00:00');if(isNaN(d))return null;d.setMonth(d.getMonth()+n);return d;}
+function _finFimDate(c){var ps=_finBaseDate(c);var n=parseInt(c.parcelas)||0;if(!ps||n<=0)return null;var d=new Date(ps+'T12:00:00');if(isNaN(d))return null;d.setMonth(d.getMonth()+n);return d;}
 function finMarkParcela(cid,n){
   var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;
   var sug=(c.pagamentos&&c.pagamentos[n]&&c.pagamentos[n].value)||((c.contractValue&&parseInt(c.parcelas))?(_parseMoney(c.contractValue)/parseInt(c.parcelas)).toFixed(2).replace('.',','):'');
@@ -1196,6 +1202,8 @@ function _finVencendoCard(win,hideEmpty){
 }
 function finSetPayStart(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;if((c.payStart||'')===(val||''))return;c.payStart=val;save();render();}
 function finSetProspStart(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;if((c.prospectionStart||'')===(val||''))return;c.prospectionStart=val;save();render();}
+// Salva a data-base no campo certo do cadastro: Gestão → prospecção; demais → início do contrato
+function finSetInicio(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var isGP=(c.products||[]).includes('Gestão de Perfil');var field=isGP?'prospectionStart':'startDate';if(((c[field])||'')===(val||''))return;c[field]=val;save();render();}
 function finSetParcelas(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var n=parseInt(val);var nv=isNaN(n)?'':n;if((''+(c.parcelas||''))===(''+nv))return;c.parcelas=nv;save();render();}
 function finSetValor(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var nv=(''+val).trim();if((''+(c.contractValue||''))===nv)return;c.contractValue=nv;save();render();}
 function _finPagamentosCard(){
@@ -1223,7 +1231,7 @@ function _finPagamentosCard(){
     else if(isGP){implCell='<span onclick="finMarkImpl(\''+c.id+'\')" title="Lançar a implantação (valor + data)" style="height:30px;border-radius:7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 11px;cursor:pointer;background:#FEF3C7;color:#92400E;border:1px solid #FCD34D">🔧 lançar</span>';}
     else{implCell='<span onclick="finMarkImpl(\''+c.id+'\')" title="Registrar implantação (opcional)" style="font-size:11px;color:#94A3B8;cursor:pointer">＋ impl.</span>';}
     var faltam=has?(arr.length-pagas):null;var tot=_parseMoney(c.contractValue);
-    var inicioInp='<input type="date" value="'+(c.prospectionStart||c.payStart||c.startDate||'')+'" onblur="finSetProspStart(\''+c.id+'\',this.value)" title="Início da prospecção (clientes de Gestão) ou início do contrato (demais clientes) — gera as competências (ex.: dia 16 → competência 16 a 15)" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:145px">';
+    var inicioInp='<input type="date" value="'+(_finBaseDate(c)||'')+'" onblur="finSetInicio(\''+c.id+'\',this.value)" title="Puxada do cadastro: início da prospecção (clientes de Gestão) ou início do contrato (demais). Gera as competências (ex.: dia 14 → competência 14 a 13)" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:145px">';
     var parcInp='<input type="number" min="0" value="'+(c.parcelas!=null&&c.parcelas!==''?c.parcelas:'')+'" onblur="finSetParcelas(\''+c.id+'\',this.value)" placeholder="—" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:66px;text-align:center">';
     var vpp=(tot&&parseInt(c.parcelas))?brl(tot/parseInt(c.parcelas)):'';
     var valorInp='<input value="'+escH(c.contractValue||'')+'" onblur="finSetValor(\''+c.id+'\',this.value)" placeholder="R$ —" title="Valor do contrato" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:100px;text-align:right">'+(vpp?'<div style="font-size:10px;color:var(--muted);margin-top:2px;text-align:right">parcela: '+vpp+'</div>':'');
@@ -8866,7 +8874,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080473; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080474; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
