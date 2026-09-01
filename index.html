@@ -1636,6 +1636,12 @@ function _relResultadosForm(c){
     +'<div class="fg"><label>Convites enviados</label><input type="number" id="rr-convenv" value="'+val(mm.convitesEnviados)+'"></div>'
     +'<div class="fg"><label>Convites aceitos</label><input type="number" id="rr-convace" value="'+val(mm.convitesAceitos)+'"></div>'
     +'</div>'
+    +'<div style="margin:4px 0 20px;padding:16px 18px;border:2px solid #BFDBFE;border-radius:14px;background:#EFF6FF">'
+    +'<div style="font-size:15px;font-weight:800;color:#0D3D9B;margin-bottom:4px">📊 Análise do mês — '+mk+'</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:12px">Resumo do mês que o cliente vê na Central · Status: <b style="color:'+(mr.analysis&&mr.analysis.trim()?(mr.released?'#16A34A':'#B45309'):'#94A3B8')+'">'+(mr.analysis&&mr.analysis.trim()?(mr.released?'✅ liberada pro cliente':'📝 rascunho (ainda não liberada)'):'— ainda não escrita')+'</b></div>'
+    +(mr.analysis&&(''+mr.analysis).trim()?'<div style="font-size:14px;color:#334155;white-space:pre-wrap;line-height:1.6;background:#fff;border:1px solid #DBEAFE;border-radius:10px;padding:12px 14px;margin-bottom:12px;max-height:220px;overflow:auto">'+escH(mr.analysis)+'</div>':'')
+    +'<button class="btn btn-p" onclick="openMonthReportModal(\''+c.id+'\',\''+mk+'\')" style="font-size:14px;padding:11px 20px;font-weight:700">✍️ Escrever / validar análise do mês</button>'
+    +'</div>'
     +'<div class="rr-sec" style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:6px">✍️ Conteúdo — '+mk+' <span style="font-weight:400;text-transform:none;color:var(--muted)">(preenche: equipe de Conteúdo)</span></div>'
     +'<div class="fgrid" style="margin-bottom:12px" oninput="_resAutosave(\''+c.id+'\',\''+mk+'\')">'
     +'<div class="fg"><label>Publicações</label><input type="number" id="rr-pub" value="'+val(mm.publicacoes)+'"></div>'
@@ -1656,7 +1662,6 @@ function _relResultadosForm(c){
           : '<button class="btn btn-p btn-s" onclick="approveContentAnalysis(\''+c.id+'\',\''+mk+'\',true)" style="background:#16A34A;border-color:#16A34A">✅ Aprovar e liberar pro cliente</button>')
       : '<span style="font-size:11px;color:var(--muted)">'+(mr.contentReleased?'✅ Aprovada pela Mari (no portal)':(mr.contentAnalysis&&(''+mr.contentAnalysis).trim()?'⏳ Aguardando aprovação da Mari':'— rascunho'))+'</span>')
     +'</div></div>'
-    +'<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);font-size:12px;color:var(--muted)">📝 Análise do mês: '+(mr.analysis&&mr.analysis.trim()?(mr.released?'✅ liberada':'📝 rascunho'):'— pendente')+' <button class="btn btn-o btn-s" onclick="openMonthReportModal(\''+c.id+'\',\''+mk+'\')" style="font-size:11px;margin-left:6px">Escrever / validar análise</button></div>'
     +'</div></div>';
 }
 // Carrega o leitor de planilha (SheetJS) só quando precisa
@@ -8874,7 +8879,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080474; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080475; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
