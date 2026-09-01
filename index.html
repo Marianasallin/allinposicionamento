@@ -2315,7 +2315,7 @@ function _contCard(c,card){
     +(card.caption?'<div onclick="contAIViewLegenda(\''+c.id+'\',\''+card.id+'\')" style="margin-top:7px;font-size:11px;color:#7C3AED;cursor:pointer;text-decoration:underline" title="Ver a legenda salva">📝 ver legenda salva</div>':'')
     +'<div style="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:4px;margin-top:10px;padding-top:8px;border-top:1px solid #F1F5F9">'
     +'<button class="btn btn-s" style="font-size:11px;padding:3px 9px;background:linear-gradient(135deg,#7C3AED,#0D3D9B);color:#fff;border:none" title="Gerar legenda com a IA" onclick="contAIPreGen(\''+c.id+'\',\'legenda\',\''+card.id+'\')">✨ Legenda</button>'
-    +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 9px" title="Anexar a arte (link ou arquivo)" onclick="contArteAdd(\''+c.id+'\',\''+card.id+'\')">🖼️ Arte</button>'
+    +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 9px" title="Anexar a arte (link ou arquivo)" onclick="contArteAdd(\''+c.id+'\',\''+card.id+'\',\''+escH(card.designer||'')+'\')">🖼️ Arte</button>'
     +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 8px" onclick="contCardOpen(\''+c.id+'\',\''+card.id+'\')" title="Editar">✏️</button>'
     +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 8px;border-color:var(--red);color:var(--red)" onclick="contDelete(\''+c.id+'\',\''+card.id+'\')" title="Excluir">🗑</button>'
     +'</div>'
@@ -3319,7 +3319,8 @@ function _artLogRecord(c,card,qty,by){
   D.artLog=D.artLog||[];
   var _reqAt=card.createdAt?(new Date(card.createdAt).getTime()||Date.now()):Date.now();
   var _imgs=(typeof _cardImgs==='function')?_cardImgs(card).length:0;
-  D.artLog.push({at:Date.now(),reqAt:_reqAt,by:by||((S.currentUser&&S.currentUser.name)||'equipe'),clientId:c.id,client:c.name,cardId:card.id,cardTitle:card.title||'',qty:qty||0,imgs:_imgs,requestedBy:card.createdBy||((c.contentOwners||[])[0])||'',formato:card.formato||''});
+  var _now=Date.now();
+  D.artLog.push({id:'al'+_now+'_'+Math.random().toString(36).slice(2,7),at:_now,reqAt:_reqAt,by:by||((S.currentUser&&S.currentUser.name)||'equipe'),clientId:c.id,client:c.name,cardId:card.id,cardTitle:card.title||'',qty:qty||0,imgs:_imgs,requestedBy:card.createdBy||((c.contentOwners||[])[0])||'',formato:card.formato||''});
 }
 // Subir a arte pronta — arrastar ou clicar (sem link). by = quem enviou (designer)
 function contArteAdd(cid,cardId,by){
@@ -8833,9 +8834,9 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080468; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080469; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
-    let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:''};
+    let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
       _fbSnap={
         ids:D.clients.map(c=>c.id),
@@ -8845,7 +8846,8 @@ window.addEventListener('hashchange',handleNavigation);
         assignedTasks:JSON.stringify(D.assignedTasks||[]),
         finance:JSON.stringify(D.finance||null),
         processos:JSON.stringify(D.processos||[]),
-        processoAreas:JSON.stringify(D.processoAreas||[])
+        processoAreas:JSON.stringify(D.processoAreas||[]),
+        artLog:(function(){var m={};(D.artLog||[]).forEach(function(l){if(l&&l.id)m[l.id]=JSON.stringify(l);});return m;})()
       };
     }
 
@@ -8919,6 +8921,8 @@ window.addEventListener('hashchange',handleNavigation);
           const fj=JSON.stringify(D.finance||null);if(_fbSnap.finance!==fj)updates['finance']=D.finance?JSON.parse(fj):null;
           const prj=JSON.stringify(D.processos||[]);if(_fbSnap.processos!==prj)updates['processos']=JSON.parse(prj);
           const paj=JSON.stringify(D.processoAreas||[]);if(_fbSnap.processoAreas!==paj)updates['processoAreas']=JSON.parse(paj);
+          // artLog: grava só as entradas novas/alteradas por id (append-only, nunca sobrescreve o log inteiro)
+          (D.artLog||[]).forEach(function(l){if(!l)return;if(!l.id)l.id='al'+(l.at||Date.now())+'_'+Math.random().toString(36).slice(2,7);var alj=JSON.stringify(l);if((_fbSnap.artLog||{})[l.id]!==alj)updates['artLog/'+l.id]=JSON.parse(alj);});
           if(!Object.keys(updates).length){done();return;}
           const commit=(resync)=>{
             if(!Object.keys(updates).length){if(resync)doneResync();else done();return;}
@@ -9011,6 +9015,9 @@ window.addEventListener('hashchange',handleNavigation);
       if(!data.team)data.team=[];
       (data.team||[]).forEach(function(m){if(!m.notesLog)m.notesLog=[];});
       if(!data.assignedTasks)data.assignedTasks=[];
+      // artLog é sincronizado por id (objeto na nuvem) — normaliza para array
+      if(data.artLog&&!Array.isArray(data.artLog))data.artLog=Object.keys(data.artLog).map(function(k){return data.artLog[k];});
+      if(!Array.isArray(data.artLog))data.artLog=[];
       return data;
     }
 
@@ -9232,6 +9239,15 @@ window.addEventListener('hashchange',handleNavigation);
           if(fbData&&typeof fbData._rev==='number'&&fbData._rev>_dataRev)_dataRev=fbData._rev; // acompanha o carimbo do servidor
           const sanitized=sanitizeD(fbData);
           if(sanitized){delete sanitized._rev;delete sanitized._build;delete sanitized._presence;delete sanitized._authEpoch;} // metadados não fazem parte de D
+          // artLog: preserva entradas locais ainda não sincronizadas (mescla por id/assinatura, nunca perde uma arte enviada)
+          try{
+            var _cloudLog=Array.isArray(sanitized.artLog)?sanitized.artLog:[];
+            var _localLog=Array.isArray(D.artLog)?D.artLog:[];
+            var _sig=function(l){return l&&(l.id||((l.at||'')+'|'+(l.cardId||'')+'|'+(l.by||'')));};
+            var _seen={};_cloudLog.forEach(function(l){var s=_sig(l);if(s)_seen[s]=1;});
+            _localLog.forEach(function(l){var s=_sig(l);if(l&&s&&!_seen[s])_cloudLog.push(l);});
+            sanitized.artLog=_cloudLog;
+          }catch(_e){}
           if(JSON.stringify(sanitized)!==JSON.stringify(D)){
             D=sanitized;
             localStorage.setItem('allin',JSON.stringify(D));
