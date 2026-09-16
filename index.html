@@ -2511,10 +2511,12 @@ function _artDeliveries(){
     ((_conteudos(c).cards)||[]).forEach(function(k){
       var imgs=(typeof _cardImgs==='function')?_cardImgs(k).length:((k.images||[]).length||(k.imageUrl?1:0));
       if(!imgs)return; // sem arte entregue ainda
-      var who=k.artBy||k.designer||'';
-      if(!who)return; // sem designer atribuído → não é entrega de designer (ex.: importação do Trello)
+      // Só conta o que foi DIRECIONADO a um designer (Marcos/Karine) — não as artes que a Naiara/equipe fez
+      var desig=(k.designer&&_DESIGNERS.indexOf(k.designer)>=0)?k.designer:((k.artBy&&_DESIGNERS.indexOf(k.artBy)>=0)?k.artBy:'');
+      if(!desig)return;
+      var who=desig;
       var reqAt=k.createdAt?(new Date(k.createdAt).getTime()||null):null;
-      out.push({by:who,designer:k.designer||who,client:c.name,clientId:c.id,cardId:k.id,cardTitle:k.title||'',formato:k.formato||'',imgs:imgs,qty:imgs,at:(k.artAt||reqAt||Date.now()),reqAt:(reqAt||k.artAt||Date.now()),requestedBy:k.createdBy||((c.contentOwners||[])[0])||''});
+      out.push({by:who,designer:desig,client:c.name,clientId:c.id,cardId:k.id,cardTitle:k.title||'',formato:k.formato||'',imgs:imgs,qty:imgs,at:(k.artAt||reqAt||Date.now()),reqAt:(reqAt||k.artAt||Date.now()),requestedBy:k.createdBy||((c.contentOwners||[])[0])||''});
     });
   });
   return out;
@@ -8894,7 +8896,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080477; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080478; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
