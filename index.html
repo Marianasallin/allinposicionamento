@@ -303,7 +303,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
 const COLORS=['#0077B5','#7C5CBF','#E8622A','#057642','#0891B2','#7C3AED','#B45309','#065F46','#1D4ED8','#9333EA','#0F766E','#D97706','#BE185D','#1E3A5F','#4A1942'];
 function initials(n){return n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]?.toUpperCase()||'').join('')}
 function color(i){return COLORS[i%COLORS.length]}
-function fmtDate(ts){if(!ts)return '—';const d=new Date(ts);return d.toLocaleDateString('pt-BR')}
+function fmtDate(ts){if(!ts)return '—';const d=(typeof ts==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(ts))?new Date(ts+'T12:00:00'):new Date(ts);return isNaN(d)?String(ts):d.toLocaleDateString('pt-BR')}
 function SL(s){return{concluido:'✅ Concluído',andamento:'🔄 Em andamento',pendente:'⏳ Pendente',atrasado:'❌ Atrasado'}[s]||s}
 function SC(s){return{concluido:'bc',andamento:'ba',pendente:'bp',atrasado:'br'}[s]||'bp'}
 function CS(s){return{pendente:'andamento',andamento:'concluido',concluido:'pendente',atrasado:'pendente'}[s]||'pendente'}
@@ -8924,7 +8924,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080480; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080481; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
