@@ -2106,6 +2106,15 @@ var PLANO_ST=[['todo','A fazer','#475569','#F1F5F9','#CBD5E1'],['doing','Em anda
 function _planoStMeta(s){for(var i=0;i<PLANO_ST.length;i++)if(PLANO_ST[i][0]===s)return PLANO_ST[i];return PLANO_ST[0];}
 function _planoOwner(o){return o==='allin'?['🔵 ALL IN','#0D3D9B','#EFF6FF']:['🟢 Cliente','#0D9488','#F0FDFA'];}
 function _actionPlan(c){if(!Array.isArray(c.actionPlan))c.actionPlan=[];return c.actionPlan;}
+// Transforma URLs do texto em links clicáveis bonitinhos (chip). Escapa o texto antes.
+function _linkify(text){
+  return escH(text||'').replace(/(https?:\/\/[^\s<]+)/g,function(u){
+    var host=u.replace(/^https?:\/\//,'').split('/')[0];
+    var isDoc=/docs\.google|drive\.google|document/i.test(u);
+    var lbl=isDoc?'📄 Abrir documento':'🔗 '+escH(host);
+    return '<a href="'+u+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#0369A1;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:3px 9px;text-decoration:none;vertical-align:middle">'+lbl+' ↗</a>';
+  });
+}
 function _planoCard(c,t,isPortal,board){
   var admin=!isPortal;
   var canEdit=admin||t.owner==='client'; // no portal, a cliente só mexe no status das tarefas DELA
@@ -2114,9 +2123,9 @@ function _planoCard(c,t,isPortal,board){
   var stCtrl=canEdit
     ? PLANO_ST.map(function(s){var on=s[0]===t.status;return '<span onclick="planoSetStatus(\''+c.id+'\',\''+t.id+'\',\''+s[0]+'\')" style="cursor:pointer;font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:'+(on?s[3]:'#fff')+';color:'+(on?s[2]:'#94A3B8')+';border:1px solid '+(on?s[4]:'#E5E7EB')+'">'+s[1]+'</span>';}).join(' ')
     : '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:'+st[3]+';color:'+st[2]+';border:1px solid '+st[4]+'">'+st[1]+'</span>';
-  return '<div '+(drag?'draggable="true" ondragstart="planoDragStart(event,\''+c.id+'\',\''+t.id+'\')" title="Arraste para mover de coluna" ':'')+'style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px;margin-bottom:8px'+(drag?';cursor:grab':'')+'">'
+  return '<div '+(drag?'draggable="true" ondragstart="planoDragStart(event,\''+c.id+'\',\''+t.id+'\')" title="Arraste para mover de coluna" ':'')+'style="background:#fff;border:1px solid #E5E7EB;border-left:4px solid '+ow[1]+';border-radius:10px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)'+(drag?';cursor:grab':'')+'">'
     +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">'
-    +'<div style="font-size:13px;color:#1E293B;font-weight:500;line-height:1.4;flex:1;'+(t.status==='done'?'text-decoration:line-through;color:#94A3B8':'')+'">'+escH(t.text)+'</div>'
+    +'<div style="font-size:13px;color:#1E293B;font-weight:500;line-height:1.5;flex:1;'+(t.status==='done'?'text-decoration:line-through;color:#94A3B8':'')+'">'+_linkify(t.text)+'</div>'
     +(admin?'<div style="display:flex;gap:4px;flex-shrink:0"><button class="btn btn-o btn-s" style="font-size:10px" onclick="planoEditOpen(\''+c.id+'\',\''+t.id+'\')">✏️</button><button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="planoDelete(\''+c.id+'\',\''+t.id+'\')">🗑</button></div>':'')
     +'</div>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">'
@@ -8915,7 +8924,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080479; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080480; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
