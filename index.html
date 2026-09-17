@@ -1155,7 +1155,7 @@ function _finParcelas(c){
     var ini=new Date(base);ini.setMonth(ini.getMonth()+i);
     var fim=new Date(base);fim.setMonth(fim.getMonth()+i+1);fim.setDate(fim.getDate()-1);
     var y=ini.getFullYear(),m=ini.getMonth();
-    out.push({n:i+1,ym:y+'-'+String(m+1).padStart(2,'0'),label:_FIN_MAB[m]+'/'+String(y).slice(2),comp:_finBR(ini)+' a '+_finBR(fim)});
+    out.push({n:i+1,ym:y+'-'+String(m+1).padStart(2,'0'),label:_FIN_MAB[m]+'/'+String(y).slice(2),comp:_finBR(ini)+' a '+_finBR(fim),iniTime:ini.getTime(),fY:fim.getFullYear(),fM:fim.getMonth(),fimTime:fim.getTime()});
   }
   return out;
 }
@@ -1213,9 +1213,24 @@ function finSetProspStart(cid,val){var c=D.clients.find(function(x){return x.id=
 function finSetInicio(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var isGP=(c.products||[]).includes('Gestão de Perfil');var field=isGP?'prospectionStart':'startDate';if(((c[field])||'')===(val||''))return;c[field]=val;save();render();}
 function finSetParcelas(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var n=parseInt(val);var nv=isNaN(n)?'':n;if((''+(c.parcelas||''))===(''+nv))return;c.parcelas=nv;save();render();}
 function finSetValor(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var nv=(''+val).trim();if((''+(c.contractValue||''))===nv)return;c.contractValue=nv;save();render();}
+function finSetDiaVenc(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var n=parseInt(val);var nv=(isNaN(n)||n<1||n>31)?'':n;if((''+(c.diaVencimento||''))===(''+nv))return;c.diaVencimento=nv;save();render();}
+function finEncerrarCobrancas(cid){
+  var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;
+  var arr=_finParcelas(c);if(!arr.length){if(typeof toast==='function')toast('Sem parcelas para encerrar.');return;}
+  var hoje=Date.now();
+  var iniciadas=arr.filter(function(p){return p.iniTime<=hoje;}).length; // competências que já começaram
+  var pagasMax=0;Object.keys(c.pagamentos||{}).forEach(function(k){var kn=parseInt(k);if(!isNaN(kn)&&kn>pagasMax)pagasMax=kn;});
+  var ate=Math.max(iniciadas,pagasMax);
+  if(ate<=0){if(typeof toast==='function')toast('Nenhuma parcela iniciada ainda.');return;}
+  if(ate>=arr.length){if(typeof toast==='function')toast('ℹ️ Não há parcelas futuras para remover.');return;}
+  if(!confirm('Encerrar as cobranças de '+c.name+'?\n\nMantém '+ate+' parcela(s) já iniciada(s)/paga(s) e remove '+(arr.length-ate)+' futura(s). O que já foi pago continua registrado.'))return;
+  c.parcelas=ate;
+  save();if(typeof toast==='function')toast('🛑 Cobranças encerradas — '+ate+' parcela(s) mantida(s).');render();
+}
 function _finPagamentosCard(){
   var brl=function(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
   var now=new Date();var nowYm=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  var hojeMs=(function(){var d=new Date();d.setHours(0,0,0,0);return d.getTime();})();
   var q=(S.finBusca||'').trim().toLowerCase();
   var clientes=D.clients.filter(function(c){return c.contractStatus!=='inativo'&&c.contractStatus!=='finalizado';})
     .filter(function(c){return !q||(''+c.name).toLowerCase().indexOf(q)>=0;})
@@ -1227,9 +1242,11 @@ function _finPagamentosCard(){
       var pg=_finPago(c,p.n);
       if(pg){pagas++;pagoTot+=_parseMoney(pg.value);
         return '<span onclick="finClearParcela(\''+c.id+'\','+p.n+')" title="Competência: '+p.comp+' · pago '+brl(_parseMoney(pg.value))+' em '+escH(pg.dateBR||'')+' — clique p/ desmarcar" style="'+sqCss+';background:#DCFCE7;color:#166534;border:1px solid #86EFAC">'+p.label+'<span style="position:absolute;top:-5px;right:-4px;background:#16A34A;color:#fff;border-radius:50%;width:13px;height:13px;font-size:9px;display:flex;align-items:center;justify-content:center">✓</span></span>';}
-      var vencido=p.ym<nowYm; // mês já passou e não foi pago → vencido (vermelho)
+      var _dd=parseInt(c.diaVencimento);var _dueMs=(_dd>=1&&_dd<=31)?new Date(p.fY,p.fM,_dd).getTime():p.fimTime;
+      var _dueBR=(_dd>=1&&_dd<=31)?(String(_dd).padStart(2,'0')+'/'+String(p.fM+1).padStart(2,'0')+'/'+p.fY):'';
+      var vencido=hojeMs>_dueMs; // só é vencido depois de passar o dia do vencimento do boleto
       var st=vencido?'background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5':'background:#FEF3C7;color:#92400E;border:1px solid #FCD34D';
-      var ttl=vencido?'Competência: '+p.comp+' — VENCIDO, não pago · clique p/ marcar como pago':'Competência: '+p.comp+' — a pagar · clique p/ marcar como pago';
+      var ttl=vencido?'Competência: '+p.comp+(_dueBR?' · venceu '+_dueBR:'')+' — VENCIDO, não pago · clique p/ marcar como pago':'Competência: '+p.comp+(_dueBR?' · vence '+_dueBR:'')+' — a pagar · clique p/ marcar como pago';
       return '<span onclick="finMarkParcela(\''+c.id+'\','+p.n+')" title="'+ttl+'" style="'+sqCss+';'+st+'">'+p.label+'</span>';
     }).join('');
     var isGP=(c.products||[]).includes('Gestão de Perfil');
@@ -1241,8 +1258,10 @@ function _finPagamentosCard(){
     var implVal=(impl&&impl.value!=null&&impl.value!=='')?_parseMoney(impl.value):0;
     pagoTot+=implVal; // a implantação SEMPRE entra na soma do que foi pago
     var tot=totContrato+implVal; // total esperado = contrato + implantação
-    var inicioInp='<input type="date" value="'+(_finBaseDate(c)||'')+'" onblur="finSetInicio(\''+c.id+'\',this.value)" title="Puxada do cadastro: início da prospecção (clientes de Gestão) ou início do contrato (demais). Gera as competências (ex.: dia 14 → competência 14 a 13)" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:145px">';
-    var parcInp='<input type="number" min="0" value="'+(c.parcelas!=null&&c.parcelas!==''?c.parcelas:'')+'" onblur="finSetParcelas(\''+c.id+'\',this.value)" placeholder="—" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:66px;text-align:center">';
+    var inicioInp='<input type="date" value="'+(_finBaseDate(c)||'')+'" onblur="finSetInicio(\''+c.id+'\',this.value)" title="Puxada do cadastro: início da prospecção (clientes de Gestão) ou início do contrato (demais). Gera as competências (ex.: dia 14 → competência 14 a 13)" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:145px">'
+      +'<div style="margin-top:5px;font-size:10px;color:var(--muted)">Boleto vence dia <input type="number" min="1" max="31" value="'+(c.diaVencimento||'')+'" onblur="finSetDiaVenc(\''+c.id+'\',this.value)" placeholder="—" title="Dia do vencimento do boleto (no mês em que a competência termina). Ex.: Daniela = 23. Só fica vermelho depois desse dia." style="width:42px;padding:3px 5px;border:1px solid #E2E8F0;border-radius:6px;font-size:11px;text-align:center"></div>';
+    var parcInp='<input type="number" min="0" value="'+(c.parcelas!=null&&c.parcelas!==''?c.parcelas:'')+'" onblur="finSetParcelas(\''+c.id+'\',this.value)" placeholder="—" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:66px;text-align:center">'
+      +(has?'<div style="margin-top:4px"><span onclick="finEncerrarCobrancas(\''+c.id+'\')" title="Encerrar as cobranças futuras (mantém as já iniciadas e pagas)" style="font-size:10px;color:#B91C1C;cursor:pointer;text-decoration:underline">🛑 encerrar</span></div>':'');
     var vpp=(totContrato&&parseInt(c.parcelas))?brl(totContrato/parseInt(c.parcelas)):'';
     var valorInp='<input value="'+escH(c.contractValue||'')+'" onblur="finSetValor(\''+c.id+'\',this.value)" placeholder="R$ —" title="Valor do contrato" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:100px;text-align:right">'+(vpp?'<div style="font-size:10px;color:var(--muted);margin-top:2px;text-align:right">parcela: '+vpp+'</div>':'');
     return '<tr>'
@@ -1260,7 +1279,7 @@ function _finPagamentosCard(){
   var body=search+(clientes.length?('<div class="tw" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
     +'<thead><tr>'+[['Cliente','left'],['Início prospecção / contrato','left'],['Nº parc.','center'],['Valor','right'],['Implantação','center'],['Parcelas (competências — clique p/ marcar pago)','left'],['Pago','right'],['Faltam','center']].map(function(h){return '<th style="text-align:'+h[1]+';padding:8px 12px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B;text-transform:uppercase">'+h[0]+'</th>';}).join('')+'</tr></thead>'
     +'<tbody>'+rows+'</tbody></table></div>'
-    +'<div class="note" style="margin:10px 16px 4px;line-height:1.6">🟩 pago · 🟥 vencido (o mês já passou e não foi pago) · 🟧 a pagar (clique p/ registrar valor e data). Cada quadradinho é uma <b>competência mensal</b> — passe o mouse pra ver o período (ex.: 16/05 a 15/06), contado a partir do <b>início da prospecção</b> (clientes de Gestão) ou do <b>início do contrato</b> (demais clientes).<br>🔧 <b>Implantação</b> (Gestão de Perfil) é um <b>lançamento único</b>, separado das parcelas mensais.</div>')
+    +'<div class="note" style="margin:10px 16px 4px;line-height:1.6">🟩 pago · 🟥 vencido (passou do dia de vencimento sem pagar) · 🟧 a pagar (clique p/ registrar valor e data). Cada quadradinho é uma <b>competência mensal</b> — passe o mouse pra ver o período e o vencimento. O <b>dia de vencimento</b> é preenchido na coluna Início (ex.: Daniela = 23) e conta no mês em que a competência termina; sem ele, só fica vermelho depois que a competência acaba.<br>🛑 <b>Encerrar</b> (no Nº de parcelas) corta as cobranças futuras. 🔧 <b>Implantação</b> é um <b>lançamento único</b>, à parte.</div>')
     :'<div class="cb" style="padding:20px;color:var(--muted);font-size:13px">Nenhum cliente encontrado.</div>');
   return '<div class="card" style="margin-bottom:16px"><div class="ch"><h3>📊 Controle de pagamentos por cliente</h3><span class="note" style="font-size:11px">'+clientes.length+' clientes</span></div>'+body+'</div>';
 }
@@ -8896,7 +8915,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080478; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080479; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
