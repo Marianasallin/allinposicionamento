@@ -1149,8 +1149,15 @@ function _finBaseDate(c){
 }
 function _finParcelas(c){
   var ps=_finBaseDate(c);var n=parseInt(c.parcelas)||0;
-  if(!ps||n<=0)return [];
+  if(!ps)return [];
   var base=new Date(ps+'T12:00:00');if(isNaN(base))return [];
+  // Contrato indeterminado (sem nº fixo): gera do início até 2 meses à frente de hoje, rolando
+  if(n<=0&&c.contratoIndeterminado){
+    var hj=new Date();var fut=new Date(hj.getFullYear(),hj.getMonth()+2,1);
+    n=(fut.getFullYear()-base.getFullYear())*12+(fut.getMonth()-base.getMonth())+1;
+    if(n<1)n=1;if(n>60)n=60;
+  }
+  if(n<=0)return [];
   var out=[];for(var i=0;i<n;i++){
     var ini=new Date(base);ini.setMonth(ini.getMonth()+i);
     var fim=new Date(base);fim.setMonth(fim.getMonth()+i+1);fim.setDate(fim.getDate()-1);
@@ -1189,6 +1196,17 @@ function finMarkImpl(cid){
   save();if(typeof toast==='function')toast('✅ Implantação lançada');render();
 }
 function finClearImpl(cid){var c=D.clients.find(function(x){return x.id===cid;});if(!c||!c.implantacao)return;if(!confirm('Tirar o lançamento de implantação?'))return;delete c.implantacao;save();render();}
+function finMarkEntrada(cid){
+  var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;
+  var v=prompt('💵 Valor da ENTRADA (pagamento adiantado, R$):',(c.entrada&&c.entrada.value)||'');if(v===null)return;
+  if(!(''+v).trim()){if(typeof toast==='function')toast('Informe o valor.');return;}
+  var hj=new Date();var hojeBR=String(hj.getDate()).padStart(2,'0')+'/'+String(hj.getMonth()+1).padStart(2,'0')+'/'+hj.getFullYear();
+  var dt=prompt('📅 Data da entrada (dd/mm/aaaa):',(c.entrada&&c.entrada.dateBR)||hojeBR);if(dt===null)return;
+  c.entrada={value:(''+v).trim(),dateBR:(''+dt).trim(),at:Date.now(),by:(S.currentUser&&S.currentUser.name)||''};
+  save();if(typeof toast==='function')toast('✅ Entrada registrada');render();
+}
+function finClearEntrada(cid){var c=D.clients.find(function(x){return x.id===cid;});if(!c||!c.entrada)return;if(!confirm('Tirar o lançamento de entrada?'))return;delete c.entrada;save();render();}
+function finSetIndet(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;c.contratoIndeterminado=!!val;if(val)c.parcelas='';save();render();}
 function _finVencendoCard(win,hideEmpty){
   win=win||30;
   var hoje=new Date();hoje.setHours(0,0,0,0);
@@ -1254,14 +1272,20 @@ function _finPagamentosCard(){
     if(impl&&impl.value!=null&&impl.value!==''){implCell='<span onclick="finClearImpl(\''+c.id+'\')" title="Implantação paga: '+brl(_parseMoney(impl.value))+' em '+escH(impl.dateBR||'')+' — clique p/ desmarcar" style="height:30px;border-radius:7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 11px;cursor:pointer;background:#DCFCE7;color:#166534;border:1px solid #86EFAC">🔧 '+brl(_parseMoney(impl.value))+' ✓</span>';}
     else if(isGP){implCell='<span onclick="finMarkImpl(\''+c.id+'\')" title="Lançar a implantação (valor + data)" style="height:30px;border-radius:7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 11px;cursor:pointer;background:#FEF3C7;color:#92400E;border:1px solid #FCD34D">🔧 lançar</span>';}
     else{implCell='<span onclick="finMarkImpl(\''+c.id+'\')" title="Registrar implantação (opcional)" style="font-size:11px;color:#94A3B8;cursor:pointer">＋ impl.</span>';}
+    // Entrada (pagamento adiantado antes das mensais) — one-time, entra na soma
+    var ent=c.entrada;var entCell;
+    if(ent&&ent.value!=null&&ent.value!==''){entCell='<span onclick="finClearEntrada(\''+c.id+'\')" title="Entrada paga: '+brl(_parseMoney(ent.value))+' em '+escH(ent.dateBR||'')+' — clique p/ desmarcar" style="height:30px;border-radius:7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 11px;cursor:pointer;background:#DBEAFE;color:#1D4ED8;border:1px solid #93C5FD">💵 '+brl(_parseMoney(ent.value))+' ✓</span>';}
+    else{entCell='<span onclick="finMarkEntrada(\''+c.id+'\')" title="Registrar entrada (pagamento adiantado)" style="font-size:11px;color:#94A3B8;cursor:pointer">＋ entrada</span>';}
     var faltam=has?(arr.length-pagas):null;var totContrato=_parseMoney(c.contractValue);
     var implVal=(impl&&impl.value!=null&&impl.value!=='')?_parseMoney(impl.value):0;
-    pagoTot+=implVal; // a implantação SEMPRE entra na soma do que foi pago
-    var tot=totContrato+implVal; // total esperado = contrato + implantação
+    var entVal=(ent&&ent.value!=null&&ent.value!=='')?_parseMoney(ent.value):0;
+    pagoTot+=implVal+entVal; // implantação e entrada SEMPRE entram na soma do que foi pago
+    var tot=totContrato+implVal+entVal; // total esperado = contrato + implantação + entrada
     var inicioInp='<input type="date" value="'+(_finBaseDate(c)||'')+'" onblur="finSetInicio(\''+c.id+'\',this.value)" title="Puxada do cadastro: início da prospecção (clientes de Gestão) ou início do contrato (demais). Gera as competências (ex.: dia 14 → competência 14 a 13)" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:145px">'
       +'<div style="margin-top:5px;font-size:10px;color:var(--muted)">Boleto vence dia <input type="number" min="1" max="31" value="'+(c.diaVencimento||'')+'" onblur="finSetDiaVenc(\''+c.id+'\',this.value)" placeholder="—" title="Dia do vencimento do boleto (no mês em que a competência termina). Ex.: Daniela = 23. Só fica vermelho depois desse dia." style="width:42px;padding:3px 5px;border:1px solid #E2E8F0;border-radius:6px;font-size:11px;text-align:center"></div>';
-    var parcInp='<input type="number" min="0" value="'+(c.parcelas!=null&&c.parcelas!==''?c.parcelas:'')+'" onblur="finSetParcelas(\''+c.id+'\',this.value)" placeholder="—" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:66px;text-align:center">'
-      +(has?'<div style="margin-top:4px"><span onclick="finEncerrarCobrancas(\''+c.id+'\')" title="Encerrar as cobranças futuras (mantém as já iniciadas e pagas)" style="font-size:10px;color:#B91C1C;cursor:pointer;text-decoration:underline">🛑 encerrar</span></div>':'');
+    var parcInp='<input type="number" min="0" value="'+(c.parcelas!=null&&c.parcelas!==''?c.parcelas:'')+'" onblur="finSetParcelas(\''+c.id+'\',this.value)" placeholder="'+(c.contratoIndeterminado?'∞':'—')+'" '+(c.contratoIndeterminado?'disabled title="Contrato indeterminado: os meses são gerados automaticamente"':'')+' style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:66px;text-align:center'+(c.contratoIndeterminado?';background:#F1F5F9':'')+'">'
+      +'<div style="margin-top:5px"><label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;color:#0D3D9B"><input type="checkbox" '+(c.contratoIndeterminado?'checked':'')+' onchange="finSetIndet(\''+c.id+'\',this.checked)" style="width:12px;height:12px"> ∞ indeterminado</label></div>'
+      +(has&&!c.contratoIndeterminado?'<div style="margin-top:3px"><span onclick="finEncerrarCobrancas(\''+c.id+'\')" title="Encerrar as cobranças futuras (mantém as já iniciadas e pagas)" style="font-size:10px;color:#B91C1C;cursor:pointer;text-decoration:underline">🛑 encerrar</span></div>':'');
     var vpp=(totContrato&&parseInt(c.parcelas))?brl(totContrato/parseInt(c.parcelas)):'';
     var valorInp='<input value="'+escH(c.contractValue||'')+'" onblur="finSetValor(\''+c.id+'\',this.value)" placeholder="R$ —" title="Valor do contrato" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:100px;text-align:right">'+(vpp?'<div style="font-size:10px;color:var(--muted);margin-top:2px;text-align:right">parcela: '+vpp+'</div>':'');
     return '<tr>'
@@ -1269,15 +1293,15 @@ function _finPagamentosCard(){
       +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9">'+inicioInp+'</td>'
       +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9;text-align:center">'+parcInp+'</td>'
       +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9;text-align:right">'+valorInp+'</td>'
-      +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9;text-align:center">'+implCell+'</td>'
+      +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9;text-align:center"><div style="display:flex;flex-direction:column;gap:5px;align-items:center">'+entCell+implCell+'</div></td>'
       +'<td style="padding:9px 8px;border-top:1px solid #F1F5F9">'+(has?'<div style="display:flex;flex-wrap:wrap;max-width:720px">'+strip+'</div>':'<span style="font-size:12px;color:#94A3B8">⬅ preencha o início e o nº de parcelas</span>')+'</td>'
-      +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;font-size:12px;white-space:nowrap;text-align:right">'+((has||implVal>0)?('<div style="color:#16A34A;font-weight:600">'+brl(pagoTot)+'</div>'+(tot?'<div style="color:var(--muted)">de '+brl(tot)+'</div>':'')+(implVal>0?'<div style="font-size:10px;color:#0369A1">inclui 🔧 '+brl(implVal)+'</div>':'')):'—')+'</td>'
+      +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;font-size:12px;white-space:nowrap;text-align:right">'+((has||implVal>0||entVal>0)?('<div style="color:#16A34A;font-weight:600">'+brl(pagoTot)+'</div>'+(tot?'<div style="color:var(--muted)">de '+brl(tot)+'</div>':'')+(implVal>0?'<div style="font-size:10px;color:#0369A1">inclui 🔧 '+brl(implVal)+'</div>':'')+(entVal>0?'<div style="font-size:10px;color:#1D4ED8">inclui 💵 '+brl(entVal)+'</div>':'')):'—')+'</td>'
       +'<td style="padding:9px 10px;border-top:1px solid #F1F5F9;text-align:center">'+(has?'<span style="font-size:16px;font-weight:800;color:'+(faltam===0?'#16A34A':'#0D3D9B')+'">'+faltam+'</span>':'—')+'</td>'
       +'</tr>';
   }).join('');
   var search='<div style="padding:12px 16px 0"><input value="'+escH(S.finBusca||'')+'" oninput="S.finBusca=this.value;clearTimeout(window._finBt);window._finBt=setTimeout(render,250)" placeholder="🔎 buscar cliente…" style="width:100%;max-width:340px;padding:9px 12px;border:1px solid #E2E8F0;border-radius:9px;font-size:13px;box-sizing:border-box"></div>';
   var body=search+(clientes.length?('<div class="tw" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
-    +'<thead><tr>'+[['Cliente','left'],['Início prospecção / contrato','left'],['Nº parc.','center'],['Valor','right'],['Implantação','center'],['Parcelas (competências — clique p/ marcar pago)','left'],['Pago','right'],['Faltam','center']].map(function(h){return '<th style="text-align:'+h[1]+';padding:8px 12px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B;text-transform:uppercase">'+h[0]+'</th>';}).join('')+'</tr></thead>'
+    +'<thead><tr>'+[['Cliente','left'],['Início prospecção / contrato','left'],['Nº parc.','center'],['Valor','right'],['Entrada / Impl.','center'],['Parcelas (competências — clique p/ marcar pago)','left'],['Pago','right'],['Faltam','center']].map(function(h){return '<th style="text-align:'+h[1]+';padding:8px 12px;border-bottom:2px solid #E5E7EB;font-size:11px;color:#64748B;text-transform:uppercase">'+h[0]+'</th>';}).join('')+'</tr></thead>'
     +'<tbody>'+rows+'</tbody></table></div>'
     +'<div class="note" style="margin:10px 16px 4px;line-height:1.6">🟩 pago · 🟥 vencido (passou do dia de vencimento sem pagar) · 🟧 a pagar (clique p/ registrar valor e data). Cada quadradinho é uma <b>competência mensal</b> — passe o mouse pra ver o período e o vencimento. O <b>dia de vencimento</b> é preenchido na coluna Início (ex.: Daniela = 23) e conta no mês em que a competência termina; sem ele, só fica vermelho depois que a competência acaba.<br>🛑 <b>Encerrar</b> (no Nº de parcelas) corta as cobranças futuras. 🔧 <b>Implantação</b> é um <b>lançamento único</b>, à parte.</div>')
     :'<div class="cb" style="padding:20px;color:var(--muted);font-size:13px">Nenhum cliente encontrado.</div>');
@@ -8924,7 +8948,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080481; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080482; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
