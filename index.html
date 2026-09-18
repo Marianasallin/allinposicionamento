@@ -1147,8 +1147,11 @@ function _finBaseDate(c){
   var isGP=(c.products||[]).includes('Gestão de Perfil');
   return (isGP?(c.prospectionStart||c.startDate):(c.startDate||c.prospectionStart))||c.payStart||'';
 }
+// Data em que as PARCELAS começam a ser cobradas. Se houver "1ª parcela" preenchida, ela manda
+// (ex.: cobrança só começou em abril/julho); senão usa a data de prospecção/contrato.
+function _finParcelaBase(c){return c.parcelaInicio||_finBaseDate(c);}
 function _finParcelas(c){
-  var ps=_finBaseDate(c);var n=parseInt(c.parcelas)||0;
+  var ps=_finParcelaBase(c);var n=parseInt(c.parcelas)||0;
   if(!ps)return [];
   var base=new Date(ps+'T12:00:00');if(isNaN(base))return [];
   // Contrato indeterminado (sem nº fixo): gera do início até 2 meses à frente de hoje, rolando
@@ -1174,7 +1177,7 @@ function _contratoDias(c){
   var hoje=new Date();hoje.setHours(0,0,0,0);
   return Math.round((venc-hoje)/86400000);
 }
-function _finFimDate(c){var ps=_finBaseDate(c);var n=parseInt(c.parcelas)||0;if(!ps||n<=0)return null;var d=new Date(ps+'T12:00:00');if(isNaN(d))return null;d.setMonth(d.getMonth()+n);return d;}
+function _finFimDate(c){var ps=_finParcelaBase(c);var n=parseInt(c.parcelas)||0;if(!ps||n<=0)return null;var d=new Date(ps+'T12:00:00');if(isNaN(d))return null;d.setMonth(d.getMonth()+n);return d;}
 function finMarkParcela(cid,n){
   var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;
   var sug=(c.pagamentos&&c.pagamentos[n]&&c.pagamentos[n].value)||((c.contractValue&&parseInt(c.parcelas))?(_parseMoney(c.contractValue)/parseInt(c.parcelas)).toFixed(2).replace('.',','):'');
@@ -1207,6 +1210,7 @@ function finMarkEntrada(cid){
 }
 function finClearEntrada(cid){var c=D.clients.find(function(x){return x.id===cid;});if(!c||!c.entrada)return;if(!confirm('Tirar o lançamento de entrada?'))return;delete c.entrada;save();render();}
 function finSetIndet(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;c.contratoIndeterminado=!!val;if(val)c.parcelas='';save();render();}
+function finSetParcelaInicio(cid,val){var c=D.clients.find(function(x){return x.id===cid;});if(!c)return;var nv=(''+(val||'')).trim();if((''+(c.parcelaInicio||''))===nv)return;if(nv)c.parcelaInicio=nv;else delete c.parcelaInicio;save();render();}
 function _finVencendoCard(win,hideEmpty){
   win=win||30;
   var hoje=new Date();hoje.setHours(0,0,0,0);
@@ -1282,7 +1286,8 @@ function _finPagamentosCard(){
     pagoTot+=implVal+entVal; // implantação e entrada SEMPRE entram na soma do que foi pago
     var tot=totContrato+implVal+entVal; // total esperado = contrato + implantação + entrada
     var inicioInp='<input type="date" value="'+(_finBaseDate(c)||'')+'" onblur="finSetInicio(\''+c.id+'\',this.value)" title="Puxada do cadastro: início da prospecção (clientes de Gestão) ou início do contrato (demais). Gera as competências (ex.: dia 14 → competência 14 a 13)" style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:145px">'
-      +'<div style="margin-top:5px;font-size:10px;color:var(--muted)">Boleto vence dia <input type="number" min="1" max="31" value="'+(c.diaVencimento||'')+'" onblur="finSetDiaVenc(\''+c.id+'\',this.value)" placeholder="—" title="Dia do vencimento do boleto (no mês em que a competência termina). Ex.: Daniela = 23. Só fica vermelho depois desse dia." style="width:42px;padding:3px 5px;border:1px solid #E2E8F0;border-radius:6px;font-size:11px;text-align:center"></div>';
+      +'<div style="margin-top:5px;font-size:10px;color:var(--muted)">Boleto vence dia <input type="number" min="1" max="31" value="'+(c.diaVencimento||'')+'" onblur="finSetDiaVenc(\''+c.id+'\',this.value)" placeholder="—" title="Dia do vencimento do boleto (no mês em que a competência termina). Ex.: Daniela = 23. Só fica vermelho depois desse dia." style="width:42px;padding:3px 5px;border:1px solid #E2E8F0;border-radius:6px;font-size:11px;text-align:center"></div>'
+      +'<div style="margin-top:5px;font-size:10px;color:var(--muted)">1ª parcela <input type="date" value="'+(c.parcelaInicio||'')+'" onblur="finSetParcelaInicio(\''+c.id+'\',this.value)" title="Data em que a COBRANÇA começou (se diferente da prospecção/contrato). Ex.: Felipe = abril, Luiz = julho. As parcelas passam a começar daqui." style="padding:3px 5px;border:1px solid #E2E8F0;border-radius:6px;font-size:11px;width:135px">'+(c.parcelaInicio?' <span onclick="finSetParcelaInicio(\''+c.id+'\',\'\')" title="Voltar ao padrão (prospecção/contrato)" style="cursor:pointer;color:#B91C1C">✕</span>':'')+'</div>';
     var parcInp='<input type="number" min="0" value="'+(c.parcelas!=null&&c.parcelas!==''?c.parcelas:'')+'" onblur="finSetParcelas(\''+c.id+'\',this.value)" placeholder="'+(c.contratoIndeterminado?'∞':'—')+'" '+(c.contratoIndeterminado?'disabled title="Contrato indeterminado: os meses são gerados automaticamente"':'')+' style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:12px;width:66px;text-align:center'+(c.contratoIndeterminado?';background:#F1F5F9':'')+'">'
       +'<div style="margin-top:5px"><label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;color:#0D3D9B"><input type="checkbox" '+(c.contratoIndeterminado?'checked':'')+' onchange="finSetIndet(\''+c.id+'\',this.checked)" style="width:12px;height:12px"> ∞ indeterminado</label></div>'
       +(has&&!c.contratoIndeterminado?'<div style="margin-top:3px"><span onclick="finEncerrarCobrancas(\''+c.id+'\')" title="Encerrar as cobranças futuras (mantém as já iniciadas e pagas)" style="font-size:10px;color:#B91C1C;cursor:pointer;text-decoration:underline">🛑 encerrar</span></div>':'');
@@ -8948,7 +8953,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080482; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080483; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
