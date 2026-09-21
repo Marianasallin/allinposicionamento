@@ -274,6 +274,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
     <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Visão da Equipe</span></div>
     <div class="ni" onclick="nav('team')"><span class="ni-icon">👩‍💼</span><span>Equipe</span></div>
     <div class="ni" onclick="nav('estruturacao')"><span class="ni-icon">🎯</span><span>Estruturação</span></div>
+    <div class="ni" onclick="nav('implementacao')"><span class="ni-icon">🚀</span><span>Implementação</span></div>
     <div class="ni" onclick="S.procId=null;nav('processos')"><span class="ni-icon">📚</span><span>Banco de Processos</span></div>
     <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.38);padding:14px 12px 4px">Marketing</div>
     <div class="ni" onclick="nav('conteudos')"><span class="ni-icon">🎬</span><span>Conteúdos</span></div>
@@ -872,7 +873,7 @@ function nav(view,extra={}){
   if(S.view==='team')S.teamAuth=false;
   Object.assign(S,{view},extra);
   document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dash','clients','conteudos','semana','minhasamana','team','financeiro'][i]===view));
-  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',conteudos:'Conteúdos',semana:'Visão da Equipe',minhasamana:'Minha Semana',func:'Equipe',team:'Equipe',financeiro:'Financeiro',estruturacao:'Estruturação de Perfil',processos:'Banco de Processos'};
+  const titles={dash:'Dashboard',clients:S.clientId?getC()?.name:'Clientes',conteudos:'Conteúdos',semana:'Visão da Equipe',minhasamana:'Minha Semana',func:'Equipe',team:'Equipe',financeiro:'Financeiro',estruturacao:'Estruturação de Perfil',implementacao:'Implementação Comercial',processos:'Banco de Processos'};
   $('ttitle').textContent=titles[view]||view;
   render();
 }
@@ -927,7 +928,7 @@ function render(){
   if(S._realUser){document.body.insertAdjacentHTML('beforeend','<div id="veras-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#7C3AED,#9333EA);color:#fff;padding:9px 14px;text-align:center;font-size:13px;font-weight:600;box-shadow:0 -2px 10px rgba(0,0,0,.2)">👁 Você está vendo como <strong>'+(S.currentUser.name||'').split(' ')[0]+'</strong> (só visualização) <button onclick="voltarMeuPerfil()" style="margin-left:12px;background:#fff;color:#7C3AED;border:none;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer">Voltar ao meu perfil</button></div>');}
   // Normal admin views
   try{
-    const _viewFns={dash:rDash,clients:rClients,conteudos:rConteudos,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rTeam,team:rTeam,clientView:rClientView,financeiro:rFinanceiro,comissoes:rComissoes,carteira:rCarteira,estruturacao:rEstruturacaoBoard,processos:rProcessos};
+    const _viewFns={dash:rDash,clients:rClients,conteudos:rConteudos,semana:rWeeklyPending,minhasamana:rMinhaSemana,func:rTeam,team:rTeam,clientView:rClientView,financeiro:rFinanceiro,comissoes:rComissoes,carteira:rCarteira,estruturacao:rEstruturacaoBoard,implementacao:rImplementacaoBoard,processos:rProcessos};
     const _fn=_viewFns[S.view];
     if(!_fn){
       $('view').innerHTML='<div style="padding:20px;color:var(--muted)">Vista desconhecida: <code>'+S.view+'</code></div>';
@@ -4230,6 +4231,71 @@ function rEstruturacaoBoard(){
   var doneList=eps.filter(function(c){return _epCurrentIdx(c)>=5;});
   var doneCol='<div ondragover="epDragOver(event)" ondragenter="this.style.background=\'#F0FDF4\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';epMoveDone(event,(_epDrag&&_epDrag.cid))" '
     +'style="flex:1;min-width:210px;max-width:280px;background:#F8FAFC;border-radius:12px;padding:12px;transition:background .15s">'
+    +'<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:#16A34A">✅ Concluídos <span style="color:#94A3B8">('+doneList.length+')</span></div></div>'
+    +(doneList.length?doneList.map(card).join(''):'<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">—</div>')+'</div>';
+  return head+'<div style="display:flex;gap:12px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start;padding-bottom:6px">'+cols+doneCol+'</div>';
+}
+
+// ────────────────────────────────────────────────────────────
+// KANBAN — IMPLEMENTAÇÃO COMERCIAL (cada entregável é uma etapa)
+// ────────────────────────────────────────────────────────────
+var IC_STAGE_META=[
+  {id:'ic1',short:'🚀 Onboarding',color:'#E8622A',bg:'#FFF4ED'},
+  {id:'ic2',short:'👋 Reunião de Boas Vindas',color:'#D97706',bg:'#FFFBEB'},
+  {id:'ic3',short:'🎯 Briefing / ICP',color:'#0891B2',bg:'#ECFEFF'},
+  {id:'ic4',short:'🔗 Revisão do Perfil',color:'#0D3D9B',bg:'#EFF6FF'},
+  {id:'ic5',short:'📋 Relatório de Ajustes',color:'#7C3AED',bg:'#F5F3FF'},
+  {id:'ic6',short:'📘 Play Book de Vendas',color:'#C026D3',bg:'#FDF4FF'},
+  {id:'ic7',short:'🤖 Implementação da IA',color:'#0D9488',bg:'#F0FDFA'},
+  {id:'ic8',short:'🎁 Entregáveis Finais',color:'#16A34A',bg:'#F0FDF4'}
+];
+function _icStages(c){var dels=(c.deliverables||[]).filter(function(d){return d.product==='Implementação Comercial';});return IC_STAGE_META.map(function(m){return dels.find(function(d){return d.id===m.id;});}).filter(Boolean);}
+function _icCurrentIdx(c){var st=_icStages(c);for(var i=0;i<st.length;i++){if((st[i].status||'pendente')!=='concluido')return i;}return st.length;}
+var _icDrag=null;
+function icDragStart(ev,cid){_icDrag={cid:cid};if(ev.dataTransfer){ev.dataTransfer.effectAllowed='move';}}
+function icDragOver(ev){ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect='move';}
+function icMoveStage(ev,cid,idx){
+  ev.preventDefault();var d=_icDrag;_icDrag=null;if(!d||d.cid!==cid)return;
+  var c=_findClient(cid);if(!c)return;var st=_icStages(c);
+  st.forEach(function(del,i){del.status=(i<idx)?'concluido':(i===idx?'andamento':'pendente');});
+  save();if(typeof toast==='function')toast('🚀 '+c.name.split(' ')[0]+' → '+IC_STAGE_META[idx].short.replace(/^\S+\s/,''));render();
+}
+function icMoveDone(ev,cid){
+  ev.preventDefault();var d=_icDrag;_icDrag=null;if(!d||d.cid!==cid)return;
+  var c=_findClient(cid);if(!c)return;_icStages(c).forEach(function(del){del.status='concluido';});
+  save();if(typeof toast==='function')toast('✅ '+c.name.split(' ')[0]+' concluído!');render();
+}
+function rImplementacaoBoard(){
+  var ics=D.clients.filter(function(c){return (c.products||[]).includes('Implementação Comercial')&&c.contractStatus!=='inativo';});
+  var N=IC_STAGE_META.length;
+  var head='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
+    +'<div><h2 style="margin:0;font-size:22px">🚀 Implementação Comercial</h2><div style="font-size:13px;color:var(--muted);margin-top:2px">Cada cliente na etapa em que está — arraste o card para avançar. Cada coluna é um entregável.</div></div>'
+    +'<span style="font-size:13px;font-weight:700;color:#E8622A;background:#FFF4ED;border:1px solid #E8622A40;padding:6px 14px;border-radius:99px">'+ics.length+' cliente'+(ics.length===1?'':'s')+'</span></div>';
+  if(!ics.length)return head+'<div class="card" style="text-align:center;padding:40px;color:var(--muted)">Nenhum cliente de Implementação Comercial ainda.<br><small>Marque o produto "Implementação Comercial" no cadastro do cliente para ele aparecer aqui.</small></div>';
+  var getDayStrIc=function(del){if(!del||!del.dueDate)return'';var dy=getDaysUntil(del.dueDate);if(dy===null)return'';if(dy<0)return'<span style="color:#DC2626;font-weight:700">'+Math.abs(dy)+'d atrasado</span>';if(dy===0)return'<span style="color:#D97706;font-weight:700">vence hoje</span>';if(dy===1)return'<span style="color:#D97706">vence amanhã</span>';return'<span style="color:#64748B">'+dy+'d restantes</span>';};
+  var card=function(c){
+    var idx=_icCurrentIdx(c);var st=_icStages(c);var cur=(idx<st.length)?st[idx]:null;
+    var done=st.filter(function(d){return (d.status||'')==='concluido';}).length;
+    var resp=cur&&cur.responsible?cur.responsible.split(' ')[0]:'';
+    var dots=st.map(function(d){return '<span style="width:7px;height:7px;border-radius:50%;display:inline-block;background:'+((d.status||'')==='concluido'?'#16A34A':((d.status||'')==='andamento'?'#E8622A':'#E2E8F0'))+'"></span>';}).join('');
+    return '<div draggable="true" ondragstart="icDragStart(event,\''+c.id+'\')" onclick="nav(\'clients\',{clientId:\''+c.id+'\'})" '
+      +'style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:11px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.04)" title="Arraste para mover de etapa · clique para abrir">'
+      +'<div style="font-size:14px;font-weight:700;color:#1E293B">'+escH(c.name.split(' ').slice(0,2).join(' '))+'</div>'
+      +'<div style="display:flex;align-items:center;gap:5px;margin-top:8px;flex-wrap:wrap">'+dots+'<span style="font-size:10px;color:#94A3B8;margin-left:4px">'+done+'/'+N+'</span></div>'
+      +((resp||(cur&&cur.dueDate))?'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:8px;font-size:11px">'+(resp?'<span style="font-weight:600;color:#475569">👤 '+escH(resp)+'</span>':'<span></span>')+(cur&&cur.dueDate?getDayStrIc(cur):'')+'</div>':'')
+      +'</div>';
+  };
+  var cols=IC_STAGE_META.map(function(m,idx){
+    var list=ics.filter(function(c){return _icCurrentIdx(c)===idx;});
+    var body=list.length?list.map(card).join(''):'<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">—</div>';
+    return '<div ondragover="icDragOver(event)" ondragenter="this.style.background=\''+m.bg+'\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';icMoveStage(event,(_icDrag&&_icDrag.cid),'+idx+')" '
+      +'style="flex:1;min-width:200px;max-width:280px;background:#F8FAFC;border-radius:12px;padding:12px;transition:background .15s">'
+      +'<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:'+m.color+'">'+m.short+' <span style="color:#94A3B8">('+list.length+')</span></div></div>'
+      +body+'</div>';
+  }).join('');
+  var doneList=ics.filter(function(c){return _icCurrentIdx(c)>=N;});
+  var doneCol='<div ondragover="icDragOver(event)" ondragenter="this.style.background=\'#F0FDF4\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';icMoveDone(event,(_icDrag&&_icDrag.cid))" '
+    +'style="flex:1;min-width:200px;max-width:280px;background:#F8FAFC;border-radius:12px;padding:12px;transition:background .15s">'
     +'<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:#16A34A">✅ Concluídos <span style="color:#94A3B8">('+doneList.length+')</span></div></div>'
     +(doneList.length?doneList.map(card).join(''):'<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">—</div>')+'</div>';
   return head+'<div style="display:flex;gap:12px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start;padding-bottom:6px">'+cols+doneCol+'</div>';
@@ -8956,7 +9022,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080484; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080485; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
