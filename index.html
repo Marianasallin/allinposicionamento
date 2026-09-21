@@ -2382,6 +2382,20 @@ function _contOwnerAv(name,withName){
 }
 function _contFmtBadge(fmt){if(!fmt)return '';var m={'Carrossel':'📚 Carrossel','Estático':'🖼️ Estático','Enquete':'📊 Enquete','Artigo':'📝 Artigo','Vídeo':'🎬 Vídeo'};return '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:#F5F3FF;color:#7C3AED;border:1px solid #DDD6FE">'+(m[fmt]||escH(fmt))+'</span>';}
 function _cardRedes(card){return (card.redes&&card.redes.length)?card.redes:(card.rede?[card.rede]:[]);}
+// Dispensar aviso de novidade do cliente (marca como "já vi" pelo timestamp — volta se houver algo novo)
+function contNotifSeen(cid,cardId,tipo){
+  var c=_findClient(cid);if(!c)return;var k=(_conteudos(c).cards||[]).find(function(x){return x.id===cardId;});if(!k)return;
+  if(tipo==='ajuste')k.clientChangeSeen=(k.clientChangeAt||'seen');
+  else k.clientApprovedSeen=(k.clientApprovedAt||'seen');
+  save();render();
+}
+function contNotifSeenAll(){
+  _gpClients().forEach(function(c){(_conteudos(c).cards||[]).forEach(function(k){
+    if(k.clientChangeReq)k.clientChangeSeen=(k.clientChangeAt||'seen');
+    if(k.clientApproved&&(k.status||'')==='aprovado')k.clientApprovedSeen=(k.clientApprovedAt||'seen');
+  });});
+  save();if(typeof toast==='function')toast('🔕 Avisos dispensados');render();
+}
 function _contCard(c,card){
   var isIdea=(card.status||'ideias')==='ideias';
   var pub=!!card.published;
@@ -2689,14 +2703,18 @@ function rConteudos(){
   var gp=_gpClients();
   var head='<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px"><div><h2 style="font-size:19px;margin:0">🎬 Conteúdos</h2><div style="font-size:12px;color:var(--muted)">Planejamento editorial dos clientes de Gestão de Perfil</div></div>'+(_isGestao(S.currentUser)?'<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-o btn-s" onclick="openPagamentoArtes()">💵 Pagamento</button><button class="btn btn-o btn-s" onclick="openDesignersModal()">🎨 Designers</button></div>':'')+'</div>';
   if(!gp.length)return head+'<div style="text-align:center;padding:50px;color:#94A3B8">Nenhum cliente de Gestão de Perfil cadastrado ainda.</div>';
-  // 🔔 Aviso: o que os clientes acabaram de aprovar / pedir ajuste no portal
+  // 🔔 Aviso: o que os clientes acabaram de aprovar / pedir ajuste no portal (dispensável)
   var _cliAprov=[],_cliAjuste=[];
-  gp.forEach(function(c){(_conteudos(c).cards||[]).forEach(function(k){if(k.clientChangeReq)_cliAjuste.push({c:c,k:k});else if(k.clientApproved&&(k.status||'')==='aprovado')_cliAprov.push({c:c,k:k});});});
+  gp.forEach(function(c){(_conteudos(c).cards||[]).forEach(function(k){
+    if(k.clientChangeReq&&k.clientChangeSeen!==(k.clientChangeAt||'')){_cliAjuste.push({c:c,k:k});}
+    else if(k.clientApproved&&(k.status||'')==='aprovado'&&k.clientApprovedSeen!==(k.clientApprovedAt||'')){_cliAprov.push({c:c,k:k});}
+  });});
   if(_cliAprov.length||_cliAjuste.length){
+    var _chip=function(x,bg,bd,tipo){return '<span style="background:'+bg+';border:1px solid '+bd+';border-radius:99px;padding:2px 9px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;margin:2px 0">'+escH(x.c.name.split(' ')[0])+' — '+escH((''+(x.k.title||'')).slice(0,30))+'<span onclick="contNotifSeen(\''+x.c.id+'\',\''+x.k.id+'\',\''+tipo+'\')" title="Já vi — dispensar" style="cursor:pointer;color:#94A3B8;font-weight:800">✕</span></span>';};
     head+='<div style="background:#fff;border:1px solid #E5E7EB;border-left:4px solid '+(_cliAjuste.length?'#D97706':'#16A34A')+';border-radius:12px;padding:12px 16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)">'
-      +'<div style="font-size:13px;font-weight:800;color:#1E293B;margin-bottom:6px">🔔 Novidades dos clientes no portal</div>'
-      +(_cliAjuste.length?'<div style="font-size:12px;color:#B45309;margin-bottom:'+(_cliAprov.length?'7px':'0')+';line-height:1.6"><b>✍️ '+_cliAjuste.length+' pediram ajuste:</b> '+_cliAjuste.map(function(x){return '<span style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:99px;padding:2px 9px;white-space:nowrap;display:inline-block;margin:2px 0">'+escH(x.c.name.split(' ')[0])+' — '+escH((''+(x.k.title||'')).slice(0,30))+'</span>';}).join(' ')+'</div>':'')
-      +(_cliAprov.length?'<div style="font-size:12px;color:#166534;line-height:1.6"><b>✅ '+_cliAprov.length+' aprovaram</b> (aguardando publicar): '+_cliAprov.map(function(x){return '<span style="background:#F0FDF4;border:1px solid #86EFAC;border-radius:99px;padding:2px 9px;white-space:nowrap;display:inline-block;margin:2px 0">'+escH(x.c.name.split(' ')[0])+' — '+escH((''+(x.k.title||'')).slice(0,30))+'</span>';}).join(' ')+'</div>':'')
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><div style="font-size:13px;font-weight:800;color:#1E293B">🔔 Novidades dos clientes no portal</div><span onclick="contNotifSeenAll()" title="Dispensar todas" style="cursor:pointer;font-size:11px;font-weight:700;color:#64748B;background:#F1F5F9;border-radius:99px;padding:3px 10px">✕ dispensar todas</span></div>'
+      +(_cliAjuste.length?'<div style="font-size:12px;color:#B45309;margin-bottom:'+(_cliAprov.length?'7px':'0')+';line-height:1.8"><b>✍️ '+_cliAjuste.length+' pediram ajuste:</b> '+_cliAjuste.map(function(x){return _chip(x,'#FFF7ED','#FED7AA','ajuste');}).join(' ')+'</div>':'')
+      +(_cliAprov.length?'<div style="font-size:12px;color:#166534;line-height:1.8"><b>✅ '+_cliAprov.length+' aprovaram</b> (aguardando publicar): '+_cliAprov.map(function(x){return _chip(x,'#F0FDF4','#86EFAC','aprov');}).join(' ')+'</div>':'')
       +'</div>';
   }
 
@@ -9057,7 +9075,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080487; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080488; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
