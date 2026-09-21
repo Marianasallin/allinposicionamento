@@ -4199,6 +4199,13 @@ function epMoveDone(ev,cid){
   var c=_findClient(cid);if(!c)return;_epStages(c).forEach(function(del){del.status='concluido';});
   save();if(typeof toast==='function')toast('✅ '+c.name.split(' ')[0]+' concluído!');render();
 }
+// Mover de etapa sem arrastar (funciona em toque/celular) — pelo seletor do card
+function epSetStage(cid,val){
+  if(!val)return;var c=_findClient(cid);if(!c)return;var st=_epStages(c);
+  if(val==='done'){st.forEach(function(del){del.status='concluido';});}
+  else{var idx=-1;for(var k=0;k<EP_STAGE_META.length;k++){if(EP_STAGE_META[k].id===val){idx=k;break;}}if(idx<0)return;st.forEach(function(del,i){del.status=(i<idx)?'concluido':(i===idx?'andamento':'pendente');});}
+  save();if(typeof toast==='function')toast('🎯 '+c.name.split(' ')[0]+' movido de etapa');render();
+}
 function rEstruturacaoBoard(){
   var eps=D.clients.filter(function(c){return (c.products||[]).includes('Estruturação de Perfil');});
   var head='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
@@ -4217,6 +4224,11 @@ function rEstruturacaoBoard(){
       +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><div style="font-size:14px;font-weight:700;color:#1E293B">'+escH(c.name.split(' ').slice(0,2).join(' '))+'</div>'+cat+'</div>'
       +'<div style="display:flex;align-items:center;gap:5px;margin-top:8px">'+dots+'<span style="font-size:10px;color:#94A3B8;margin-left:4px">'+done+'/5</span></div>'
       +((resp||(cur&&cur.dueDate))?'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:8px;font-size:11px">'+(resp?'<span style="font-weight:600;color:#475569">👤 '+escH(resp)+'</span>':'<span></span>')+(cur&&cur.dueDate?getDayStrEp(cur):'')+'</div>':'')
+      +'<div style="margin-top:8px" onclick="event.stopPropagation()"><select onchange="epSetStage(\''+c.id+'\',this.value)" title="Mover este cliente de etapa" style="width:100%;font-size:11px;padding:5px 6px;border:1px solid #E2E8F0;border-radius:6px;color:#475569;background:#fff;cursor:pointer">'
+      +'<option value="">↔ mover para…</option>'
+      +EP_STAGE_META.map(function(mm,i){return '<option value="'+mm.id+'"'+(idx===i?' selected':'')+'>'+mm.short+'</option>';}).join('')
+      +'<option value="done"'+(idx>=5?' selected':'')+'>✅ Concluído</option>'
+      +'</select></div>'
       +'</div>';
   };
   var cols=EP_STAGE_META.map(function(m,idx){
@@ -4265,6 +4277,13 @@ function icMoveDone(ev,cid){
   var c=_findClient(cid);if(!c)return;_icStages(c).forEach(function(del){del.status='concluido';});
   save();if(typeof toast==='function')toast('✅ '+c.name.split(' ')[0]+' concluído!');render();
 }
+// Mover de etapa sem arrastar (funciona em toque/celular) — pelo seletor do card
+function icSetStage(cid,val){
+  if(!val)return;var c=_findClient(cid);if(!c)return;var st=_icStages(c);
+  if(val==='done'){st.forEach(function(del){del.status='concluido';});}
+  else{var idx=-1;for(var k=0;k<IC_STAGE_META.length;k++){if(IC_STAGE_META[k].id===val){idx=k;break;}}if(idx<0)return;st.forEach(function(del,i){del.status=(i<idx)?'concluido':(i===idx?'andamento':'pendente');});}
+  save();if(typeof toast==='function')toast('🚀 '+c.name.split(' ')[0]+' movido de etapa');render();
+}
 function rImplementacaoBoard(){
   var ics=D.clients.filter(function(c){return (c.products||[]).includes('Implementação Comercial')&&c.contractStatus!=='inativo';});
   var N=IC_STAGE_META.length;
@@ -4283,6 +4302,11 @@ function rImplementacaoBoard(){
       +'<div style="font-size:14px;font-weight:700;color:#1E293B">'+escH(c.name.split(' ').slice(0,2).join(' '))+'</div>'
       +'<div style="display:flex;align-items:center;gap:5px;margin-top:8px;flex-wrap:wrap">'+dots+'<span style="font-size:10px;color:#94A3B8;margin-left:4px">'+done+'/'+N+'</span></div>'
       +((resp||(cur&&cur.dueDate))?'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:8px;font-size:11px">'+(resp?'<span style="font-weight:600;color:#475569">👤 '+escH(resp)+'</span>':'<span></span>')+(cur&&cur.dueDate?getDayStrIc(cur):'')+'</div>':'')
+      +'<div style="margin-top:8px" onclick="event.stopPropagation()"><select onchange="icSetStage(\''+c.id+'\',this.value)" title="Mover este cliente de etapa" style="width:100%;font-size:11px;padding:5px 6px;border:1px solid #E2E8F0;border-radius:6px;color:#475569;background:#fff;cursor:pointer">'
+      +'<option value="">↔ mover para…</option>'
+      +IC_STAGE_META.map(function(mm,i){return '<option value="'+mm.id+'"'+(idx===i?' selected':'')+'>'+mm.short+'</option>';}).join('')
+      +'<option value="done"'+(idx>=N?' selected':'')+'>✅ Concluído</option>'
+      +'</select></div>'
       +'</div>';
   };
   var cols=IC_STAGE_META.map(function(m,idx){
@@ -9022,7 +9046,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080485; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080486; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
