@@ -2408,6 +2408,7 @@ function _contCard(c,card){
   return '<div draggable="true" ondragstart="contDragStart(event,\''+c.id+'\',\''+card.id+'\')" ondragover="contDragOver(event)" ondrop="contDropCard(event,\''+c.id+'\',\''+card.id+'\')" title="Arraste para reordenar ou mover de etapa" '
     +'style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:11px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.04)">'
     +'<div style="font-size:13px;font-weight:600;color:#1E293B;line-height:1.4;overflow-wrap:break-word">'+escH(card.title||'(sem título)')+'</div>'
+    +(card.clientChangeReq?'<div style="margin-top:8px;font-size:11px;font-weight:800;color:#B45309;background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:6px 9px">✍️ Cliente pediu ajuste: '+escH((''+card.clientChangeReq).slice(0,90))+'</div>':(card.clientApproved?'<div style="margin-top:8px;font-size:11px;font-weight:800;color:#15803D;background:#F0FDF4;border:1px solid #86EFAC;border-radius:8px;padding:6px 9px">✅ Cliente aprovou'+(card.clientApprovedAt?' · '+fmtDate(card.clientApprovedAt):'')+'</div>':''))
     +((fmtBadge||designerBadge||badge||rede)?'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px">'+fmtBadge+designerBadge+badge+(rede?'<span style="font-size:11px;color:#64748B">'+rede+'</span>':'')+'</div>':'')
     +(link?'<div style="margin-top:7px"><a href="'+escH(link)+'" target="_blank" style="font-size:11px;color:#0369A1;text-decoration:none">🔗 Abrir material</a></div>':'')
     +(function(){var im=_cardImgs(card);if(!im.length)return '';return '<div style="margin-top:8px;position:relative"><img src="'+escH(im[0].url||im[0].bg||'')+'" onclick="contArteView(\''+c.id+'\',\''+card.id+'\')" style="width:100%;max-height:300px;object-fit:contain;border-radius:8px;cursor:pointer;display:block;border:1px solid #EEE;background:#F8FAFC" title="Ver arte">'+(im.length>1?'<span style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:2px 8px">📚 '+im.length+'</span>':'')+'</div>';})()
@@ -2688,6 +2689,16 @@ function rConteudos(){
   var gp=_gpClients();
   var head='<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px"><div><h2 style="font-size:19px;margin:0">🎬 Conteúdos</h2><div style="font-size:12px;color:var(--muted)">Planejamento editorial dos clientes de Gestão de Perfil</div></div>'+(_isGestao(S.currentUser)?'<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-o btn-s" onclick="openPagamentoArtes()">💵 Pagamento</button><button class="btn btn-o btn-s" onclick="openDesignersModal()">🎨 Designers</button></div>':'')+'</div>';
   if(!gp.length)return head+'<div style="text-align:center;padding:50px;color:#94A3B8">Nenhum cliente de Gestão de Perfil cadastrado ainda.</div>';
+  // 🔔 Aviso: o que os clientes acabaram de aprovar / pedir ajuste no portal
+  var _cliAprov=[],_cliAjuste=[];
+  gp.forEach(function(c){(_conteudos(c).cards||[]).forEach(function(k){if(k.clientChangeReq)_cliAjuste.push({c:c,k:k});else if(k.clientApproved&&(k.status||'')==='aprovado')_cliAprov.push({c:c,k:k});});});
+  if(_cliAprov.length||_cliAjuste.length){
+    head+='<div style="background:#fff;border:1px solid #E5E7EB;border-left:4px solid '+(_cliAjuste.length?'#D97706':'#16A34A')+';border-radius:12px;padding:12px 16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)">'
+      +'<div style="font-size:13px;font-weight:800;color:#1E293B;margin-bottom:6px">🔔 Novidades dos clientes no portal</div>'
+      +(_cliAjuste.length?'<div style="font-size:12px;color:#B45309;margin-bottom:'+(_cliAprov.length?'7px':'0')+';line-height:1.6"><b>✍️ '+_cliAjuste.length+' pediram ajuste:</b> '+_cliAjuste.map(function(x){return '<span style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:99px;padding:2px 9px;white-space:nowrap;display:inline-block;margin:2px 0">'+escH(x.c.name.split(' ')[0])+' — '+escH((''+(x.k.title||'')).slice(0,30))+'</span>';}).join(' ')+'</div>':'')
+      +(_cliAprov.length?'<div style="font-size:12px;color:#166534;line-height:1.6"><b>✅ '+_cliAprov.length+' aprovaram</b> (aguardando publicar): '+_cliAprov.map(function(x){return '<span style="background:#F0FDF4;border:1px solid #86EFAC;border-radius:99px;padding:2px 9px;white-space:nowrap;display:inline-block;margin:2px 0">'+escH(x.c.name.split(' ')[0])+' — '+escH((''+(x.k.title||'')).slice(0,30))+'</span>';}).join(' ')+'</div>':'')
+      +'</div>';
+  }
 
   // Responsáveis vêm da carteira (aba Contrato → contentOwners). Filtro mostra os clientes de cada uma.
   var respCount={},semResp=0;
@@ -9046,7 +9057,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080486; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080487; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
