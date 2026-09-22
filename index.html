@@ -2386,6 +2386,7 @@ function _cardRedes(card){return (card.redes&&card.redes.length)?card.redes:(car
 function contNotifSeen(cid,cardId,tipo){
   var c=_findClient(cid);if(!c)return;var k=(_conteudos(c).cards||[]).find(function(x){return x.id===cardId;});if(!k)return;
   if(tipo==='ajuste')k.clientChangeSeen=(k.clientChangeAt||'seen');
+  else if(tipo==='legenda')k.captionSeen=(k.captionAt||'seen');
   else k.clientApprovedSeen=(k.clientApprovedAt||'seen');
   save();render();
 }
@@ -2393,6 +2394,7 @@ function contNotifSeenAll(){
   _gpClients().forEach(function(c){(_conteudos(c).cards||[]).forEach(function(k){
     if(k.clientChangeReq)k.clientChangeSeen=(k.clientChangeAt||'seen');
     if(k.clientApproved&&(k.status||'')==='aprovado')k.clientApprovedSeen=(k.clientApprovedAt||'seen');
+    if(k.captionByClient)k.captionSeen=(k.captionAt||'seen');
   });});
   save();if(typeof toast==='function')toast('🔕 Avisos dispensados');render();
 }
@@ -2704,16 +2706,18 @@ function rConteudos(){
   var head='<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px"><div><h2 style="font-size:19px;margin:0">🎬 Conteúdos</h2><div style="font-size:12px;color:var(--muted)">Planejamento editorial dos clientes de Gestão de Perfil</div></div>'+(_isGestao(S.currentUser)?'<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-o btn-s" onclick="openPagamentoArtes()">💵 Pagamento</button><button class="btn btn-o btn-s" onclick="openDesignersModal()">🎨 Designers</button></div>':'')+'</div>';
   if(!gp.length)return head+'<div style="text-align:center;padding:50px;color:#94A3B8">Nenhum cliente de Gestão de Perfil cadastrado ainda.</div>';
   // 🔔 Aviso: o que os clientes acabaram de aprovar / pedir ajuste no portal (dispensável)
-  var _cliAprov=[],_cliAjuste=[];
+  var _cliAprov=[],_cliAjuste=[],_cliLeg=[];
   gp.forEach(function(c){(_conteudos(c).cards||[]).forEach(function(k){
     if(k.clientChangeReq&&k.clientChangeSeen!==(k.clientChangeAt||'')){_cliAjuste.push({c:c,k:k});}
     else if(k.clientApproved&&(k.status||'')==='aprovado'&&k.clientApprovedSeen!==(k.clientApprovedAt||'')){_cliAprov.push({c:c,k:k});}
+    if(k.captionByClient&&k.captionSeen!==(k.captionAt||'')&&(k.status||'')!=='publicado'){_cliLeg.push({c:c,k:k});}
   });});
-  if(_cliAprov.length||_cliAjuste.length){
+  if(_cliAprov.length||_cliAjuste.length||_cliLeg.length){
     var _chip=function(x,bg,bd,tipo){return '<span style="background:'+bg+';border:1px solid '+bd+';border-radius:99px;padding:2px 9px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;margin:2px 0">'+escH(x.c.name.split(' ')[0])+' — '+escH((''+(x.k.title||'')).slice(0,30))+'<span onclick="contNotifSeen(\''+x.c.id+'\',\''+x.k.id+'\',\''+tipo+'\')" title="Já vi — dispensar" style="cursor:pointer;color:#94A3B8;font-weight:800">✕</span></span>';};
-    head+='<div style="background:#fff;border:1px solid #E5E7EB;border-left:4px solid '+(_cliAjuste.length?'#D97706':'#16A34A')+';border-radius:12px;padding:12px 16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)">'
+    head+='<div style="background:#fff;border:1px solid #E5E7EB;border-left:4px solid '+(_cliAjuste.length?'#D97706':(_cliLeg.length?'#0D3D9B':'#16A34A'))+';border-radius:12px;padding:12px 16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><div style="font-size:13px;font-weight:800;color:#1E293B">🔔 Novidades dos clientes no portal</div><span onclick="contNotifSeenAll()" title="Dispensar todas" style="cursor:pointer;font-size:11px;font-weight:700;color:#64748B;background:#F1F5F9;border-radius:99px;padding:3px 10px">✕ dispensar todas</span></div>'
-      +(_cliAjuste.length?'<div style="font-size:12px;color:#B45309;margin-bottom:'+(_cliAprov.length?'7px':'0')+';line-height:1.8"><b>✍️ '+_cliAjuste.length+' pediram ajuste:</b> '+_cliAjuste.map(function(x){return _chip(x,'#FFF7ED','#FED7AA','ajuste');}).join(' ')+'</div>':'')
+      +(_cliLeg.length?'<div style="font-size:12px;color:#0D3D9B;margin-bottom:'+((_cliAjuste.length||_cliAprov.length)?'7px':'0')+';line-height:1.8"><b>✍️ '+_cliLeg.length+' escreveram legenda:</b> '+_cliLeg.map(function(x){return _chip(x,'#EFF6FF','#BFDBFE','legenda');}).join(' ')+'</div>':'')
+      +(_cliAjuste.length?'<div style="font-size:12px;color:#B45309;margin-bottom:'+(_cliAprov.length?'7px':'0')+';line-height:1.8"><b>✏️ '+_cliAjuste.length+' pediram ajuste:</b> '+_cliAjuste.map(function(x){return _chip(x,'#FFF7ED','#FED7AA','ajuste');}).join(' ')+'</div>':'')
       +(_cliAprov.length?'<div style="font-size:12px;color:#166534;line-height:1.8"><b>✅ '+_cliAprov.length+' aprovaram</b> (aguardando publicar): '+_cliAprov.map(function(x){return _chip(x,'#F0FDF4','#86EFAC','aprov');}).join(' ')+'</div>':'')
       +'</div>';
   }
@@ -2810,6 +2814,7 @@ function contCardOpen(cid,editId,status){
     +'<div class="fg"><label>🎨 Designer <span style="font-weight:400;color:#94A3B8">(quem faz a arte)</span></label><select id="cont-designer"><option value="">— nenhum —</option>'+_DESIGNERS.map(function(d){return '<option value="'+escH(d)+'" '+(((card&&card.designer)===d)?'selected':'')+'>'+escH(d)+'</option>';}).join('')+'</select></div></div>'
     +'<div class="fg"><label>Redes <span style="font-weight:400;color:#94A3B8">(marque uma ou as duas)</span></label><div style="display:flex;gap:18px;padding:6px 0"><label style="display:flex;align-items:center;gap:6px;font-weight:500;cursor:pointer"><input type="checkbox" id="cont-rede-li" '+ck('LinkedIn')+'> 💼 LinkedIn</label><label style="display:flex;align-items:center;gap:6px;font-weight:500;cursor:pointer"><input type="checkbox" id="cont-rede-ig" '+ck('Instagram')+'> 📸 Instagram</label></div></div>'
     +'<div class="fg"><label>Link do material (opcional)</label><input id="cont-link" value="'+(card?escH(card.link||''):'')+'" placeholder="Cole o link da arte / pasta"></div>'
+    +'<div class="fg"><label>📝 Legenda <span style="font-weight:400;color:#94A3B8">(escreva à mão — ou use o ✨ do card pra gerar com IA)</span></label><textarea id="cont-caption" rows="5" placeholder="Escreva aqui a legenda do post…" style="width:100%;resize:vertical;font-family:inherit;line-height:1.5">'+(card?escH(card.caption||''):'')+'</textarea></div>'
     +'<div style="font-size:11px;color:#94A3B8">💡 Na etapa <strong>Temas (ideias)</strong> a data é opcional — o tema fica guardado até virar arte.</div>'
     +'</div>'
     +'<div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-o" onclick="document.getElementById(\'cont-overlay\').remove()">Cancelar</button><button class="btn btn-p" onclick="contCardSave(\''+cid+'\',\''+(editId||'')+'\')">💾 Salvar</button></div>'
@@ -2823,7 +2828,7 @@ function contCardSave(cid,editId){
   var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
   var title=g('cont-title');if(!title){if(typeof toast==='function')toast('⚠️ Escreva o tema/título');return;}
   var redes=[];var _li=document.getElementById('cont-rede-li'),_ig=document.getElementById('cont-rede-ig');if(_li&&_li.checked)redes.push('LinkedIn');if(_ig&&_ig.checked)redes.push('Instagram');
-  var data={title:title,status:g('cont-status')||'ideias',date:g('cont-date'),formato:g('cont-formato'),designer:g('cont-designer'),redes:redes,rede:'',link:g('cont-link')};
+  var _capEl=document.getElementById('cont-caption');var data={title:title,status:g('cont-status')||'ideias',date:g('cont-date'),formato:g('cont-formato'),designer:g('cont-designer'),redes:redes,rede:'',link:g('cont-link'),caption:_capEl?_capEl.value:''};
   var cards=_conteudos(c).cards;
   var _by=(S.currentUser&&S.currentUser.name)||'';
   if(editId){var card=cards.find(function(x){return x.id===editId;});if(card)Object.assign(card,data);else cards.push(Object.assign({id:'ct'+Date.now(),createdAt:new Date().toISOString(),createdBy:_by},data));}
@@ -8823,6 +8828,14 @@ function portalApproveArt(cardId){
   card.status='aprovado';card.clientApproved=true;card.clientApprovedAt=new Date().toISOString();delete card.clientChangeReq;
   save();if(typeof toast==='function')toast('✅ Arte aprovada! Obrigado 💙');render();
 }
+// Cliente escreve a legenda de um conteúdo (antes da arte) — aparece pro time e pro designer
+function portalSaveLegenda(cardId){
+  var c=_portalClient();if(!c)return;
+  var card=(_conteudos(c).cards||[]).find(function(x){return x.id===cardId;});if(!card)return;
+  var el=document.getElementById('plegw-'+cardId);if(!el)return;
+  card.caption=el.value;card.captionByClient=true;card.captionAt=new Date().toISOString();
+  save();if(typeof toast==='function')toast('✅ Legenda salva! O time já consegue ver. 💙');render();
+}
 function portalRequestArtChange(cardId){
   var c=_portalClient();if(!c)return;
   var card=(_conteudos(c).cards||[]).find(function(x){return x.id===cardId;});if(!card)return;
@@ -8846,6 +8859,14 @@ function rPortalConteudos(c){
   var aprovadas=cards.filter(function(k){return (k.status||'')==='aprovado';});
   // Publicadas: TUDO que foi publicado (inclui enquetes e vídeos, mesmo sem arte) — o cliente vê tudo
   var publicadas=allCards.filter(function(k){return (k.status||'')==='publicado';});
+  // Conteúdos aguardando legenda (temas/ideias e em arte, ainda sem arte enviada) — o cliente pode escrever
+  var paraLegenda=allCards.filter(function(k){var s=(k.status||'ideias');return (s==='ideias'||s==='arte')&&_cardImgs(k).length===0;});
+  var cardLeg=function(k){return '<div class="portal-card" style="padding:16px 18px">'
+    +'<div style="font-size:16px;font-weight:700;color:#1E293B;margin-bottom:'+(k.date?'4px':'8px')+'">'+escH(k.title||'Conteúdo')+' <span style="font-size:12px;font-weight:400;color:#94A3B8">'+fmtLbl(k)+'</span></div>'
+    +(k.date?'<div style="font-size:12px;color:#64748B;margin-bottom:8px">📅 '+fmtDate(k.date)+'</div>':'')
+    +'<textarea id="plegw-'+k.id+'" placeholder="Escreva aqui a legenda que você quer para esse conteúdo…" style="width:100%;box-sizing:border-box;font-size:15px;line-height:1.6;border:1px solid #CBD5E1;border-radius:10px;padding:12px 14px;resize:vertical;min-height:120px">'+escH(k.caption||'')+'</textarea>'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-top:10px"><button onclick="portalSaveLegenda(\''+k.id+'\')" style="padding:10px 16px;border:none;border-radius:10px;background:#0D3D9B;color:#fff;font-size:14px;font-weight:700;cursor:pointer">💾 Salvar legenda</button>'+(k.captionByClient?'<span style="font-size:11px;color:#16A34A;font-weight:700">✅ legenda enviada pro time</span>':'')+'</div>'
+    +'</div>';};
   var imgsBig=function(k){var im=_cardImgs(k);return im.map(function(it){return '<img src="'+escH(it.url||it.bg||'')+'" onclick="window.open(this.src,\'_blank\')" style="width:100%;height:auto;border-radius:12px;border:1px solid #E5E7EB;display:block;margin-bottom:10px;cursor:zoom-in;background:#F8FAFC">';}).join('');};
   var cardAguard=function(k){return '<div class="portal-card" style="padding:18px 20px">'
     +'<div style="font-size:17px;font-weight:700;color:#1E293B;margin-bottom:14px">'+escH(k.title||'Arte')+' <span style="font-size:12px;font-weight:400;color:#94A3B8">'+fmtLbl(k)+'</span></div>'
@@ -8884,7 +8905,8 @@ function rPortalConteudos(c){
       +'</div>';};
   var grid=function(html){return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px">'+html+'</div>';};
   var secGrid=function(title,sub,html){return '<div style="margin-bottom:22px"><div style="font-size:14px;font-weight:800;color:#1E293B;margin-bottom:2px">'+title+'</div><div style="font-size:12px;color:#64748B;margin-bottom:12px">'+sub+'</div>'+grid(html)+'</div>';};
-  var out='<div class="portal-hero" style="margin-bottom:20px"><div><h1>🎨 Conteúdos</h1><p>Aprove as artes e acompanhe o que já foi publicado</p></div></div>';
+  var out='<div class="portal-hero" style="margin-bottom:20px"><div><h1>🎨 Conteúdos</h1><p>Escreva as legendas, aprove as artes e acompanhe o que já foi publicado</p></div></div>';
+  out+=paraLegenda.length?sec('✍️ Escreva as legendas','Escreva a legenda de cada conteúdo — o time e o designer usam o que você escrever para criar a arte.',paraLegenda.map(cardLeg).join('')):'';
   out+=aguardando.length?sec('🕐 Aguardando sua aprovação','Dê uma olhada e aprove, ou peça um ajuste.',aguardando.map(cardAguard).join('')):'';
   out+=aprovadas.length?secGrid('✅ Aprovadas por você','Já aprovadas — a equipe vai publicar.',aprovadas.map(function(k){return cardCover(k,'✅ Aprovada','#16A34A');}).join('')):'';
   if(publicadas.length){
@@ -9075,7 +9097,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080488; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080489; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
