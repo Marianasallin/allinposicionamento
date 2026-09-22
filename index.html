@@ -4221,17 +4221,15 @@ function _epCurrentIdx(c){var st=_epStages(c);for(var i=0;i<st.length;i++){if((s
 var _epDrag=null;
 function epDragStart(ev,cid){_epDrag={cid:cid};if(ev.dataTransfer){ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',cid);}catch(e){}}}
 function epDragOver(ev){ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect='move';}
-function epMoveStage(ev,cid,idx){
-  ev.preventDefault();var d=_epDrag;_epDrag=null;if(!d||d.cid!==cid)return;
-  var c=_findClient(cid);if(!c)return;var st=_epStages(c);
-  // Modelo de pipeline: etapas antes = concluído, a etapa alvo = em andamento, depois = pendente
-  st.forEach(function(del,i){del.status=(i<idx)?'concluido':(i===idx?'andamento':'pendente');});
-  save();if(typeof toast==='function')toast('🎯 '+c.name.split(' ')[0]+' → '+EP_STAGE_META[idx].short.replace(/^\S+\s/,''));render();
-}
-function epMoveDone(ev,cid){
-  ev.preventDefault();var d=_epDrag;_epDrag=null;if(!d||d.cid!==cid)return;
-  var c=_findClient(cid);if(!c)return;_epStages(c).forEach(function(del){del.status='concluido';});
-  save();if(typeof toast==='function')toast('✅ '+c.name.split(' ')[0]+' concluído!');render();
+function epDrop(ev,idx){
+  ev.preventDefault();
+  var cid='';try{cid=ev.dataTransfer&&ev.dataTransfer.getData('text/plain');}catch(e){}
+  if(!cid&&_epDrag)cid=_epDrag.cid;_epDrag=null;
+  if(!cid)return;
+  var c=_findClient(cid);if(!c)return;var st=_epStages(c);if(!st.length)return;
+  if(idx>=st.length){st.forEach(function(del){del.status='concluido';});if(typeof toast==='function')toast('✅ '+c.name.split(' ')[0]+' concluído!');}
+  else{st.forEach(function(del,i){del.status=(i<idx)?'concluido':(i===idx?'andamento':'pendente');});if(typeof toast==='function')toast('🎯 '+c.name.split(' ')[0]+' → '+EP_STAGE_META[idx].short.replace(/^\S+\s/,''));}
+  save();render();
 }
 // Mover de etapa sem arrastar (funciona em toque/celular) — pelo seletor do card
 function epSetStage(cid,val){
@@ -4258,24 +4256,19 @@ function rEstruturacaoBoard(){
       +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><div style="font-size:14px;font-weight:700;color:#1E293B">'+escH(c.name.split(' ').slice(0,2).join(' '))+'</div>'+cat+'</div>'
       +'<div style="display:flex;align-items:center;gap:5px;margin-top:8px">'+dots+'<span style="font-size:10px;color:#94A3B8;margin-left:4px">'+done+'/5</span></div>'
       +((resp||(cur&&cur.dueDate))?'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:8px;font-size:11px">'+(resp?'<span style="font-weight:600;color:#475569">👤 '+escH(resp)+'</span>':'<span></span>')+(cur&&cur.dueDate?getDayStrEp(cur):'')+'</div>':'')
-      +'<div style="margin-top:8px" onclick="event.stopPropagation()"><select onchange="epSetStage(\''+c.id+'\',this.value)" title="Mover este cliente de etapa" style="width:100%;font-size:11px;padding:5px 6px;border:1px solid #E2E8F0;border-radius:6px;color:#475569;background:#fff;cursor:pointer">'
-      +'<option value="">↔ mover para…</option>'
-      +EP_STAGE_META.map(function(mm,i){return '<option value="'+mm.id+'"'+(idx===i?' selected':'')+'>'+mm.short+'</option>';}).join('')
-      +'<option value="done"'+(idx>=5?' selected':'')+'>✅ Concluído</option>'
-      +'</select></div>'
       +'</div>';
   };
   var cols=EP_STAGE_META.map(function(m,idx){
     var list=eps.filter(function(c){return _epCurrentIdx(c)===idx;});
     var body=list.length?list.map(card).join(''):'<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">—</div>';
-    return '<div ondragover="epDragOver(event)" ondragenter="this.style.background=\''+m.bg+'\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';epMoveStage(event,(_epDrag&&_epDrag.cid),'+idx+')" '
+    return '<div ondragover="epDragOver(event)" ondragenter="this.style.background=\''+m.bg+'\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';epDrop(event,'+idx+')" '
       +'style="flex:1;min-width:210px;max-width:280px;background:#F8FAFC;border-radius:12px;padding:12px;transition:background .15s">'
       +'<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:'+m.color+'">'+m.short+' <span style="color:#94A3B8">('+list.length+')</span></div></div>'
       +body+'</div>';
   }).join('');
   // Coluna Concluídos
   var doneList=eps.filter(function(c){return _epCurrentIdx(c)>=5;});
-  var doneCol='<div ondragover="epDragOver(event)" ondragenter="this.style.background=\'#F0FDF4\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';epMoveDone(event,(_epDrag&&_epDrag.cid))" '
+  var doneCol='<div ondragover="epDragOver(event)" ondragenter="this.style.background=\'#F0FDF4\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';epDrop(event,5)" '
     +'style="flex:1;min-width:210px;max-width:280px;background:#F8FAFC;border-radius:12px;padding:12px;transition:background .15s">'
     +'<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:#16A34A">✅ Concluídos <span style="color:#94A3B8">('+doneList.length+')</span></div></div>'
     +(doneList.length?doneList.map(card).join(''):'<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">—</div>')+'</div>';
@@ -4300,16 +4293,15 @@ function _icCurrentIdx(c){var st=_icStages(c);for(var i=0;i<st.length;i++){if((s
 var _icDrag=null;
 function icDragStart(ev,cid){_icDrag={cid:cid};if(ev.dataTransfer){ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',cid);}catch(e){}}}
 function icDragOver(ev){ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect='move';}
-function icMoveStage(ev,cid,idx){
-  ev.preventDefault();var d=_icDrag;_icDrag=null;if(!d||d.cid!==cid)return;
-  var c=_findClient(cid);if(!c)return;var st=_icStages(c);
-  st.forEach(function(del,i){del.status=(i<idx)?'concluido':(i===idx?'andamento':'pendente');});
-  save();if(typeof toast==='function')toast('🚀 '+c.name.split(' ')[0]+' → '+IC_STAGE_META[idx].short.replace(/^\S+\s/,''));render();
-}
-function icMoveDone(ev,cid){
-  ev.preventDefault();var d=_icDrag;_icDrag=null;if(!d||d.cid!==cid)return;
-  var c=_findClient(cid);if(!c)return;_icStages(c).forEach(function(del){del.status='concluido';});
-  save();if(typeof toast==='function')toast('✅ '+c.name.split(' ')[0]+' concluído!');render();
+function icDrop(ev,idx){
+  ev.preventDefault();
+  var cid='';try{cid=ev.dataTransfer&&ev.dataTransfer.getData('text/plain');}catch(e){}
+  if(!cid&&_icDrag)cid=_icDrag.cid;_icDrag=null;
+  if(!cid)return;
+  var c=_findClient(cid);if(!c)return;var st=_icStages(c);if(!st.length)return;
+  if(idx>=st.length){st.forEach(function(del){del.status='concluido';});if(typeof toast==='function')toast('✅ '+c.name.split(' ')[0]+' concluído!');}
+  else{st.forEach(function(del,i){del.status=(i<idx)?'concluido':(i===idx?'andamento':'pendente');});if(typeof toast==='function')toast('🚀 '+c.name.split(' ')[0]+' → '+IC_STAGE_META[idx].short.replace(/^\S+\s/,''));}
+  save();render();
 }
 // Mover de etapa sem arrastar (funciona em toque/celular) — pelo seletor do card
 function icSetStage(cid,val){
@@ -4336,23 +4328,18 @@ function rImplementacaoBoard(){
       +'<div style="font-size:14px;font-weight:700;color:#1E293B">'+escH(c.name.split(' ').slice(0,2).join(' '))+'</div>'
       +'<div style="display:flex;align-items:center;gap:5px;margin-top:8px;flex-wrap:wrap">'+dots+'<span style="font-size:10px;color:#94A3B8;margin-left:4px">'+done+'/'+N+'</span></div>'
       +((resp||(cur&&cur.dueDate))?'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:8px;font-size:11px">'+(resp?'<span style="font-weight:600;color:#475569">👤 '+escH(resp)+'</span>':'<span></span>')+(cur&&cur.dueDate?getDayStrIc(cur):'')+'</div>':'')
-      +'<div style="margin-top:8px" onclick="event.stopPropagation()"><select onchange="icSetStage(\''+c.id+'\',this.value)" title="Mover este cliente de etapa" style="width:100%;font-size:11px;padding:5px 6px;border:1px solid #E2E8F0;border-radius:6px;color:#475569;background:#fff;cursor:pointer">'
-      +'<option value="">↔ mover para…</option>'
-      +IC_STAGE_META.map(function(mm,i){return '<option value="'+mm.id+'"'+(idx===i?' selected':'')+'>'+mm.short+'</option>';}).join('')
-      +'<option value="done"'+(idx>=N?' selected':'')+'>✅ Concluído</option>'
-      +'</select></div>'
       +'</div>';
   };
   var cols=IC_STAGE_META.map(function(m,idx){
     var list=ics.filter(function(c){return _icCurrentIdx(c)===idx;});
     var body=list.length?list.map(card).join(''):'<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">—</div>';
-    return '<div ondragover="icDragOver(event)" ondragenter="this.style.background=\''+m.bg+'\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';icMoveStage(event,(_icDrag&&_icDrag.cid),'+idx+')" '
+    return '<div ondragover="icDragOver(event)" ondragenter="this.style.background=\''+m.bg+'\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';icDrop(event,'+idx+')" '
       +'style="flex:1;min-width:200px;max-width:280px;background:#F8FAFC;border-radius:12px;padding:12px;transition:background .15s">'
       +'<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:'+m.color+'">'+m.short+' <span style="color:#94A3B8">('+list.length+')</span></div></div>'
       +body+'</div>';
   }).join('');
   var doneList=ics.filter(function(c){return _icCurrentIdx(c)>=N;});
-  var doneCol='<div ondragover="icDragOver(event)" ondragenter="this.style.background=\'#F0FDF4\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';icMoveDone(event,(_icDrag&&_icDrag.cid))" '
+  var doneCol='<div ondragover="icDragOver(event)" ondragenter="this.style.background=\'#F0FDF4\'" ondragleave="this.style.background=\'#F8FAFC\'" ondrop="this.style.background=\'#F8FAFC\';icDrop(event,'+N+')" '
     +'style="flex:1;min-width:200px;max-width:280px;background:#F8FAFC;border-radius:12px;padding:12px;transition:background .15s">'
     +'<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:#16A34A">✅ Concluídos <span style="color:#94A3B8">('+doneList.length+')</span></div></div>'
     +(doneList.length?doneList.map(card).join(''):'<div style="font-size:11px;color:#94A3B8;text-align:center;padding:14px 6px;border:2px dashed #E2E8F0;border-radius:8px">—</div>')+'</div>';
@@ -9114,7 +9101,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080491; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080492; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
