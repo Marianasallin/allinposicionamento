@@ -4219,7 +4219,7 @@ var EP_STAGE_META=[
 function _epStages(c){var dels=(c.deliverables||[]).filter(function(d){return d.product==='Estruturação de Perfil';});return EP_STAGE_META.map(function(m){return dels.find(function(d){return d.id===m.id;});}).filter(Boolean);}
 function _epCurrentIdx(c){var st=_epStages(c);for(var i=0;i<st.length;i++){if((st[i].status||'pendente')!=='concluido')return i;}return st.length;}
 var _epDrag=null;
-function epDragStart(ev,cid){_epDrag={cid:cid};if(ev.dataTransfer){ev.dataTransfer.effectAllowed='move';}}
+function epDragStart(ev,cid){_epDrag={cid:cid};if(ev.dataTransfer){ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',cid);}catch(e){}}}
 function epDragOver(ev){ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect='move';}
 function epMoveStage(ev,cid,idx){
   ev.preventDefault();var d=_epDrag;_epDrag=null;if(!d||d.cid!==cid)return;
@@ -4298,7 +4298,7 @@ var IC_STAGE_META=[
 function _icStages(c){var dels=(c.deliverables||[]).filter(function(d){return d.product==='Implementação Comercial';});return IC_STAGE_META.map(function(m){return dels.find(function(d){return d.id===m.id;});}).filter(Boolean);}
 function _icCurrentIdx(c){var st=_icStages(c);for(var i=0;i<st.length;i++){if((st[i].status||'pendente')!=='concluido')return i;}return st.length;}
 var _icDrag=null;
-function icDragStart(ev,cid){_icDrag={cid:cid};if(ev.dataTransfer){ev.dataTransfer.effectAllowed='move';}}
+function icDragStart(ev,cid){_icDrag={cid:cid};if(ev.dataTransfer){ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',cid);}catch(e){}}}
 function icDragOver(ev){ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect='move';}
 function icMoveStage(ev,cid,idx){
   ev.preventDefault();var d=_icDrag;_icDrag=null;if(!d||d.cid!==cid)return;
@@ -9114,7 +9114,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080490; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080491; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
