@@ -8828,6 +8828,17 @@ function portalApproveArt(cardId){
   card.status='aprovado';card.clientApproved=true;card.clientApprovedAt=new Date().toISOString();delete card.clientChangeReq;
   save();if(typeof toast==='function')toast('✅ Arte aprovada! Obrigado 💙');render();
 }
+// Cliente cria uma NOVA legenda a qualquer momento — vira um conteúdo novo (status ideias) pro time/designer
+function portalAddLegenda(){
+  var c=_portalClient();if(!c)return;
+  var t=document.getElementById('pnewleg-title');var cap=document.getElementById('pnewleg-cap');
+  var title=t?(''+t.value).trim():'';var caption=cap?(''+cap.value).trim():'';
+  if(!caption){if(typeof toast==='function')toast('✍️ Escreva a legenda antes de enviar.');return;}
+  if(!c.conteudos||typeof c.conteudos!=='object')c.conteudos={ficha:{},cards:[]};
+  if(!Array.isArray(c.conteudos.cards))c.conteudos.cards=[];
+  c.conteudos.cards.push({id:'ct'+Date.now()+Math.floor(Math.random()*1000),createdAt:new Date().toISOString(),createdBy:(c.name||'Cliente')+' (cliente)',title:title||'💡 Ideia do cliente',status:'ideias',caption:caption,captionByClient:true,captionAt:new Date().toISOString()});
+  save();if(typeof toast==='function')toast('✅ Legenda enviada pro time! 💙');render();
+}
 // Cliente escreve a legenda de um conteúdo (antes da arte) — aparece pro time e pro designer
 function portalSaveLegenda(cardId){
   var c=_portalClient();if(!c)return;
@@ -8906,7 +8917,13 @@ function rPortalConteudos(c){
   var grid=function(html){return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px">'+html+'</div>';};
   var secGrid=function(title,sub,html){return '<div style="margin-bottom:22px"><div style="font-size:14px;font-weight:800;color:#1E293B;margin-bottom:2px">'+title+'</div><div style="font-size:12px;color:#64748B;margin-bottom:12px">'+sub+'</div>'+grid(html)+'</div>';};
   var out='<div class="portal-hero" style="margin-bottom:20px"><div><h1>🎨 Conteúdos</h1><p>Escreva as legendas, aprove as artes e acompanhe o que já foi publicado</p></div></div>';
-  out+=paraLegenda.length?sec('✍️ Escreva as legendas','Escreva a legenda de cada conteúdo — o time e o designer usam o que você escrever para criar a arte.',paraLegenda.map(cardLeg).join('')):'';
+  var novaLegForm='<div class="portal-card" style="padding:16px 18px;border:1px dashed #93C5FD;background:#F8FBFF">'
+    +'<div style="font-size:14px;font-weight:700;color:#0D3D9B;margin-bottom:8px">➕ Nova legenda</div>'
+    +'<input id="pnewleg-title" placeholder="Tema / título (ex.: Dica sobre gestão de equipe)" style="width:100%;box-sizing:border-box;font-size:14px;border:1px solid #CBD5E1;border-radius:8px;padding:10px 12px;margin-bottom:8px">'
+    +'<textarea id="pnewleg-cap" placeholder="Escreva aqui a legenda que você quer para esse conteúdo…" style="width:100%;box-sizing:border-box;font-size:15px;line-height:1.6;border:1px solid #CBD5E1;border-radius:10px;padding:12px 14px;resize:vertical;min-height:120px"></textarea>'
+    +'<button onclick="portalAddLegenda()" style="margin-top:10px;padding:11px 18px;border:none;border-radius:10px;background:#0D3D9B;color:#fff;font-size:14px;font-weight:700;cursor:pointer">📤 Enviar legenda pro time</button>'
+    +'</div>';
+  out+=sec('✍️ Escreva as legendas','Escreva a legenda de um conteúdo a qualquer momento — o time e o designer usam o que você escrever para criar a arte.',novaLegForm+paraLegenda.map(cardLeg).join(''));
   out+=aguardando.length?sec('🕐 Aguardando sua aprovação','Dê uma olhada e aprove, ou peça um ajuste.',aguardando.map(cardAguard).join('')):'';
   out+=aprovadas.length?secGrid('✅ Aprovadas por você','Já aprovadas — a equipe vai publicar.',aprovadas.map(function(k){return cardCover(k,'✅ Aprovada','#16A34A');}).join('')):'';
   if(publicadas.length){
@@ -9097,7 +9114,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080489; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080490; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
