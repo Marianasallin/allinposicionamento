@@ -1388,12 +1388,15 @@ function rDash(){
     <div class="card"><div class="ch"><h3>📊 Volume Mensal de Leads Gerados</h3></div><div class="cb" style="padding:20px"><div style="height:240px;position:relative"><canvas id="chartMonthlyleads"></canvas></div></div></div>
     <div class="card"><div class="ch"><h3>👥 Distribuição de Leads</h3></div><div class="cb" style="padding:20px"><div style="height:240px;position:relative"><canvas id="chartLeadsbyVendor"></canvas></div></div></div>
   </div>`;
-  setTimeout(()=>{
-    const monthlyData=getMonthlyLeadsData();
-    new Chart(document.getElementById('chartMonthlyleads'),{type:'bar',data:{labels:monthlyData.labels,datasets:[{label:'Leads',data:monthlyData.data,backgroundColor:'#0077B5',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:5}}}}});
-    const vendorData=getLeadsbyVendorData();
-    new Chart(document.getElementById('chartLeadsbyVendor'),{type:'line',data:{labels:vendorData.labels,datasets:[{label:'Leads',data:vendorData.data,borderColor:'#0077B5',backgroundColor:'rgba(0,119,181,.1)',fill:true,tension:.4,borderWidth:2,pointRadius:5,pointBackgroundColor:'#0077B5'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:5}}}}});
-  },100);
+  (function(){var _tries=0;function _drawDash(){
+    if(typeof Chart==='undefined'){if(_tries++<40){return setTimeout(_drawDash,300);}return;} // espera o Chart.js carregar
+    try{
+      var el1=document.getElementById('chartMonthlyleads');
+      if(el1){if(el1._chart){try{el1._chart.destroy();}catch(e){}}var monthlyData=getMonthlyLeadsData();el1._chart=new Chart(el1,{type:'bar',data:{labels:monthlyData.labels,datasets:[{label:'Leads',data:monthlyData.data,backgroundColor:'#0077B5',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:5}}}}});}
+      var el2=document.getElementById('chartLeadsbyVendor');
+      if(el2){if(el2._chart){try{el2._chart.destroy();}catch(e){}}var vendorData=getLeadsbyVendorData();el2._chart=new Chart(el2,{type:'line',data:{labels:vendorData.labels,datasets:[{label:'Leads',data:vendorData.data,borderColor:'#0077B5',backgroundColor:'rgba(0,119,181,.1)',fill:true,tension:.4,borderWidth:2,pointRadius:5,pointBackgroundColor:'#0077B5'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:5}}}}});}
+    }catch(e){console.warn('dash charts:',e);}
+  }setTimeout(_drawDash,100);})();
   return html;
 }
 function getMonthlyLeadsData(){
@@ -9107,7 +9110,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080494; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080495; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
