@@ -6901,14 +6901,16 @@ function saveProspect(cid,pid,silent){
 function _pmAutoFlag(on){var el=document.getElementById('pm-autoflag');if(el)el.textContent=on?'✓ salvo automaticamente':'salva sozinho enquanto você digita';}
 function exportProspectsCSV(cid){
   const c=D.clients.find(c=>c.id===cid);
-  if(!c||!(c.prospects||[]).length){toast('Nenhum lead para exportar');return;}
+  const _n=c?(Array.isArray(c.prospects)?c.prospects.length:(c.prospects?Object.keys(c.prospects).length:0)):0;
+  if(!c||!_n){toast('Nenhum lead para exportar');return;}
   const fmt=d=>d?new Date(d+'T12:00:00').toLocaleDateString('pt-BR'):'';
   const sim=v=>v?'Sim':'Não';
   const cols=['Data','Nome','Cargo','Localização','Telefone','Email','LinkedIn','Conduzido por',
     'Entrei em contato','Respondeu','Agendou Reunião','Fez Reunião','Fechou Contrato','Valor do Contrato','Data de fechamento',
     'Motivo não fechou','Follow-up 1','Follow-up 2','Follow-up 3','Detalhes da conversa','Observações do cliente'];
-  const esc=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
-  const rows=(c.prospects||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(p=>[
+  const esc=s=>'"'+String(s==null?'':s).replace(/[\r\n]+/g,' / ').replace(/"/g,'""')+'"';
+  const _pros=Array.isArray(c.prospects)?c.prospects:(c.prospects?Object.values(c.prospects):[]);
+  const rows=_pros.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(p=>[
     fmt(p.date),p.name,p.role,p.location,p.phone,p.email,p.linkedinUrl,p.conductedBy,
     sim(p.sentMessage),sim(p.replied),sim(p.scheduledMeeting),sim(p.hadMeeting),sim(p.contractClosed),p.contractValue,fmt(p.closedDate),
     p.reasonNotClosed,fmt(p.followUp1),fmt(p.followUp2),fmt(p.followUp3),p.convoDetails,p.notes
@@ -9112,7 +9114,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080496; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080497; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
