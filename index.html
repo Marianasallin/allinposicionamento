@@ -1544,7 +1544,7 @@ function rClients(){
     </div>`;
   }).join('');
 
-  return`<div class="sh" style="margin-bottom:14px"><h2>Clientes</h2><button class="btn btn-p btn-s" onclick="S.viewMode='myportfolio';S.selectedTeamMember=null;render()">👤 Minha Carteira</button></div>
+  return`<div class="sh" style="margin-bottom:14px;flex-wrap:wrap;gap:8px"><h2>Clientes</h2><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-o btn-s" onclick="exportDatasClientes()" title="Relatório com as datas de contrato, prospecção, vencimento e campanhas Waalaxy">📅 Relatório de datas</button><button class="btn btn-p btn-s" onclick="S.viewMode='myportfolio';S.selectedTeamMember=null;render()">👤 Minha Carteira</button></div></div>
   <div class="filter-bar" style="gap:12px;margin-bottom:12px">
     <input type="text" id="client-search" class="mini" placeholder="🔍 Buscar por nome/email..." value="${S.searchTerm}" oninput="S.searchTerm=this.value;S._searchFocused=true;render()" style="flex:1;max-width:300px">
     <select class="mini" onchange="S.sortOrder=this.value;render()" style="width:200px">
@@ -6302,6 +6302,32 @@ function saveContrato(cid){
     save();toast('✅ Contrato salvo!');render();
   }
 }
+// Relatório de datas dos clientes (contrato, prospecção, vencimento, campanhas Waalaxy) — pra Mari conferir
+function exportDatasClientes(){
+  var fd=function(d){if(d==null||d==='')return '—';var x=(typeof d==='number')?new Date(d):new Date(d+'T12:00:00');return isNaN(x)?'—':x.toLocaleDateString('pt-BR');};
+  var esc=function(s){return String(s==null?'':s).replace(/[&<>]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[m];});};
+  var cls=(D.clients||[]).filter(function(c){return c&&c.contractStatus!=='inativo';}).slice().sort(function(a,b){return (''+(a.name||'')).localeCompare(''+(b.name||''));});
+  var rows=cls.map(function(c){
+    var prod=(c.products||[]).map(function(p){return p.replace('Gestão de Perfil','GP').replace('Implementação Comercial','IC').replace('Estruturação de Perfil','EP');}).join(', ')||'—';
+    var camps=(c.campaigns||[]).filter(Boolean).map(function(cp){return esc(cp.name||'Campanha')+' — <b>'+fd(cp.launchDate)+'</b>';}).join('<br>')||'—';
+    return '<tr>'
+      +'<td><b>'+esc(c.name||'')+'</b></td>'
+      +'<td class="c">'+esc(prod)+'</td>'
+      +'<td class="c">'+esc(c.contractStatus||'')+'</td>'
+      +'<td class="c">'+fd(c.startDate)+'</td>'
+      +'<td class="c">'+fd(c.prospectionStart)+'</td>'
+      +'<td class="c">'+fd(c.contractDue)+'</td>'
+      +'<td class="camp">'+camps+'</td>'
+      +'</tr>';
+  }).join('');
+  var html='<html><head><meta charset="utf-8"><title>Relatório de Datas dos Clientes — ALL IN</title>'
+    +'<style>@page{size:A4 landscape;margin:10mm}body{font-family:Arial,sans-serif;color:#1E293B;padding:0;margin:0}h1{font-size:18px;color:#0D3D9B;margin:0 0 2px}.sub{color:#64748B;font-size:12px;margin:0 0 14px}table{border-collapse:collapse;width:100%}th{background:#0D3D9B;color:#fff;font-size:11px;text-align:left;padding:7px 9px;border:1px solid #0D3D9B}td{font-size:11px;padding:6px 9px;border:1px solid #CBD5E1;vertical-align:top}td.c{text-align:center;white-space:nowrap}td.camp{font-size:10px;color:#334155}tr:nth-child(even) td{background:#F5F8FF}@media print{body{padding:0}}</style></head><body>'
+    +'<h1>📅 Relatório de Datas dos Clientes</h1><div class="sub">ALL IN · '+cls.length+' cliente(s) · Gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'
+    +'<table><thead><tr><th>Cliente</th><th>Produto</th><th>Status</th><th>Início contrato</th><th>Início prospecção</th><th>Vencimento</th><th>Campanhas Waalaxy (lançadas)</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},300);}</scr'+'ipt></body></html>';
+  var w=window.open('','_blank');if(!w){if(typeof toast==='function')toast('Permita pop-ups para gerar o relatório');return;}
+  w.document.write(html);w.document.close();
+}
 function _adiBR(s){if(!s)return '—';var m=(''+s).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+'/'+m[2]+'/'+m[1]):(''+s);}
 function _aditivosHtml(c){
   var ad=(c&&c.aditivos)||[];
@@ -9123,7 +9149,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080498; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080499; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
