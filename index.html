@@ -2323,14 +2323,14 @@ function rDesignerPortal(){
   var clientes=['todos'].concat([...new Set(items.map(function(i){return i.c.name;}))].sort());
   var list=items.filter(function(i){
     if(fCli!=='todos'&&i.c.name!==fCli)return false;
-    var tem=_cardImgs(i.card).length>0;
-    if(fSt==='afazer'&&tem)return false;
-    if(fSt==='feitas'&&!tem)return false;
+    var feito=_cardImgs(i.card).length>0&&!i.card.clientChangeReq; // pronta = tem arte E sem ajuste pendente
+    if(fSt==='afazer'&&feito)return false;
+    if(fSt==='feitas'&&!feito)return false;
     return true;
   });
   // pendentes primeiro, depois por data
   list.sort(function(a,b){var ra=a.card.clientChangeReq?1:0,rb=b.card.clientChangeReq?1:0;if(ra!==rb)return rb-ra;var ta=_cardImgs(a.card).length>0?1:0,tb=_cardImgs(b.card).length>0?1:0;if(ta!==tb)return ta-tb;return (''+(a.card.date||'9999')).localeCompare(''+(b.card.date||'9999'));});
-  var pend=items.filter(function(i){return !_cardImgs(i.card).length;}).length;
+  var pend=items.filter(function(i){return !_cardImgs(i.card).length||i.card.clientChangeReq;}).length;
   var chip=function(v,l,cur,key){var vv=(''+v).replace(/\\/g,'\\\\').replace(/'/g,"\\'");return '<span onclick="S.'+key+'=\''+vv+'\';render()" style="cursor:pointer;font-size:12px;padding:5px 12px;border-radius:99px;background:'+(cur===v?'#0D3D9B':'#F1F5F9')+';color:'+(cur===v?'#fff':'#475569')+'">'+escH(l)+'</span>';};
   var cards=list.map(function(i){
     var c=i.c,card=i.card;var f=_conteudos(c).ficha||{};
@@ -2340,7 +2340,7 @@ function rDesignerPortal(){
     var pasta=_validUrl(f.pastaArtes);
     var linha=(f.linhaEditorialTexto||'').trim();
     return '<div style="background:#fff;border:1px solid '+(tem?'#BBF7D0':'#E5E7EB')+';border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05)">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:11px;font-weight:700;background:#EFF6FF;color:#0D3D9B;border-radius:99px;padding:3px 10px">'+escH(c.name)+'</span>'+(tem?'<span style="font-size:11px;color:#16A34A;font-weight:700">✅ enviada</span>':'<span style="font-size:11px;color:#B45309;font-weight:700">⏳ pendente</span>')+'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:11px;font-weight:700;background:#EFF6FF;color:#0D3D9B;border-radius:99px;padding:3px 10px">'+escH(c.name)+'</span>'+(card.clientChangeReq?'<span style="font-size:11px;color:#DC2626;font-weight:800">🔧 ajuste pendente</span>':(tem?'<span style="font-size:11px;color:#16A34A;font-weight:700">✅ enviada</span>':'<span style="font-size:11px;color:#B45309;font-weight:700">⏳ pendente</span>'))+'</div>'
       +'<div style="font-size:15px;font-weight:600;color:#1E293B;line-height:1.35;margin-bottom:8px">'+escH(card.title||'(sem título)')+'</div>'
       +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">'+fmt+(dateStr?'<span style="font-size:12px;font-weight:700;color:#0D3D9B;background:#EFF6FF;border-radius:8px;padding:3px 9px">📅 '+dateStr+'</span>':'')+'</div>'
       +(card.clientChangeReq?'<div style="font-size:12px;font-weight:800;color:#B45309;margin-bottom:3px">✍️ Ajuste pedido pelo cliente</div><div style="font-size:14px;color:#7C2D12;white-space:pre-wrap;line-height:1.55;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:11px 13px;margin-bottom:12px">'+escH(card.clientChangeReq)+'</div>':'')
@@ -2353,7 +2353,7 @@ function rDesignerPortal(){
         return (artHtml?'<div style="margin-bottom:12px">'+artHtml+'</div>':'')+(legendaHtml?'<div style="margin-bottom:12px">'+legendaHtml+'</div>':'');
       })()
       +(pasta?'<div style="margin-bottom:10px"><a href="'+escH(pasta)+'" target="_blank" style="font-size:12px;color:#0369A1;text-decoration:none;font-weight:600">📁 Materiais e fotos do cliente ↗</a></div>':'')
-      +'<button onclick="contArteAdd(\''+c.id+'\',\''+card.id+'\',\''+escH(name)+'\')" style="width:100%;padding:11px;border:none;border-radius:10px;background:'+(tem?'#F1F5F9;color:#0D3D9B':'linear-gradient(135deg,#0D3D9B,#0891B2);color:#fff')+';font-size:14px;font-weight:600;cursor:pointer">'+(tem?'🔄 Trocar / adicionar arte':'📤 Subir arte')+'</button>'
+      +'<button onclick="contArteAdd(\''+c.id+'\',\''+card.id+'\',\''+escH(name)+'\')" style="width:100%;padding:11px;border:none;border-radius:10px;background:'+((tem&&!card.clientChangeReq)?'#F1F5F9;color:#0D3D9B':'linear-gradient(135deg,#0D3D9B,#0891B2);color:#fff')+';font-size:14px;font-weight:600;cursor:pointer">'+(card.clientChangeReq?'🔄 Subir ajuste':(tem?'🔄 Trocar / adicionar arte':'📤 Subir arte'))+'</button>'
       +'</div>';
   }).join('');
   return '<div style="min-height:100vh;background:#F1F5F9;font-family:system-ui,sans-serif">'
@@ -9149,7 +9149,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080499; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080500; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
