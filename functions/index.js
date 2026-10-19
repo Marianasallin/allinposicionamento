@@ -6,13 +6,16 @@
 // A chave da IA fica só aqui (Secret Manager), nunca no site.
 // ════════════════════════════════════════════════════════════════
 const { onValueCreated } = require("firebase-functions/v2/database");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
+const crypto = require("crypto");
 admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 const DRIVE_API_KEY = defineSecret("DRIVE_API_KEY");
+const GCAL_SA_KEY = defineSecret("GCAL_SA_KEY"); // JSON da chave da conta de serviço (delegação de domínio) p/ ler a agenda da Nayara
 const MODEL = "claude-opus-4-8";
 const IMG_MODEL = "gemini-2.5-flash-image";
 
@@ -307,5 +310,162 @@ exports.allintema = onValueCreated(
       await resRef.set({ error: String((e && e.message) || e), at: Date.now() });
     }
     try { await admin.database().ref("/_ai/req/" + reqId).remove(); } catch (_) {}
+  }
+);
+
+// ════════════════════════════════════════════════════════════════
+// SINCRONIZAÇÃO AUTOMÁTICA DA AGENDA (Implementação Comercial)
+// Roda sozinha de tempos em tempos. Lê a agenda da responsável via
+// conta de serviço com DELEGAÇÃO DE DOMÍNIO do Workspace (sem login
+// de ninguém), filtra pela etiqueta (cor), casa com o cliente pelo
+// e-mail e grava/atualiza os encontros em allin/clients/<i>/encounters.
+// Controle (liga/desliga, e-mail) fica em /agendaSync, fora de /allin.
+// ════════════════════════════════════════════════════════════════
+const GCAL_DEFAULT_SUBJECT = "nayara@agenciaallin.com";
+
+function _b64url(buf) {
+  return Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+// Access token via JWT da conta de serviço imitando (subject) o dono da agenda — delegação de domínio
+async function gcalAccessToken(sa, subject) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const claim = {
+    iss: sa.client_email,
+    sub: subject,
+    scope: "https://www.googleapis.com/auth/calendar.readonly",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600,
+  };
+  const unsigned = _b64url(JSON.stringify(header)) + "." + _b64url(JSON.stringify(claim));
+  const signer = crypto.createSign("RSA-SHA256");
+  signer.update(unsigned);
+  signer.end();
+  const sig = signer.sign(sa.private_key);
+  const jwt = unsigned + "." + _b64url(sig);
+  const r = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=" + jwt,
+  });
+  const j = await r.json();
+  if (j.error) throw new Error("token: " + (j.error_description || j.error));
+  return j.access_token;
+}
+// Classifica anexos pós-reunião em gravação (vídeo) e transcrição/anotações (doc)
+function gcalLinksFromEvent(e) {
+  let rec = "", tr = "";
+  (e.attachments || []).forEach((a) => {
+    const mt = ("" + (a.mimeType || "")).toLowerCase();
+    const t = ("" + (a.title || "")).toLowerCase();
+    const u = a.fileUrl || "";
+    if (!rec && (mt.indexOf("video") >= 0 || /grava|record/.test(t))) rec = u;
+    if (!tr && (mt.indexOf("document") >= 0 || /transcri|anota|\bnotes?\b|resumo/.test(t))) tr = u;
+  });
+  return { rec, tr };
+}
+function gcalYMD(d) {
+  const p = (n) => (n < 10 ? "0" : "") + n;
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+
+async function runAgendaSync() {
+  const db = admin.database();
+  // Controle (liga/desliga + e-mail) — fora de /allin pra não brigar com o app
+  const ctrlSnap = await db.ref("agendaSync").get();
+  const ctrl = ctrlSnap.val() || {};
+  if (!ctrl.enabled) return { skipped: "desligado (agendaSync/enabled != true)" };
+  const subject = (ctrl.email || GCAL_DEFAULT_SUBJECT).trim();
+  // Cor da etiqueta — vem da configuração que o app salva quando a Nayara escolhe no modal
+  const cfgSnap = await db.ref("allin/gcalCfg").get();
+  const colorId = (cfgSnap.val() && cfgSnap.val().colorId) || "";
+  // Credencial da conta de serviço
+  let sa;
+  try { sa = JSON.parse(GCAL_SA_KEY.value()); } catch (e) { throw new Error("GCAL_SA_KEY inválida (não é um JSON)"); }
+  const token = await gcalAccessToken(sa, subject);
+  // Eventos: 90 dias atrás até 31 dias à frente
+  const now = new Date();
+  const timeMin = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).toISOString();
+  const timeMax = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 31, 23, 59, 59).toISOString();
+  const url = "https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(subject) +
+    "/events?singleEvents=true&orderBy=startTime&maxResults=250&timeMin=" + encodeURIComponent(timeMin) + "&timeMax=" + encodeURIComponent(timeMax);
+  const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+  const ej = await r.json();
+  if (ej.error) throw new Error("agenda: " + (ej.error.message || "erro ao ler"));
+  let events = (ej.items || []).filter((e) => e && e.start && (e.start.dateTime || e.start.date) && e.status !== "cancelled");
+  if (colorId) events = events.filter((e) => (e.colorId || "") === colorId);
+
+  // Clientes de IC + mapa de e-mail → chave do cliente em allin/clients
+  const clientsSnap = await db.ref("allin/clients").get();
+  const clientsRaw = clientsSnap.val() || {};
+  const keys = Array.isArray(clientsRaw) ? clientsRaw.map((_, i) => String(i)) : Object.keys(clientsRaw);
+  const emailToKey = {};
+  keys.forEach((k) => {
+    const c = clientsRaw[k];
+    if (!c) return;
+    if (!(c.products || []).includes("Implementação Comercial")) return; // só IC
+    const es = [];
+    if (c.email) es.push(c.email);
+    if (Array.isArray(c.portalEmails)) c.portalEmails.forEach((x) => { if (x) es.push(x); });
+    es.forEach((e) => { const kk = ("" + e).trim().toLowerCase(); if (kk) emailToKey[kk] = k; });
+  });
+
+  let nNew = 0, nUpd = 0;
+  for (const e of events) {
+    // acha o cliente pelo e-mail de algum convidado
+    let key = null;
+    for (const a of (e.attendees || [])) {
+      const em = ("" + (a.email || "")).trim().toLowerCase();
+      if (em && emailToKey[em]) { key = emailToKey[em]; break; }
+    }
+    if (key == null) continue;
+    const lk = gcalLinksFromEvent(e);
+    const start = e.start.dateTime || e.start.date;
+    const d = new Date(start);
+    const date = e.start.dateTime ? gcalYMD(d) : e.start.date;
+    const time = e.start.dateTime ? (("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2)) : "";
+    const atts = (e.attendees || []).map((a) => a.displayName || a.email).filter(Boolean);
+    // transação na lista de encontros do cliente: dedupe por gcalId; novo ou completa links
+    const encRef = db.ref("allin/clients/" + key + "/encounters");
+    const res = await encRef.transaction((cur) => {
+      cur = cur || {};
+      let list = Array.isArray(cur.list) ? cur.list.slice() : (cur.list && typeof cur.list === "object" ? Object.values(cur.list) : []);
+      const existing = list.find((x) => x && x.gcalId === e.id);
+      if (existing) {
+        let upd = false;
+        if (lk.rec && !existing.recordingLink) { existing.recordingLink = lk.rec; upd = true; }
+        if (lk.tr && !existing.transcriptionLink) { existing.transcriptionLink = lk.tr; upd = true; }
+        if (!upd) return; // nada muda → aborta a transação
+        cur.__op = "upd";
+      } else {
+        list.push({ date, time, tipo: "IC", description: e.summary || "Encontro", attendees: atts, notes: (e.hangoutLink ? "Link da reunião: " + e.hangoutLink : ""), transcriptionLink: lk.tr || "", recordingLink: lk.rec || "", attachments: [], gcalId: e.id, gcalColorId: e.colorId || "" });
+        cur.__op = "new";
+      }
+      cur.list = list;
+      return cur;
+    });
+    if (res.committed && res.snapshot && res.snapshot.child("__op").exists()) {
+      const op = res.snapshot.child("__op").val();
+      if (op === "new") nNew++; else if (op === "upd") nUpd++;
+      await encRef.child("__op").remove().catch(() => {});
+    }
+  }
+  if (nNew || nUpd) { try { await db.ref("allin/_rev").set(Date.now()); } catch (_) {} }
+  const summary = { ok: true, novos: nNew, atualizados: nUpd, eventos: events.length, at: Date.now() };
+  await db.ref("agendaSync/lastRun").set(summary).catch(() => {});
+  return summary;
+}
+
+exports.syncAgendaIC = onSchedule(
+  { schedule: "every 2 hours", secrets: [GCAL_SA_KEY], region: "us-central1", timeoutSeconds: 120, memory: "256MiB" },
+  async () => {
+    try {
+      const out = await runAgendaSync();
+      console.log("syncAgendaIC:", JSON.stringify(out));
+    } catch (e) {
+      console.error("syncAgendaIC erro:", (e && e.message) || e);
+      try { await admin.database().ref("agendaSync/lastRun").set({ error: String((e && e.message) || e), at: Date.now() }); } catch (_) {}
+    }
   }
 );
