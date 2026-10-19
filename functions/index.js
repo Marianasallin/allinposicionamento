@@ -9,13 +9,11 @@ const { onValueCreated } = require("firebase-functions/v2/database");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
-const crypto = require("crypto");
 admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 const DRIVE_API_KEY = defineSecret("DRIVE_API_KEY");
-const GCAL_SA_KEY = defineSecret("GCAL_SA_KEY"); // JSON da chave da conta de serviço (delegação de domínio) p/ ler a agenda da Nayara
 const MODEL = "claude-opus-4-8";
 const IMG_MODEL = "gemini-2.5-flash-image";
 
@@ -322,36 +320,36 @@ exports.allintema = onValueCreated(
 // Controle (liga/desliga, e-mail) fica em /agendaSync, fora de /allin.
 // ════════════════════════════════════════════════════════════════
 const GCAL_DEFAULT_SUBJECT = "nayara@agenciaallin.com";
+const GCAL_SA_EMAIL = "agenda-sync@allin-sistema.iam.gserviceaccount.com";
 
-function _b64url(buf) {
-  return Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+// Token do próprio SA da função (servidor de metadados) — sem chave baixada
+async function _runtimeToken() {
+  const r = await fetch("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token", { headers: { "Metadata-Flavor": "Google" } });
+  const j = await r.json();
+  if (!j.access_token) throw new Error("metadata token falhou");
+  return j.access_token;
 }
-// Access token via JWT da conta de serviço imitando (subject) o dono da agenda — delegação de domínio
-async function gcalAccessToken(sa, subject) {
+// Access token da agenda via delegação de domínio SEM chave: assina o JWT pela
+// IAM Credentials API (signJwt) e troca por token imitando o dono da agenda.
+async function gcalAccessToken(subject) {
   const now = Math.floor(Date.now() / 1000);
-  const header = { alg: "RS256", typ: "JWT" };
-  const claim = {
-    iss: sa.client_email,
-    sub: subject,
-    scope: "https://www.googleapis.com/auth/calendar.readonly",
-    aud: "https://oauth2.googleapis.com/token",
-    iat: now,
-    exp: now + 3600,
-  };
-  const unsigned = _b64url(JSON.stringify(header)) + "." + _b64url(JSON.stringify(claim));
-  const signer = crypto.createSign("RSA-SHA256");
-  signer.update(unsigned);
-  signer.end();
-  const sig = signer.sign(sa.private_key);
-  const jwt = unsigned + "." + _b64url(sig);
-  const r = await fetch("https://oauth2.googleapis.com/token", {
+  const claim = { iss: GCAL_SA_EMAIL, sub: subject, scope: "https://www.googleapis.com/auth/calendar.readonly", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 };
+  const admTok = await _runtimeToken();
+  const sr = await fetch("https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/" + encodeURIComponent(GCAL_SA_EMAIL) + ":signJwt", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + admTok, "Content-Type": "application/json" },
+    body: JSON.stringify({ payload: JSON.stringify(claim) }),
+  });
+  const sj = await sr.json();
+  if (sj.error) throw new Error("signJwt: " + (sj.error.message || JSON.stringify(sj.error)));
+  const tr = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=" + jwt,
+    body: "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=" + sj.signedJwt,
   });
-  const j = await r.json();
-  if (j.error) throw new Error("token: " + (j.error_description || j.error));
-  return j.access_token;
+  const tj = await tr.json();
+  if (tj.error) throw new Error("token: " + (tj.error_description || tj.error));
+  return tj.access_token;
 }
 // Classifica anexos pós-reunião em gravação (vídeo) e transcrição/anotações (doc)
 function gcalLinksFromEvent(e) {
@@ -380,10 +378,7 @@ async function runAgendaSync() {
   // Cor da etiqueta — vem da configuração que o app salva quando a Nayara escolhe no modal
   const cfgSnap = await db.ref("allin/gcalCfg").get();
   const colorId = (cfgSnap.val() && cfgSnap.val().colorId) || "";
-  // Credencial da conta de serviço
-  let sa;
-  try { sa = JSON.parse(GCAL_SA_KEY.value()); } catch (e) { throw new Error("GCAL_SA_KEY inválida (não é um JSON)"); }
-  const token = await gcalAccessToken(sa, subject);
+  const token = await gcalAccessToken(subject);
   // Eventos: 90 dias atrás até 31 dias à frente
   const now = new Date();
   const timeMin = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).toISOString();
@@ -458,7 +453,7 @@ async function runAgendaSync() {
 }
 
 exports.syncAgendaIC = onSchedule(
-  { schedule: "every 2 hours", secrets: [GCAL_SA_KEY], region: "us-central1", timeoutSeconds: 120, memory: "256MiB" },
+  { schedule: "every 2 hours", serviceAccount: GCAL_SA_EMAIL, region: "us-central1", timeoutSeconds: 120, memory: "256MiB" },
   async () => {
     try {
       const out = await runAgendaSync();
