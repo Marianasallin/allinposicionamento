@@ -4399,11 +4399,14 @@ function openGcalImport(){
     var dateStr=e.start.dateTime?_gcalYMD(d):e.start.date;
     var timeStr=e.start.dateTime?(_p2(d.getHours())+':'+_p2(d.getMinutes())):'(dia todo)';
     var cli=_gcalMatch(e,map);
-    var already=cli&&((cli.encounters&&cli.encounters.list)||[]).some(function(x){return x.gcalId===e.id;});
+    var enc=cli?((cli.encounters&&cli.encounters.list)||[]).filter(function(x){return x.gcalId===e.id;})[0]:null;
+    var lk=_gcalLinks(e);
+    var temNovoLink=enc&&((lk.rec&&!enc.recordingLink)||(lk.tr&&!enc.transcriptionLink));
     var disp=new Date(dateStr+'T12:00:00');
     var dLbl=isNaN(disp)?dateStr:disp.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
-    var status=already?'<span style="color:#16A34A;font-weight:700">✓ já importado</span>':(cli?'<span style="color:#0D3D9B;font-weight:700">→ '+escH(cli.name)+'</span>':'<span style="color:#94A3B8">sem cliente (não importa)</span>');
-    var canImp=cli&&!already;
+    var selo=(lk.rec?'🎥':'')+(lk.tr?'📝':'');
+    var status=!cli?'<span style="color:#94A3B8">sem cliente (não importa)</span>':(enc?(temNovoLink?'<span style="color:#B45309;font-weight:700">↻ atualizar gravação/transcrição — '+escH(cli.name)+'</span>':'<span style="color:#16A34A;font-weight:700">✓ já importado</span>'):'<span style="color:#0D3D9B;font-weight:700">→ '+escH(cli.name)+'</span> '+selo);
+    var canImp=cli&&(!enc||temNovoLink);
     return '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid #EEF2F7;border-radius:10px;margin-bottom:7px;background:'+(canImp?'#fff':'#FAFBFC')+';cursor:'+(canImp?'pointer':'default')+'">'
       +'<input type="checkbox" id="gchk-'+idx+'" '+(canImp?'checked':'disabled')+' style="margin-top:3px;width:16px;height:16px">'
       +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:#1E293B">'+escH(e.summary||'(sem título)')+'</div>'
@@ -4424,24 +4427,42 @@ function openGcalImport(){
     +'</div>';
   document.body.appendChild(m);
 }
+// Classifica os anexos do evento (pós-reunião) em gravação (vídeo) e transcrição/anotações (doc)
+function _gcalLinks(e){
+  var rec='',tr='';var atts=e.attachments||[];
+  atts.forEach(function(a){var mt=(''+(a.mimeType||'')).toLowerCase();var t=(''+(a.title||'')).toLowerCase();var u=a.fileUrl||'';
+    if(!rec&&(mt.indexOf('video')>=0||/grava|record/.test(t)))rec=u;
+    if(!tr&&(mt.indexOf('document')>=0||/transcri|anota|\bnotes?\b|resumo/.test(t)))tr=u;
+  });
+  return {rec:rec,tr:tr};
+}
 function gcalImportSelected(){
-  var map=_gcalClientByEmail();var list=_gcalFilt();var n=0;
+  var map=_gcalClientByEmail();var list=_gcalFilt();var nNew=0,nUpd=0;
   list.forEach(function(e,idx){
     var chk=document.getElementById('gchk-'+idx);if(!chk||!chk.checked||chk.disabled)return;
     var cli=_gcalMatch(e,map);if(!cli)return;
     if(!cli.encounters)cli.encounters={list:[]};if(!cli.encounters.list)cli.encounters.list=[];
-    if(cli.encounters.list.some(function(x){return x.gcalId===e.id;}))return;
+    var lk=_gcalLinks(e);
+    var enc=cli.encounters.list.filter(function(x){return x.gcalId===e.id;})[0];
+    if(enc){ // já existe → só completa os links que chegaram depois da reunião
+      var upd=false;
+      if(lk.rec&&!enc.recordingLink){enc.recordingLink=lk.rec;upd=true;}
+      if(lk.tr&&!enc.transcriptionLink){enc.transcriptionLink=lk.tr;upd=true;}
+      if(upd)nUpd++;
+      return;
+    }
     var start=e.start.dateTime||e.start.date;var d=new Date(start);
     var date=e.start.dateTime?_gcalYMD(d):e.start.date;
     var time=e.start.dateTime?(_p2(d.getHours())+':'+_p2(d.getMinutes())):'';
     var atts=(e.attendees||[]).map(function(a){return a.displayName||a.email;}).filter(Boolean);
-    cli.encounters.list.push({date:date,time:time,tipo:'IC',description:e.summary||'Encontro',attendees:atts,notes:(e.hangoutLink?'Link da reunião: '+e.hangoutLink:''),transcriptionLink:'',recordingLink:'',attachments:[],gcalId:e.id,gcalColorId:e.colorId||''});
-    n++;
+    cli.encounters.list.push({date:date,time:time,tipo:'IC',description:e.summary||'Encontro',attendees:atts,notes:(e.hangoutLink?'Link da reunião: '+e.hangoutLink:''),transcriptionLink:lk.tr||'',recordingLink:lk.rec||'',attachments:[],gcalId:e.id,gcalColorId:e.colorId||''});
+    nNew++;
   });
-  if(!n){toast('Nada novo pra importar (os marcados já estavam importados).');return;}
+  if(!nNew&&!nUpd){toast('Nada novo pra importar ou atualizar.');return;}
   if(!D.gcalCfg)D.gcalCfg={};D.gcalCfg.colorId=S.gcalColor||'';
   save();var mm=document.getElementById('gcal-modal');if(mm)mm.remove();
-  toast('✅ '+n+' encontro(s) importado(s) da agenda!');render();
+  var msg=[];if(nNew)msg.push(nNew+' importado(s)');if(nUpd)msg.push(nUpd+' atualizado(s) com gravação/transcrição');
+  toast('✅ '+msg.join(' · ')+'!');render();
 }
 function rImplementacaoBoard(){
   var ics=D.clients.filter(function(c){return (c.products||[]).includes('Implementação Comercial')&&c.contractStatus!=='inativo';});
@@ -8578,6 +8599,10 @@ function rPortalReunioes(c){
           <div style="flex:1">
             <div style="font-size:13px;font-weight:600;color:#1E293B">Encontro realizado</div>
             <div style="font-size:11px;color:#94A3B8;text-transform:capitalize">${ext}</div>
+            ${(enc.recordingLink||enc.transcriptionLink)?`<div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
+              ${enc.recordingLink?`<a href="${enc.recordingLink}" target="_blank" rel="noopener" style="font-size:12px;color:#0D3D9B;text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:4px">🎥 <span style="text-decoration:underline">Ver gravação ↗</span></a>`:''}
+              ${enc.transcriptionLink?`<a href="${enc.transcriptionLink}" target="_blank" rel="noopener" style="font-size:12px;color:#0D3D9B;text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:4px">📝 <span style="text-decoration:underline">Ver transcrição ↗</span></a>`:''}
+            </div>`:''}
           </div>
         </div>`;
       }).join('')}
@@ -9298,7 +9323,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080504; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080505; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
