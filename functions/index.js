@@ -375,9 +375,14 @@ async function runAgendaSync() {
   const ctrl = ctrlSnap.val() || {};
   if (!ctrl.enabled) return { skipped: "desligado (agendaSync/enabled != true)" };
   const subject = (ctrl.email || GCAL_DEFAULT_SUBJECT).trim();
-  // Cor da etiqueta — vem da configuração que o app salva quando a Nayara escolhe no modal
+  // Cor da etiqueta — de agendaSync/colorId (override) ou da config que o app salva (allin/gcalCfg)
   const cfgSnap = await db.ref("allin/gcalCfg").get();
-  const colorId = (cfgSnap.val() && cfgSnap.val().colorId) || "";
+  const colorId = (ctrl.colorId || (cfgSnap.val() && cfgSnap.val().colorId) || "").toString();
+  if (!colorId) {
+    const msg = { skipped: "etiqueta (cor) de IC nao configurada - faca 1 importacao manual escolhendo a cor, ou defina agendaSync/colorId", at: Date.now() };
+    await db.ref("agendaSync/lastRun").set(msg).catch(() => {});
+    return msg;
+  }
   const token = await gcalAccessToken(subject);
   // Eventos: 90 dias atrás até 31 dias à frente
   const now = new Date();
