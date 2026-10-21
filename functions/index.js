@@ -7,6 +7,7 @@
 // ════════════════════════════════════════════════════════════════
 const { onValueCreated } = require("firebase-functions/v2/database");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 admin.initializeApp();
@@ -467,5 +468,83 @@ exports.syncAgendaIC = onSchedule(
       console.error("syncAgendaIC erro:", (e && e.message) || e);
       try { await admin.database().ref("agendaSync/lastRun").set({ error: String((e && e.message) || e), at: Date.now() }); } catch (_) {}
     }
+  }
+);
+
+// ════════════════════════════════════════════════════════════════
+// RELATÓRIO SEMANAL DE CUSTO (toda sexta) — lê o consumo real do
+// Cloud Monitoring (download do banco, armazenamento), estima o R$
+// e grava em /custosReport para o sistema mostrar. Roda como a SA
+// agenda-sync (precisa do papel "Leitor de monitoramento").
+// ════════════════════════════════════════════════════════════════
+async function _monSum(token, metric, startMs, endMs, aligner) {
+  const url = "https://monitoring.googleapis.com/v3/projects/allin-sistema/timeSeries?" +
+    "filter=" + encodeURIComponent('metric.type="' + metric + '"') +
+    "&interval.startTime=" + new Date(startMs).toISOString() +
+    "&interval.endTime=" + new Date(endMs).toISOString() +
+    "&aggregation.alignmentPeriod=" + Math.max(60, Math.ceil((endMs - startMs) / 1000)) + "s" +
+    "&aggregation.perSeriesAligner=" + aligner +
+    "&aggregation.crossSeriesReducer=REDUCE_SUM";
+  const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+  const j = await r.json();
+  if (j.error) throw new Error("monitoring: " + (j.error.message || "erro"));
+  let sum = 0, last = 0;
+  (j.timeSeries || []).forEach((ts) => (ts.points || []).forEach((p) => {
+    const v = p.value || {};
+    const n = Number(v.int64Value || v.doubleValue || 0);
+    sum += n; last = n;
+  }));
+  return { sum, last };
+}
+async function runCustoReport() {
+  const token = await _runtimeToken();
+  const USD = 5.5; // câmbio aproximado (só estimativa)
+  const end = Date.now();
+  const weekStart = end - 7 * 86400000;
+  const d0 = new Date(end);
+  const monthStart = new Date(d0.getFullYear(), d0.getMonth(), 1).getTime();
+  const EG = "firebasedatabase.googleapis.com/network/sent_bytes_count";
+  const ST = "firebasedatabase.googleapis.com/storage/total_bytes";
+  let egWeek = 0, egMonth = 0, store = 0, erro = null;
+  try { egWeek = (await _monSum(token, EG, weekStart, end, "ALIGN_SUM")).sum; } catch (e) { erro = (e && e.message) || String(e); }
+  try { egMonth = (await _monSum(token, EG, monthStart, end, "ALIGN_SUM")).sum; } catch (e) { erro = erro || ((e && e.message) || String(e)); }
+  try { store = (await _monSum(token, ST, end - 3 * 3600000, end, "ALIGN_MEAN")).last; } catch (e) {}
+  const gbWeek = egWeek / 1073741824, gbMonth = egMonth / 1073741824, gbStore = store / 1073741824;
+  const custoEgressMesBRL = gbMonth * 1 * USD;      // download do banco: ~US$1/GB
+  const custoArmazBRL = gbStore * 5 * USD;          // armazenamento do banco: ~US$5/GB-mês
+  const rep = {
+    at: end,
+    gerado: new Date(end).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+    semana: { downloadGb: +gbWeek.toFixed(2) },
+    mes: { downloadGb: +gbMonth.toFixed(2), custoDownloadBRL: +custoEgressMesBRL.toFixed(2) },
+    armazenamento: { gb: +gbStore.toFixed(3), custoBRL: +custoArmazBRL.toFixed(2) },
+    estimativaTotalMesBRL: +(custoEgressMesBRL + custoArmazBRL).toFixed(2),
+  };
+  if (erro) rep.aviso = erro;
+  await admin.database().ref("allin/_custos/latest").set(rep);
+  await admin.database().ref("allin/_custos/history/" + new Date(end).toISOString().slice(0, 10)).set(rep);
+  return rep;
+}
+
+// Toda sexta às 9h (horário de Brasília)
+exports.custoSemanal = onSchedule(
+  { schedule: "0 9 * * 5", timeZone: "America/Sao_Paulo", serviceAccount: GCAL_SA_EMAIL, region: "us-central1", timeoutSeconds: 120, memory: "256MiB" },
+  async () => {
+    try { console.log("custoSemanal:", JSON.stringify(await runCustoReport())); }
+    catch (e) { console.error("custoSemanal erro:", (e && e.message) || e); }
+  }
+);
+
+// Endpoint protegido para rodar o relatório sob demanda (teste). Token em agendaSync/reportToken.
+exports.custoReportNow = onRequest(
+  { serviceAccount: GCAL_SA_EMAIL, region: "us-central1", timeoutSeconds: 120, memory: "256MiB" },
+  async (req, res) => {
+    try {
+      const snap = await admin.database().ref("agendaSync/reportToken").get();
+      const tok = snap.val();
+      if (!tok || req.query.t !== tok) { res.status(403).json({ error: "token inválido" }); return; }
+      const out = await runCustoReport();
+      res.json(out);
+    } catch (e) { res.status(500).json({ error: (e && e.message) || String(e) }); }
   }
 );

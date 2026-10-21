@@ -1049,6 +1049,24 @@ function _metaThermometerCard(){
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'+steps+'</div>'
     +'</div></div>';
 }
+// Painel do relatório semanal de custo (gerado pela rotina custoSemanal → allin/_custos)
+function _custoCard(){
+  var r=(typeof window!=='undefined'&&window._custoReport)||(D&&D._custos&&D._custos.latest)||null;
+  var brl=function(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var body;
+  if(!r){
+    body='<div style="font-size:13px;color:#64748B">⏳ Aguardando o primeiro relatório. A rotina roda <b>toda sexta às 9h</b> (ou quando você mandar executar). Assim que gerar, os números aparecem aqui.</div>';
+  }else{
+    var cel=function(lbl,val,sub,bg,bd,cor){return '<div style="flex:1;min-width:150px;background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:12px"><div style="font-size:11px;color:#64748B;text-transform:uppercase;font-weight:700">'+lbl+'</div><div style="font-size:22px;font-weight:800;color:'+cor+'">'+val+'</div>'+(sub?'<div style="font-size:12px;color:#16A34A;font-weight:700">'+sub+'</div>':'')+'</div>';};
+    body='<div style="display:flex;gap:14px;flex-wrap:wrap">'
+      +cel('Download (semana)',(r.semana?r.semana.downloadGb:0)+' GB','','#F8FAFC','#E5E7EB','#0D3D9B')
+      +cel('Download (mês)',(r.mes?r.mes.downloadGb:0)+' GB',brl(r.mes?r.mes.custoDownloadBRL:0),'#F8FAFC','#E5E7EB','#0D3D9B')
+      +cel('Estimativa total (mês)',brl(r.estimativaTotalMesBRL),'','#F0FDF4','#BBF7D0','#15803D')
+      +'</div>'
+      +'<div style="font-size:11px;color:#94A3B8;margin-top:8px">📅 Atualizado: '+escH(r.gerado||'—')+' · valores <b>estimados</b> (câmbio aprox.); o oficial é o do Google Cloud.'+(r.aviso?' <span style="color:#B45309">⚠️ '+escH(r.aviso)+'</span>':'')+'</div>';
+  }
+  return '<div class="card" style="margin-bottom:16px"><div class="ch" style="background:linear-gradient(135deg,#0D3D9B,#0891B2)"><h3 style="color:white;margin:0">📊 Custo do sistema (Google Cloud)</h3><span style="font-size:11px;color:rgba(255,255,255,.9)">relatório automático · toda sexta</span></div><div class="cb">'+body+'</div></div>';
+}
 function rFinanceiro(){
   if(!_canFin(S.currentUser))return '<div class="card"><div class="cb" style="padding:30px;text-align:center;color:var(--muted)">🔒 Acesso restrito.</div></div>';
   var f=_finance();
@@ -1064,6 +1082,7 @@ function rFinanceiro(){
   var pctColor=st.pct>=100?'#16A34A':st.pct>=60?'#0D9488':'#EA580C';
   var regras=f.regras.map(function(r){return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;color:#334155"><span style="color:#16A34A">✔</span> '+escH(r)+'</div>';}).join('');
   return '<div style="margin-bottom:12px"><h2 style="font-size:18px;margin:0">💰 Financeiro</h2><div style="font-size:12px;color:var(--muted)">Pagamentos por cliente, contratos e metas · Gestão e Financeiro</div></div>'
+    +_custoCard()
     +_finVencendoCard()
     +_finPagamentosCard()
     +_finArtesCard()
@@ -9321,7 +9340,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080506; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080507; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
@@ -9799,6 +9818,7 @@ window.addEventListener('hashchange',handleNavigation);
             _db.ref('allin/'+node).on('value',snap=>applyNodeUpdate(node,snap.val()));
           });
           _db.ref('allin/artLog').on('value',snap=>applyArtLogUpdate(snap.val()));
+          _db.ref('allin/_custos/latest').on('value',snap=>{window._custoReport=snap.val();if(S.view==='financeiro'&&typeof render==='function')render();}); // relatório semanal de custo
           // Ao sair de um campo, se houve atualização adiada enquanto digitava, aplica a versão mais recente
           document.addEventListener('focusout',()=>{
             if(!_pendingFbSync)return;
