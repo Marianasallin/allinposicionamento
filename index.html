@@ -1602,21 +1602,30 @@ function getClientLeadsForMonth(c,monthKey){
 }
 function renderLeadGoalBar(current,goal,clientName,monthKey,compact){
   if(!goal)return'';
-  const pct=Math.min(Math.round(current/goal*100),100);
+  const pct=Math.round(current/goal*100);
+  const pctBar=Math.min(pct,100);
   const met=current>=goal;
-  const barColor=met?'#16A34A':pct>=70?'#D97706':'#EF4444';
-  const bgColor=met?'#F0FDF4':pct>=70?'#FFFBEB':'#FFF1F2';
-  const borderColor=met?'#BBF7D0':pct>=70?'#FDE68A':'#FECDD3';
-  const sz=compact?'11px':'12px';
-  return`<div style="background:${bgColor};border:1px solid ${borderColor};border-radius:8px;padding:${compact?'7px 10px':'10px 12px'};margin-bottom:6px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-      <span style="font-size:${sz};font-weight:600">${clientName}</span>
-      <span style="font-size:${sz};font-weight:700;color:${barColor}">${current}/${goal} leads${met?' 🎉':''}</span>
+  // Farol (mesmos critérios de sempre): 🟢 meta batida · 🟡 ≥70% · 🔴 abaixo de 70%
+  const f=met
+    ?{dot:'#16A34A',bg:'#F0FDF4',bd:'#BBF7D0',txt:'#15803D',label:'Meta batida 🎉'}
+    :pct>=70
+    ?{dot:'#F59E0B',bg:'#FFFBEB',bd:'#FDE68A',txt:'#B45309',label:'Quase lá'}
+    :{dot:'#EF4444',bg:'#FFF1F2',bd:'#FECDD3',txt:'#BE123C',label:'Abaixo da meta'};
+  const sz=compact?'12px':'13px';
+  const faltam=Math.max(goal-current,0);
+  return`<div style="background:${f.bg};border:1px solid ${f.bd};border-radius:10px;padding:${compact?'9px 11px':'11px 13px'};margin-bottom:7px">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+      <span style="width:13px;height:13px;border-radius:50%;background:${f.dot};flex-shrink:0;box-shadow:0 0 0 3px ${f.dot}26"></span>
+      <span style="font-size:${sz};font-weight:700;color:#1E293B;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${clientName}</span>
+      <span style="font-size:11px;font-weight:800;color:${f.txt};background:${f.dot}1F;padding:3px 10px;border-radius:99px;white-space:nowrap">${f.label}</span>
     </div>
-    <div style="background:#E5E7EB;border-radius:99px;height:6px">
-      <div style="width:${pct}%;background:${barColor};border-radius:99px;height:6px"></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="flex:1;background:#E5E7EB;border-radius:99px;height:9px;overflow:hidden">
+        <div style="width:${pctBar}%;background:${f.dot};border-radius:99px;height:9px;transition:width .3s"></div>
+      </div>
+      <span style="font-size:14px;font-weight:800;color:${f.txt};white-space:nowrap">${pct}%</span>
     </div>
-    ${met?`<div style="margin-top:4px;font-size:10px;font-weight:700;color:#16A34A">🎉 Parabéns! Você cumpriu a meta de ${monthKey} do cliente ${clientName}!</div>`:`<div style="margin-top:3px;font-size:10px;color:var(--muted)">${pct}% da meta atingida</div>`}
+    <div style="font-size:11px;color:#64748B;margin-top:5px">${current} de ${goal} leads${met?'':` · faltam <b style="color:${f.txt}">${faltam}</b>`}</div>
   </div>`;
 }
 function calcResultados(c){
@@ -9379,7 +9388,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080509; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080510; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
