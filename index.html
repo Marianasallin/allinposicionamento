@@ -8534,6 +8534,10 @@ function rPortalProspeccao(c){
             +'<input id="pl-search" oninput="portalApplyLeadFilters()" placeholder="🔍 Buscar lead pelo nome..." style="flex:1;min-width:160px;border:1px solid #E5E7EB;border-radius:8px;padding:8px 12px;font-size:13px">'
             +'<select id="pl-month" onchange="portalApplyLeadFilters()" style="border:1px solid #E5E7EB;border-radius:8px;padding:8px 12px;font-size:13px;background:white">'+monthOpts+'</select>'
           +'</div>'
+          +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:12px;color:#64748B">📥 Exportar <b>'+(total?'(use o mês acima p/ filtrar)':'')+'</b>:</span>'
+            +'<button onclick="portalExportLeads(\''+cid+'\',\'csv\')" style="border:1px solid #86EFAC;background:#F0FDF4;color:#15803D;border-radius:8px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer">📊 Excel</button>'
+            +'<button onclick="portalExportLeads(\''+cid+'\',\'pdf\')" style="border:1px solid #CBD5E1;background:#fff;color:#0D3D9B;border-radius:8px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer">📄 PDF</button>'
+          +'</div>'
           +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+chips+'</div>'
         +'</div>'
         +rows
@@ -8541,6 +8545,42 @@ function rPortalProspeccao(c){
       +'</div>'
     ):empty)
     +'</div>';
+}
+// Exportação de leads no portal do cliente (Excel/PDF) — respeita o mês selecionado (ou todos)
+function _leadStatusTxt(p){
+  if(p.contractClosed)return 'Fechado';
+  if(p.hadMeeting)return 'Reunião marcada';
+  if(p.followUp2)return 'Follow-up 2';
+  if(p.followUp1)return 'Follow-up 1';
+  if(p.replied)return 'Respondeu';
+  if(p.noReply)return 'Sem resposta';
+  return 'Aguardando';
+}
+function _leadMesLabel(ym){var _mn=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];if(!ym)return 'Todos os meses';var pa=(''+ym).split('-');return (_mn[(+pa[1])-1]||'')+' '+pa[0];}
+function portalExportLeads(cid,fmt){
+  var c=_findClient(cid);if(!c)return;
+  var mEl=document.getElementById('pl-month');var month=mEl?mEl.value:'';
+  var pros=(c.prospects||[]).slice().filter(function(p){if(!month)return true;var m=p.date?p.date.slice(0,7):'';var fm=(p.contractClosed&&(p.closedDate||p.date))?(p.closedDate||p.date).slice(0,7):'';return m===month||fm===month;});
+  pros.sort(function(a,b){return (''+(a.date||'')).localeCompare(''+(b.date||''));});
+  if(!pros.length){if(typeof toast==='function')toast('Nenhum lead nesse período.');return;}
+  var periodo=_leadMesLabel(month);
+  var fd=function(d){return d?new Date(d+'T12:00:00').toLocaleDateString('pt-BR'):'';};
+  var fbase='leads_'+(''+(c.name||'cliente')).replace(/[^a-z0-9]+/gi,'_').toLowerCase()+'_'+(month||'todos');
+  if(fmt==='csv'){
+    var esc=function(v){v=(''+(v==null?'':v)).replace(/[\r\n]+/g,' ').replace(/"/g,'""');return '"'+v+'"';};
+    var lines=[['Nome','Cargo','Data','Status','Reunião','Fechado'].map(esc).join(';')];
+    pros.forEach(function(p){lines.push([p.name,p.role,fd(p.date),_leadStatusTxt(p),p.hadMeeting?'Sim':'Não',p.contractClosed?'Sim':'Não'].map(esc).join(';'));});
+    var csv='﻿'+lines.join('\r\n');
+    try{var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fbase+'.csv';document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(a.href);},200);}catch(e){if(typeof toast==='function')toast('❌ Não consegui gerar o arquivo.');return;}
+    if(typeof toast==='function')toast('📊 Excel gerado ('+pros.length+' leads)!');
+  }else{
+    var rowsH=pros.map(function(p){return '<tr><td>'+escH(p.name||'')+'</td><td>'+escH(p.role||'')+'</td><td>'+fd(p.date)+'</td><td>'+escH(_leadStatusTxt(p))+'</td><td style="text-align:center">'+(p.hadMeeting?'✔':'')+'</td><td style="text-align:center">'+(p.contractClosed?'✔':'')+'</td></tr>';}).join('');
+    var html='<html><head><meta charset="utf-8"><title>Leads '+escH(c.name||'')+'</title><style>body{font-family:system-ui,Arial,sans-serif;padding:24px;color:#1E293B}h1{font-size:20px;margin:0 0 2px}.sub{color:#64748B;font-size:13px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;background:#0D3D9B;color:#fff;padding:7px 9px}td{padding:6px 9px;border-bottom:1px solid #E5E7EB}tr:nth-child(even) td{background:#F8FAFC}</style></head><body>'
+      +'<h1>🎯 Leads — '+escH(c.name||'')+'</h1><div class="sub">Período: '+escH(periodo)+' · '+pros.length+' lead(s) · gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'
+      +'<table><thead><tr><th>Nome</th><th>Cargo</th><th>Data</th><th>Status</th><th>Reunião</th><th>Fechado</th></tr></thead><tbody>'+rowsH+'</tbody></table>'
+      +'<script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>';
+    var w=window.open('','_blank');if(!w){if(typeof toast==='function')toast('Permita pop-ups pra gerar o PDF.');return;}w.document.write(html);w.document.close();
+  }
 }
 function portalSetLeadStage(stage,el){
   var chips=document.querySelectorAll('.pl-chip');
@@ -9339,7 +9379,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080508; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080509; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
