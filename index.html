@@ -2433,7 +2433,6 @@ function _contCard(c,card){
     +((card.arquivos&&card.arquivos.length)?'<div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:6px">'+card.arquivos.map(function(f){return '<a href="'+escH(f.url)+'" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:#B91C1C;text-decoration:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:7px;padding:3px 9px;font-weight:600">📄 '+escH((''+(f.name||'PDF')).slice(0,24))+'</a>';}).join('')+'</div>':'')
     +(card.caption?'<div onclick="contAIViewLegenda(\''+c.id+'\',\''+card.id+'\')" style="margin-top:7px;font-size:11px;color:#7C3AED;cursor:pointer;text-decoration:underline" title="Ver a legenda salva">📝 ver legenda salva</div>':'')
     +'<div style="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:4px;margin-top:10px;padding-top:8px;border-top:1px solid #F1F5F9">'
-    +'<button class="btn btn-s" style="font-size:11px;padding:3px 9px;background:linear-gradient(135deg,#7C3AED,#0D3D9B);color:#fff;border:none" title="Gerar legenda com a IA" onclick="contAIPreGen(\''+c.id+'\',\'legenda\',\''+card.id+'\')">✨ Legenda</button>'
     +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 9px" title="Anexar a arte (link ou arquivo)" onclick="contArteAdd(\''+c.id+'\',\''+card.id+'\',\''+escH(card.designer||'')+'\')">🖼️ Arte</button>'
     +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 8px" onclick="contCardOpen(\''+c.id+'\',\''+card.id+'\')" title="Editar">✏️</button>'
     +'<button class="btn btn-o btn-s" style="font-size:11px;padding:3px 8px;border-color:var(--red);color:var(--red)" onclick="contDelete(\''+c.id+'\',\''+card.id+'\')" title="Excluir">🗑</button>'
@@ -2757,8 +2756,7 @@ function rConteudos(){
     +filtered.map(function(c){return '<option value="'+c.id+'" '+(c.id===sel.id?'selected':'')+'>'+escH(c.name)+'</option>';}).join('')
     +'</select>'
     +'<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#64748B;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:99px;padding:4px 11px"><span style="color:#94A3B8;font-weight:700">Responsável:</span> '+respAv+'</span>'
-    +'<button style="margin-left:auto;background:linear-gradient(135deg,#7C3AED,#0D3D9B);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer" onclick="contAIPreGen(\''+sel.id+'\',\'temas\',\'\')" title="A IA sugere temas lendo a linha editorial deste cliente">✨ Sugerir temas (IA)</button>'
-    +'<button class="btn btn-p" onclick="contCardOpen(\''+sel.id+'\',\'\',\'ideias\')">+ Novo tema / conteúdo</button></div>';
+    +'<button class="btn btn-p" style="margin-left:auto" onclick="contCardOpen(\''+sel.id+'\',\'\',\'ideias\')">+ Novo tema / conteúdo</button></div>';
   return head+respBar+selector+_contFicha(sel)+'<div class="card"><div class="cb" style="padding:16px">'+_contBoard(sel)+'</div></div>';
 }
 function contSetRespFilter(o){S.contRespFilter=o;render();}
@@ -9323,7 +9321,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080505; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080506; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
@@ -9748,23 +9746,63 @@ window.addEventListener('hashchange',handleNavigation);
           if(window.__enforceSession)window.__enforceSession(); // revalida sessão (usuário inativo/época) após sincronizar
         };
         const _isTyping=()=>{const ae=document.activeElement;return!!(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable));};
-        // Listener em tempo real — atualiza todos os dispositivos conectados
+        // Aplica UM cliente (vindo de child_changed/child_added) — baixa só o cliente que mudou, não o banco inteiro
+        const _sanClient=(val)=>{try{return sanitizeD({clients:[val]}).clients[0];}catch(e){return val;}};
+        const applyClientUpdate=(key,val)=>{
+          if(_fbWriting||!val)return;
+          const idx=parseInt(key);if(isNaN(idx))return;
+          if(_isTyping()){_pendingFbSync=true;return;}
+          const nc=_sanClient(val);
+          if(D.clients[idx]&&JSON.stringify(D.clients[idx])===JSON.stringify(nc))return;
+          D.clients[idx]=nc;
+          try{localStorage.setItem('allin',JSON.stringify(D));}catch(e){}
+          _resnap();
+          if(_portalToken&&!S.authenticatedClientId)_resolvePortalToken();
+          toast('🔄 Atualizado em tempo real');render();
+          if(window.__enforceSession)window.__enforceSession();
+        };
+        // Aplica um nó pequeno de topo (team/finance/processos/processoAreas/assignedTasks)
+        const applyNodeUpdate=(node,val)=>{
+          if(_fbWriting)return;
+          if(_isTyping()){_pendingFbSync=true;return;}
+          var tmp={clients:[]};tmp[node]=val;var nv;try{nv=sanitizeD(tmp)[node];}catch(e){nv=val;}
+          if((node==='processos'||node==='processoAreas')&&nv&&!Array.isArray(nv))nv=Object.values(nv);
+          if(JSON.stringify(D[node])===JSON.stringify(nv))return;
+          D[node]=nv;try{localStorage.setItem('allin',JSON.stringify(D));}catch(e){}
+          _resnap();render();
+        };
+        // artLog: mescla por id preservando entradas locais (nunca perde uma arte enviada)
+        const applyArtLogUpdate=(val)=>{
+          if(_fbWriting)return;if(_isTyping()){_pendingFbSync=true;return;}
+          try{
+            var cloud=val?(Array.isArray(val)?val.slice():Object.values(val)):[];
+            var local=Array.isArray(D.artLog)?D.artLog:[];
+            var sig=function(l){return l&&(l.id||((l.at||'')+'|'+(l.cardId||'')+'|'+(l.by||'')));};
+            var seen={};cloud.forEach(function(l){var s=sig(l);if(s)seen[s]=1;});
+            local.forEach(function(l){var s=sig(l);if(l&&s&&!seen[s])cloud.push(l);});
+            if(JSON.stringify(D.artLog)===JSON.stringify(cloud))return;
+            D.artLog=cloud;try{localStorage.setItem('allin',JSON.stringify(D));}catch(e){}_resnap();
+          }catch(e){}
+        };
+        // Resync completo (raro: remoção/reordenação de cliente, ou atualização adiada após digitar)
+        const _fullResync=()=>{
+          if(_fbWriting)return;
+          _db.ref('allin').get().then(s=>{if(s.exists()&&!_isTyping()&&!_fbWriting){_pendingFbSync=false;applyFbUpdate(s.val());}}).catch(()=>{});
+        };
+        // Listener em tempo real GRANULAR — envia só o que mudou (não reenvia o banco inteiro a cada mudança nem a cada "presença")
         setTimeout(()=>{
-          _db.ref('allin').on('value',snap=>{
-            if(_fbWriting)return;
-            const fbData=snap.val();
-            if(!fbData)return;
-            // Se a usuária está digitando, NÃO reconstruir a tela agora (apagaria o texto dela) — adia
-            if(_isTyping()){_pendingFbSync=true;return;}
-            applyFbUpdate(fbData);
+          const cref=_db.ref('allin/clients');
+          cref.on('child_changed',snap=>applyClientUpdate(snap.key,snap.val())); // edição em cliente existente (NÃO dispara ao conectar)
+          cref.orderByKey().limitToLast(1).on('child_added',snap=>{const idx=parseInt(snap.key);if(!isNaN(idx)&&idx>=D.clients.length)applyClientUpdate(snap.key,snap.val());}); // cliente novo
+          cref.on('child_removed',()=>_fullResync()); // remoção (raro) → resync completo
+          ['team','finance','processos','processoAreas','assignedTasks'].forEach(node=>{
+            _db.ref('allin/'+node).on('value',snap=>applyNodeUpdate(node,snap.val()));
           });
-          // Ao sair de um campo, se houve atualização adiada, busca a versão mais recente e aplica
+          _db.ref('allin/artLog').on('value',snap=>applyArtLogUpdate(snap.val()));
+          // Ao sair de um campo, se houve atualização adiada enquanto digitava, aplica a versão mais recente
           document.addEventListener('focusout',()=>{
             if(!_pendingFbSync)return;
-            setTimeout(()=>{
-              if(_isTyping()||_fbWriting)return; // ainda digitando ou salvando — tenta de novo no próximo blur
-              _db.ref('allin').get().then(s=>{if(s.exists()){_pendingFbSync=false;applyFbUpdate(s.val());}}).catch(()=>{});
-            },800);
+            setTimeout(()=>{if(_isTyping()||_fbWriting)return;_fullResync();},800);
           });
         },2000);
 
