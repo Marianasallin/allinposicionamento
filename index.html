@@ -8613,16 +8613,17 @@ function portalExportLeads(cid,fmt){
   var fbase='leads_'+(''+(c.name||'cliente')).replace(/[^a-z0-9]+/gi,'_').toLowerCase()+'_'+(month||'todos');
   if(fmt==='csv'){
     var esc=function(v){v=(''+(v==null?'':v)).replace(/[\r\n]+/g,' ').replace(/"/g,'""');return '"'+v+'"';};
-    var lines=[['Nome','Cargo','Data','Status','Reunião','Fechado'].map(esc).join(';')];
-    pros.forEach(function(p){lines.push([p.name,p.role,fd(p.date),_leadStatusTxt(p),p.hadMeeting?'Sim':'Não',p.contractClosed?'Sim':'Não'].map(esc).join(';'));});
+    var lines=[['Nome','Cargo','Localização','Telefone / WhatsApp','LinkedIn','Email','Data','Status','Reunião','Fechado'].map(esc).join(';')];
+    pros.forEach(function(p){lines.push([p.name,p.role,p.location,p.phone,p.linkedinUrl,p.email,fd(p.date),_leadStatusTxt(p),p.hadMeeting?'Sim':'Não',p.contractClosed?'Sim':'Não'].map(esc).join(';'));});
     var csv='﻿'+lines.join('\r\n');
     try{var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fbase+'.csv';document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(a.href);},200);}catch(e){if(typeof toast==='function')toast('❌ Não consegui gerar o arquivo.');return;}
     if(typeof toast==='function')toast('📊 Excel gerado ('+pros.length+' leads)!');
   }else{
-    var rowsH=pros.map(function(p){return '<tr><td>'+escH(p.name||'')+'</td><td>'+escH(p.role||'')+'</td><td>'+fd(p.date)+'</td><td>'+escH(_leadStatusTxt(p))+'</td><td style="text-align:center">'+(p.hadMeeting?'✔':'')+'</td><td style="text-align:center">'+(p.contractClosed?'✔':'')+'</td></tr>';}).join('');
-    var html='<html><head><meta charset="utf-8"><title>Leads '+escH(c.name||'')+'</title><style>body{font-family:system-ui,Arial,sans-serif;padding:24px;color:#1E293B}h1{font-size:20px;margin:0 0 2px}.sub{color:#64748B;font-size:13px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;background:#0D3D9B;color:#fff;padding:7px 9px}td{padding:6px 9px;border-bottom:1px solid #E5E7EB}tr:nth-child(even) td{background:#F8FAFC}</style></head><body>'
+    var liCell=function(u){u=(''+(u||'')).trim();if(!u)return '';var sh=u.replace(/^https?:\/\/(www\.)?linkedin\.com\/(in\/)?/i,'').replace(/\/$/,'');return '<a href="'+escH(u)+'" style="color:#0D3D9B">'+escH(sh.slice(0,32))+'</a>';};
+    var rowsH=pros.map(function(p){return '<tr><td>'+escH(p.name||'')+'</td><td>'+escH(p.role||'')+'</td><td>'+escH(p.location||'')+'</td><td>'+escH(p.phone||'')+'</td><td>'+liCell(p.linkedinUrl)+'</td><td>'+escH(p.email||'')+'</td><td>'+fd(p.date)+'</td><td>'+escH(_leadStatusTxt(p))+'</td><td style="text-align:center">'+(p.hadMeeting?'✔':'')+'</td><td style="text-align:center">'+(p.contractClosed?'✔':'')+'</td></tr>';}).join('');
+    var html='<html><head><meta charset="utf-8"><title>Leads '+escH(c.name||'')+'</title><style>@page{size:landscape}body{font-family:system-ui,Arial,sans-serif;padding:20px;color:#1E293B}h1{font-size:18px;margin:0 0 2px}.sub{color:#64748B;font-size:12px;margin-bottom:14px}table{width:100%;border-collapse:collapse;font-size:10px}th{text-align:left;background:#0D3D9B;color:#fff;padding:6px 7px}td{padding:5px 7px;border-bottom:1px solid #E5E7EB;word-break:break-word}tr:nth-child(even) td{background:#F8FAFC}</style></head><body>'
       +'<h1>🎯 Leads — '+escH(c.name||'')+'</h1><div class="sub">Período: '+escH(periodo)+' · '+pros.length+' lead(s) · gerado em '+new Date().toLocaleDateString('pt-BR')+'</div>'
-      +'<table><thead><tr><th>Nome</th><th>Cargo</th><th>Data</th><th>Status</th><th>Reunião</th><th>Fechado</th></tr></thead><tbody>'+rowsH+'</tbody></table>'
+      +'<table><thead><tr><th>Nome</th><th>Cargo</th><th>Localização</th><th>Telefone</th><th>LinkedIn</th><th>Email</th><th>Data</th><th>Status</th><th>Reunião</th><th>Fechado</th></tr></thead><tbody>'+rowsH+'</tbody></table>'
       +'<script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>';
     var w=window.open('','_blank');if(!w){if(typeof toast==='function')toast('Permita pop-ups pra gerar o PDF.');return;}w.document.write(html);w.document.close();
   }
@@ -9424,7 +9425,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080515; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080516; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
