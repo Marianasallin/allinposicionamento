@@ -1612,7 +1612,7 @@ function renderLeadGoalBar(current,goal,clientName,monthKey,compact){
     :pct>=70
     ?{dot:'#F59E0B',bg:'#FFFBEB',bd:'#FDE68A',txt:'#B45309',label:'Quase lá'}
     :{dot:'#EF4444',bg:'#FFF1F2',bd:'#FECDD3',txt:'#BE123C',label:'Abaixo da meta'};
-  const sz=compact?'12px':'13px';
+  const sz=compact?'14px':'15px';
   const faltam=Math.max(goal-current,0);
   return`<div style="background:${f.bg};border:1px solid ${f.bd};border-radius:10px;padding:${compact?'9px 11px':'11px 13px'};margin-bottom:7px">
     <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
@@ -1626,7 +1626,7 @@ function renderLeadGoalBar(current,goal,clientName,monthKey,compact){
       </div>
       <span style="font-size:14px;font-weight:800;color:${f.txt};white-space:nowrap">${pct}%</span>
     </div>
-    <div style="font-size:11px;color:#64748B;margin-top:5px">${current} de ${goal} leads${met?'':` · faltam <b style="color:${f.txt}">${faltam}</b>`}</div>
+    <div style="font-size:13px;color:#475569;font-weight:600;margin-top:6px">${current} de ${goal} leads${met?'':` · faltam <b style="color:${f.txt}">${faltam}</b>`}</div>
   </div>`;
 }
 function calcResultados(c){
@@ -9424,7 +9424,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080514; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080515; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
