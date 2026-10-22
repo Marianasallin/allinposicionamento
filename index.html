@@ -5227,12 +5227,10 @@ function rLeadGoalEquipe(monthKey){
     if(!mc.length)return'';
     const metBatida=mc.filter(c=>getClientLeadsForMonth(c,monthKey)>=c.monthlyLeadGoal).length;
     totalMetaBatida+=metBatida;totalMetas+=mc.length;
-    // % geral CAPADO por cliente: cada cliente conta no máximo até a própria meta (sem um cobrir o outro) → 100% só quando TODOS batem
-    const totCap=mc.reduce((s,c)=>s+Math.min(getClientLeadsForMonth(c,monthKey),c.monthlyLeadGoal||0),0);
-    const totGoal=mc.reduce((s,c)=>s+(c.monthlyLeadGoal||0),0);
-    const totPct=totGoal?Math.round(totCap/totGoal*100):0;
     const allMet=metBatida===mc.length&&mc.length;
-    const fdot=totPct>=100?'#16A34A':totPct>=70?'#F59E0B':'#EF4444';
+    // % = quantas METAS de clientes já foram batidas ÷ total de clientes (ex.: 1 de 6 = 17%); 100% só quando todas batem
+    const totPct=mc.length?Math.round(metBatida/mc.length*100):0;
+    const fdot=totPct>=100?'#16A34A':totPct>=50?'#F59E0B':'#EF4444';
     return`<details class="meta-acc" style="margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
       <summary style="padding:11px 13px;background:#F9FAFB;display:flex;align-items:center;gap:10px">
         <span class="arr">▶</span>
@@ -5241,7 +5239,7 @@ function rLeadGoalEquipe(monthKey){
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <strong style="font-size:14px;color:#1E293B">${m.name.split(' ')[0]}</strong>
             <span style="width:11px;height:11px;border-radius:50%;background:${fdot};flex-shrink:0;box-shadow:0 0 0 3px ${fdot}26"></span>
-            <span style="font-size:20px;font-weight:900;color:${fdot};line-height:1">${totPct}%</span>
+            <span style="font-size:16px;font-weight:900;color:${fdot};line-height:1">${totPct}%</span>
           </div>
           <div style="background:#E5E7EB;border-radius:99px;height:9px;margin-top:6px;overflow:hidden"><div style="width:${Math.min(totPct,100)}%;background:${fdot};height:9px;border-radius:99px;transition:width .3s"></div></div>
         </div>
@@ -9426,7 +9424,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080513; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080514; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
