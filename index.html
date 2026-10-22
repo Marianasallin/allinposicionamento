@@ -1401,11 +1401,12 @@ function rDash(){
   </div>`;
   (function(){var _tries=0;function _drawDash(){
     if(typeof Chart==='undefined'){if(_tries++<40){return setTimeout(_drawDash,300);}return;} // espera o Chart.js carregar
+    var _nlp={afterDatasetsDraw:function(ch){var cx=ch.ctx;ch.data.datasets.forEach(function(ds,di){var mt=ch.getDatasetMeta(di);mt.data.forEach(function(pt,i){var v=ds.data[i];if(v==null||pt==null)return;cx.save();cx.fillStyle='#1E293B';cx.font='700 12px system-ui,sans-serif';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(''+v,pt.x,pt.y-5);cx.restore();});});}}; // número em cima de cada barra/ponto
     try{
       var el1=document.getElementById('chartMonthlyleads');
-      if(el1){if(el1._chart){try{el1._chart.destroy();}catch(e){}}var monthlyData=getMonthlyLeadsData();el1._chart=new Chart(el1,{type:'bar',data:{labels:monthlyData.labels,datasets:[{label:'Leads',data:monthlyData.data,backgroundColor:'#0077B5',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:5}}}}});}
+      if(el1){if(el1._chart){try{el1._chart.destroy();}catch(e){}}var monthlyData=getMonthlyLeadsData();el1._chart=new Chart(el1,{type:'bar',data:{labels:monthlyData.labels,datasets:[{label:'Leads',data:monthlyData.data,backgroundColor:'#0077B5',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:5}}}},plugins:[_nlp]});}
       var el2=document.getElementById('chartLeadsbyVendor');
-      if(el2){if(el2._chart){try{el2._chart.destroy();}catch(e){}}var vendorData=getLeadsbyVendorData();el2._chart=new Chart(el2,{type:'line',data:{labels:vendorData.labels,datasets:[{label:'Leads',data:vendorData.data,borderColor:'#0077B5',backgroundColor:'rgba(0,119,181,.1)',fill:true,tension:.4,borderWidth:2,pointRadius:5,pointBackgroundColor:'#0077B5'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:5}}}}});}
+      if(el2){if(el2._chart){try{el2._chart.destroy();}catch(e){}}var vendorData=getLeadsbyVendorData();el2._chart=new Chart(el2,{type:'line',data:{labels:vendorData.labels,datasets:[{label:'Leads',data:vendorData.data,borderColor:'#0077B5',backgroundColor:'rgba(0,119,181,.1)',fill:true,tension:.4,borderWidth:2,pointRadius:5,pointBackgroundColor:'#0077B5'}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:5}}}},plugins:[_nlp]});}
     }catch(e){console.warn('dash charts:',e);}
   }setTimeout(_drawDash,100);})();
   return html;
@@ -4489,6 +4490,32 @@ function gcalImportSelected(){
   var msg=[];if(nNew)msg.push(nNew+' importado(s)');if(nUpd)msg.push(nUpd+' atualizado(s) com gravação/transcrição');
   toast('✅ '+msg.join(' · ')+'!');render();
 }
+// Card limpo de encontros de IC pra Implementação: total do mês (clicável) → por cliente
+function rICEncontros(){
+  var _icClients=D.clients.filter(function(c){return (c.products||[]).includes('Implementação Comercial');});
+  if(!_icClients.length)return '';
+  var _ptMo=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var monthsSet=new Set();
+  _icClients.forEach(function(c){((c.encounters&&c.encounters.list)||[]).forEach(function(e){if(e.date)monthsSet.add(getMonthKey(new Date(e.date+'T12:00:00')));});});
+  monthsSet.add(getMonthKey(new Date()));
+  var months=[...monthsSet].sort(function(a,b){var pa=a.split(' '),pb=b.split(' ');return (parseInt(pb[1])*12+_ptMo.indexOf(pb[0]))-(parseInt(pa[1])*12+_ptMo.indexOf(pa[0]));});
+  if(!S.icMonth||months.indexOf(S.icMonth)<0)S.icMonth=months.indexOf(getMonthKey(new Date()))>=0?getMonthKey(new Date()):months[0];
+  var mo=S.icMonth;
+  var total=0;
+  var rows=_icClients.map(function(c){
+    var n=((c.encounters&&c.encounters.list)||[]).filter(function(e){return e.date&&getMonthKey(new Date(e.date+'T12:00:00'))===mo&&_encCountsIC(c,e);}).length;
+    total+=n;return {id:c.id,name:c.name,n:n};
+  }).filter(function(r){return r.n>0;}).sort(function(a,b){return b.n-a.n||a.name.localeCompare(b.name,'pt-BR');});
+  var monthChips=months.map(function(m){return '<span class="fc '+(mo===m?'active':'')+'" onclick="S.icMonth=\''+m+'\';render()" style="font-size:11px">'+m+'</span>';}).join('');
+  var open=!!S.icEncOpen;
+  return '<div class="card" style="margin-bottom:16px"><div class="ch" style="background:linear-gradient(135deg,#0D9488,#14B8A6)"><h3 style="color:#fff;margin:0">🤝 Encontros realizados</h3><span style="font-size:12px;color:rgba(255,255,255,.85)">'+mo+'</span></div><div class="cb">'
+    +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px"><span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">Mês:</span>'+monthChips+'</div>'
+    +'<div onclick="S.icEncOpen=!S.icEncOpen;render()" style="cursor:pointer;text-align:center;padding:12px;background:#F0FDFA;border:1px solid #99F6E4;border-radius:12px"><div style="font-size:40px;font-weight:900;color:#0D9488;line-height:1">'+total+'</div><div style="font-size:12px;color:#0F766E;font-weight:700;margin-top:3px">encontro'+(total===1?'':'s')+' em '+mo+' · '+(open?'▲ fechar':'▼ ver por cliente')+'</div></div>'
+    +(open?('<div class="tw" style="margin-top:12px"><table><thead><tr><th>Cliente</th><th style="text-align:center">Encontros</th></tr></thead><tbody>'
+      +(rows.length?rows.map(function(r){return '<tr><td style="font-size:13px;font-weight:600">'+escH(r.name.split(' ').slice(0,2).join(' '))+'</td><td style="text-align:center"><span onclick="nav(\'clients\',{clientId:\''+r.id+'\',tab:\'encontros\'})" title="Abrir os encontros deste cliente" style="cursor:pointer;font-weight:700;color:#0D9488;text-decoration:underline">'+r.n+'</span></td></tr>';}).join(''):'<tr><td colspan="2" style="text-align:center;color:#94A3B8;padding:14px">Nenhum encontro neste mês.</td></tr>')
+      +'</tbody></table></div>'):'')
+    +'</div></div>';
+}
 function rImplementacaoBoard(){
   var ics=D.clients.filter(function(c){return (c.products||[]).includes('Implementação Comercial')&&c.contractStatus!=='inativo';});
   var N=IC_STAGE_META.length;
@@ -4536,7 +4563,7 @@ function rImplementacaoBoard(){
     +'style="flex:0 0 194px;width:194px;align-self:stretch;background:#F8FAFC;border:2px solid #86EFAC;border-radius:12px;padding:9px">'
     +'<div style="font-size:11px;font-weight:800;color:#15803D;margin-bottom:9px">✅ Concluídos <span style="color:#94A3B8">('+doneList.length+')</span></div>'
     +(doneList.length?doneList.map(card).join(''):'<div style="font-size:10px;color:#94A3B8;text-align:center;padding:12px 4px;border:2px dashed #E2E8F0;border-radius:8px">—</div>')+'</div>';
-  return head+'<div style="display:flex;gap:12px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start;padding-bottom:8px">'+faseBlocks+doneCol+'</div>';
+  return head+rICEncontros()+'<div style="display:flex;gap:12px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start;padding-bottom:8px">'+faseBlocks+doneCol+'</div>';
 }
 
 // ────────────────────────────────────────────────────────────
@@ -5086,18 +5113,6 @@ function rMinhaSemanaGestao(user){
     +rLeadGoalEquipe(S.gestaoFilterMonth)
     +_leadRangeReport()
 
-    // Performance da equipe (recolhível)
-    +'<details class="card" style="margin-bottom:20px" open>'
-    +'<summary class="ch" style="background:linear-gradient(135deg,var(--primary),#1d4ed8);border-radius:8px 8px 0 0;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px">'
-    +'<span class="acc-arrow" style="color:white;font-size:13px;transition:transform .2s">▶</span>'
-    +'<h3 style="color:white;margin:0">👥 Performance da Equipe — Sexta '+wkLabel+'</h3></summary>'
-    +'<div class="tw"><table>'
-    +'<thead><tr><th>Social Seller</th><th style="text-align:center">Rel. Semanais</th><th style="text-align:center">Novos Leads</th><th style="text-align:center">Resp. méd.</th><th style="text-align:center">Aceit. méd.</th><th style="text-align:center">Rel. Mensal</th></tr></thead>'
-    +'<tbody>'+teamRows+'</tbody></table></div></details>'
-
-    // Encontros — Implementação Comercial (remuneração Nayara) — só Gestão vê esta tela
-    +_icCardHtml
-
     // Relatório Mensal — validação e liberação (Mari) (recolhível)
     +'<details class="card" style="margin-bottom:20px" '+(_janelaVal?'open':'')+'>'
     +'<summary class="ch" style="background:linear-gradient(135deg,#D97706,#F59E0B);border-radius:8px 8px 0 0;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px"><span class="acc-arrow" style="color:white;font-size:13px;transition:transform .2s">▶</span><div><h3 style="color:white;margin:0">📊 Relatório Mensal — '+S.gestaoRelMonth+'</h3><span style="font-size:12px;color:rgba(255,255,255,.85)">Veja as médias e os insights, escreva a análise e libere para o cliente</span></div>'+(_janelaVal?'<span style="margin-left:auto;background:#FFFBEB;color:#92400E;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;white-space:nowrap">⏰ Validar até dia 10'+((10-_diaHoje)>0?(' · faltam '+(10-_diaHoje)+' dia'+((10-_diaHoje)>1?'s':'')):' · último dia')+'</span>':'')+'</summary>'
@@ -5212,12 +5227,23 @@ function rLeadGoalEquipe(monthKey){
     if(!mc.length)return'';
     const metBatida=mc.filter(c=>getClientLeadsForMonth(c,monthKey)>=c.monthlyLeadGoal).length;
     totalMetaBatida+=metBatida;
+    const totLeads=mc.reduce((s,c)=>s+getClientLeadsForMonth(c,monthKey),0);
+    const totGoal=mc.reduce((s,c)=>s+(c.monthlyLeadGoal||0),0);
+    const totPct=totGoal?Math.round(totLeads/totGoal*100):0;
+    const fdot=totPct>=100?'#16A34A':totPct>=70?'#F59E0B':'#EF4444';
     return`<details class="meta-acc" style="margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-      <summary style="padding:10px 12px;background:#F9FAFB;display:flex;align-items:center;gap:8px">
+      <summary style="padding:10px 12px;background:#F9FAFB;display:flex;align-items:center;gap:9px">
         <span class="arr">▶</span>
         <div class="av av-s" style="background:${m.color}">${m.initials}</div>
-        <strong style="font-size:13px;flex:1">${m.name.split(' ')[0]}</strong>
-        <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:${metBatida===mc.length&&mc.length?'#DCFCE7':'#F3F4F6'};color:${metBatida===mc.length&&mc.length?'#16A34A':'#6B7280'}">${metBatida}/${mc.length} metas batidas${metBatida===mc.length&&mc.length?' 🎉':''}</span>
+        <div style="flex:1;min-width:0">
+          <strong style="font-size:13px">${m.name.split(' ')[0]}</strong>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
+            <span style="width:9px;height:9px;border-radius:50%;background:${fdot};flex-shrink:0;box-shadow:0 0 0 2px ${fdot}30"></span>
+            <span style="font-size:12px;font-weight:800;color:${fdot}">${totPct}%</span>
+            <span style="font-size:10px;color:#94A3B8">da meta geral · ${totLeads}/${totGoal} leads</span>
+          </div>
+        </div>
+        <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:${metBatida===mc.length&&mc.length?'#DCFCE7':'#F3F4F6'};color:${metBatida===mc.length&&mc.length?'#16A34A':'#6B7280'};white-space:nowrap">${metBatida}/${mc.length} metas${metBatida===mc.length&&mc.length?' 🎉':''}</span>
       </summary>
       <div style="padding:10px 12px">
         ${mc.map(c=>renderLeadGoalBar(getClientLeadsForMonth(c,monthKey),c.monthlyLeadGoal,c.name.split(' ').slice(0,2).join(' '),monthKey,true)).join('')}
@@ -9398,7 +9424,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080511; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080512; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
