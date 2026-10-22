@@ -7226,7 +7226,7 @@ function rDetailCampanhas(c){
     const cm=hist[0]||{};
     const histRows=hist.length?hist.map(u=>`<tr>
       <td style="white-space:nowrap">${fd(u.date)}</td>
-      <td style="text-align:center">${(u.prospects===''||u.prospects==null)?'—':u.prospects}</td>
+      <td style="text-align:center;font-size:16px;font-weight:800;color:#0D3D9B">${(u.prospects===''||u.prospects==null)?'—':u.prospects}</td>
       <td style="font-size:11px;color:var(--muted);max-width:180px">${escH(u.publico||u.target||'')||'—'}</td>
       <td style="text-align:center">${(u.respRate!=null&&u.respRate!=='')?u.respRate+'%':'—'}</td>
       <td style="text-align:center">${(u.accRate!=null&&u.accRate!=='')?u.accRate+'%':'—'}</td>
@@ -7245,7 +7245,7 @@ function rDetailCampanhas(c){
         </div>
       </div>
       <div class="cb">
-        ${(cp.prospectsInseridos!==''&&cp.prospectsInseridos!=null)?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${chip('👥 Prospectos inseridos',cp.prospectsInseridos)}</div>`:''}
+        ${(cp.prospectsInseridos!==''&&cp.prospectsInseridos!=null)?`<div style="display:inline-flex;align-items:center;gap:12px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:10px 18px;margin-bottom:10px"><span style="font-size:32px;font-weight:900;color:#0D3D9B;line-height:1">${cp.prospectsInseridos}</span><span style="font-size:13px;color:#1E40AF;font-weight:700;line-height:1.2">👥 Prospectos<br>inseridos</span></div>`:''}
         ${cp.notes?`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">📝 ${escH(cp.notes)}</div>`:''}
         ${hist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:10px;color:var(--muted);align-self:center">Atual (${fd(cm.date)}):</span>${cm.publico||cm.target?chip('Público',cm.publico||cm.target):''}${chip('Taxa resposta',(cm.respRate!=null&&cm.respRate!=='')?cm.respRate+'%':'—')}${chip('Taxa aceitação',(cm.accRate!=null&&cm.accRate!=='')?cm.accRate+'%':'—')}</div>`:''}
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 4px">📊 Taxas por atualização (público, resposta, aceitação)</div>
@@ -9425,7 +9425,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080516; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080517; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
