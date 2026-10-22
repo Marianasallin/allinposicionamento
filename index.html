@@ -5286,6 +5286,10 @@ function rLeadGoalEquipe(monthKey){
   </div>`;
 }
 
+var _TASK_ST={afazer:{lbl:'A fazer',c:'#475569',bg:'#E2E8F0'},fazendo:{lbl:'Fazendo',c:'#B45309',bg:'#FEF3C7'},feita:{lbl:'Feita',c:'#15803D',bg:'#DCFCE7'}};
+function _taskStatus(t){return t.status||(t.done?'feita':'afazer');}
+function setTaskStatus(id,st){var t=(D.assignedTasks||[]).find(function(x){return x.id===id;});if(!t)return;t.status=st;t.done=(st==='feita');if(st==='feita'&&!t.doneAt)t.doneAt=Date.now();save();render();}
+function _taskStPills(t){var cur=_taskStatus(t);return ['afazer','fazendo','feita'].map(function(s){var on=cur===s;var m=_TASK_ST[s];return '<span onclick="setTaskStatus(\''+t.id+'\',\''+s+'\')" style="cursor:pointer;font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;background:'+(on?m.bg:'#fff')+';color:'+(on?m.c:'#94A3B8')+';border:1px solid '+(on?m.c+'66':'#E2E8F0')+'">'+m.lbl+'</span>';}).join(' ');}
 function rTarefasEquipe(){
   const allTasks=D.assignedTasks.slice();
   if(!allTasks.length)return'<div class="card"><div class="ch"><h3>👥 Tarefas da Equipe</h3></div><div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Nenhuma tarefa atribuída ainda.</div></div>';
@@ -5297,38 +5301,38 @@ function rTarefasEquipe(){
     byPerson[t.assignedTo].tasks.push(t);
   });
   Object.values(byPerson).forEach(p=>p.tasks.sort(_taskSort));
+  const _row=t=>{const st=_taskStatus(t);const bl=st==='fazendo'?'#F59E0B':(st==='feita'?'#86EFAC':'transparent');const bg=st==='feita'?'#F9FAFB':'white';return `<div style="padding:12px 16px 12px 18px;border-left:4px solid ${bl};background:${bg};border-bottom:1px solid #F1F5F9">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;color:${st==='feita'?'#9CA3AF':'#1E293B'};text-decoration:${st==='feita'?'line-through':'none'};line-height:1.4">${escH(t.description||'')}</div>
+        ${t.comment?`<div style="font-size:12px;color:#0891B2;margin-top:3px">💬 ${escH(t.comment)}</div>`:''}
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">Atribuída por: ${(''+(t.createdBy||'')).split(' ')[0]}</div>
+        ${_taskRepliesHtml(t)}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">${taskDueBadge(t)}<div style="display:flex;gap:3px"><button onclick="openReplyTaskModal('${t.id}')" style="background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:#0891B2;padding:3px 8px" title="Responder">💬</button><button onclick="openEditTaskModal('${t.id}')" style="background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:#0891B2;font-size:12px;padding:3px 8px" title="Editar">✏️</button><button onclick="deleteTask('${t.id}')" style="background:none;border:1px solid #FECACA;border-radius:6px;cursor:pointer;color:#EF4444;font-size:12px;padding:3px 8px" title="Remover">🗑</button></div></div>
+    </div>
+    <div style="margin-top:10px">${_taskStPills(t)}</div>
+  </div>`;};
   const rows=Object.values(byPerson).map(p=>{
-    const done=p.tasks.filter(t=>t.done).length;
+    const done=p.tasks.filter(t=>_taskStatus(t)==='feita').length;
     const total=p.tasks.length;
+    const pct=total?Math.round(done/total*100):0;
     const member=D.team.find(m=>m.name===p.name);
     const color=member?member.color:'#6B7280';
     const initials=member?member.initials:p.name.substring(0,2).toUpperCase();
-    return'<div style="border-bottom:1px solid #F3F4F6">'
-      +'<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#FAFAFA">'
-      +'<div class="av av-s" style="background:'+color+'">'+initials+'</div>'
-      +'<strong style="font-size:13px;flex:1">'+p.name.split(' ')[0]+'</strong>'
-      +'<span style="font-size:11px;padding:2px 10px;border-radius:99px;font-weight:600;background:'+(done===total?'#DCFCE7':'#FEF3C7')+';color:'+(done===total?'#16A34A':'#D97706')+'">'+done+'/'+total+' concluídas</span>'
+    const _p=p.tasks.filter(t=>_taskStatus(t)!=='feita'),_d=p.tasks.filter(t=>_taskStatus(t)==='feita');
+    return'<div style="border-bottom:2px solid #F3F4F6">'
+      +'<div style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#FAFAFA">'
+      +'<div class="av av-s" style="background:'+color+';width:34px;height:34px;font-size:13px">'+initials+'</div>'
+      +'<div style="flex:1;min-width:0"><strong style="font-size:15px;color:#1E293B">'+p.name.split(' ')[0]+'</strong>'
+      +'<div style="background:#E5E7EB;border-radius:99px;height:7px;margin-top:5px;max-width:240px;overflow:hidden"><div style="width:'+pct+'%;background:'+(done===total&&total?'#16A34A':'#0891B2')+';height:7px;border-radius:99px;transition:width .3s"></div></div></div>'
+      +'<span style="font-size:13px;padding:4px 12px;border-radius:99px;font-weight:800;background:'+(done===total&&total?'#DCFCE7':'#FEF3C7')+';color:'+(done===total&&total?'#16A34A':'#B45309')+'">'+done+'/'+total+' feitas</span>'
       +'</div>'
-      +(function(){
-        const _row=t=>'<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 16px 8px 48px;background:'+( t.done?'#F9FAFB':'white')+';">'
-        +'<input type="checkbox" style="margin-top:3px;cursor:pointer" '+(t.done?'checked':'')+' onchange="toggleTaskDone(\''+t.id+'\')">'
-        +'<div style="flex:1">'
-          +'<div style="font-size:12px;font-weight:500;color:'+(t.done?'#9CA3AF':'var(--text)')+';text-decoration:'+(t.done?'line-through':'none')+'">'+t.description+'</div>'
-          +(t.comment?'<div style="font-size:11px;color:#0891B2;margin-top:2px">💬 '+t.comment+'</div>':'')
-          +'<div style="font-size:10px;color:var(--muted);margin-top:2px">Atribuída por: '+t.createdBy.split(' ')[0]+'</div>'
-          +_taskRepliesHtml(t)
-          +'<button onclick="openReplyTaskModal(\''+t.id+'\')" style="margin-top:6px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;color:#0891B2;padding:3px 10px">💬 Responder</button>'
-        +'</div>'
-        +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:'+(t.done?'#DCFCE7':'#FEF3C7')+';color:'+(t.done?'#16A34A':'#D97706')+'">'+(t.done?'✅':'⏳')+'</span>'+taskDueBadge(t)+'</div>'
-        +'<button onclick="openEditTaskModal(\''+t.id+'\')" style="background:none;border:none;cursor:pointer;color:#0891B2;font-size:13px;padding:2px 4px" title="Editar">✏️</button>'
-        +'<button onclick="deleteTask(\''+t.id+'\')" style="background:none;border:none;cursor:pointer;color:#EF4444;font-size:13px;padding:2px 4px" title="Remover">🗑</button>'
-      +'</div>';
-        const _p=p.tasks.filter(t=>!t.done),_d=p.tasks.filter(t=>t.done);
-        return (_p.length?_p.map(_row).join(''):'<div style="padding:8px 16px 8px 48px;font-size:12px;color:var(--muted)">Nenhuma pendente 🎉</div>')+(_d.length?'<details><summary style="list-style:none;cursor:pointer;padding:6px 16px 6px 48px;font-size:11px;color:#16A34A;font-weight:600">✅ Ver concluídas ('+_d.length+')</summary>'+_d.map(_row).join('')+'</details>':'');
-      })()
+      +(_p.length?_p.map(_row).join(''):'<div style="padding:12px 16px 12px 18px;font-size:13px;color:var(--muted)">Nenhuma pendente 🎉</div>')
+      +(_d.length?'<details><summary style="list-style:none;cursor:pointer;padding:9px 16px;font-size:12px;color:#16A34A;font-weight:700">✅ Ver concluídas ('+_d.length+')</summary>'+_d.map(_row).join('')+'</details>':'')
     +'</div>';
   }).join('');
-  const totalPend=allTasks.filter(t=>!t.done).length;
+  const totalPend=allTasks.filter(t=>_taskStatus(t)!=='feita').length;
   return'<details class="card" open>'
     +'<summary class="ch" style="background:linear-gradient(135deg,#0891B2,#0EA5E9);border-radius:8px 8px 0 0;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px">'
     +'<span class="acc-arrow" style="color:white;font-size:13px;transition:transform .2s">▶</span>'
@@ -7213,7 +7217,7 @@ function rDetailCampanhas(c){
   const camps=c.campaigns||[];
   const header=`<div class="card" style="margin-bottom:16px"><div class="ch"><div><h3>📣 Campanhas</h3><span style="font-size:11px;color:var(--muted)">${camps.length} campanha${camps.length!==1?'s':''} de prospecção (LinkedIn / Waalaxy)</span></div><button class="btn btn-p btn-s" onclick="openCampaignModal('${c.id}',null)">+ Nova Campanha</button></div></div>`;
   if(!camps.length)return header+`<div class="card"><div class="cb" style="text-align:center;color:var(--muted);padding:40px">Nenhuma campanha cadastrada.<br><small>Clique em "+ Nova Campanha" para começar.</small></div></div>`;
-  const chip=(lbl,val)=>`<div style="font-size:11px;background:#F1F5F9;padding:5px 10px;border-radius:8px;color:#475569">${lbl}: <strong>${(val===''||val==null)?'—':val}</strong></div>`;
+  const chip=(lbl,val)=>`<div style="font-size:14px;background:#F1F5F9;padding:7px 13px;border-radius:9px;color:#475569">${lbl}: <strong>${(val===''||val==null)?'—':val}</strong></div>`;
   // Ativas primeiro; pausadas/encerradas vão pro final (nada é escondido por padrão)
   const _rk={ativa:0,pausada:1,encerrada:2};
   const _ordered=camps.slice().sort((a,b)=>(_rk[_campStatus(a)]||0)-(_rk[_campStatus(b)]||0));
@@ -7225,31 +7229,31 @@ function rDetailCampanhas(c){
     const hist=_campHist(cp);
     const cm=hist[0]||{};
     const histRows=hist.length?hist.map(u=>`<tr>
-      <td style="white-space:nowrap">${fd(u.date)}</td>
-      <td style="text-align:center;font-size:16px;font-weight:800;color:#0D3D9B">${(u.prospects===''||u.prospects==null)?'—':u.prospects}</td>
-      <td style="font-size:11px;color:var(--muted);max-width:180px">${escH(u.publico||u.target||'')||'—'}</td>
-      <td style="text-align:center">${(u.respRate!=null&&u.respRate!=='')?u.respRate+'%':'—'}</td>
-      <td style="text-align:center">${(u.accRate!=null&&u.accRate!=='')?u.accRate+'%':'—'}</td>
-      <td style="font-size:11px;color:var(--muted);max-width:200px">${escH(u.obs||'')||'—'}</td>
-      <td style="white-space:nowrap"><button class="btn btn-o btn-s" style="font-size:10px" onclick="openCampMeasureModal('${c.id}','${cp.id}','${u.id}')">✏️</button> <button class="btn btn-o btn-s" style="font-size:10px;border-color:var(--red);color:var(--red)" onclick="deleteCampMeasure('${c.id}','${cp.id}','${u.id}')">🗑</button></td>
-    </tr>`).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px">Nenhuma atualização ainda. Clique em "📊 Atualizar taxas".</td></tr>`;
+      <td style="white-space:nowrap;font-size:14px">${fd(u.date)}</td>
+      <td style="text-align:center;font-size:15px;font-weight:800;color:#0D3D9B">${(u.prospects===''||u.prospects==null)?'—':u.prospects}</td>
+      <td style="font-size:14px;color:#475569;max-width:180px">${escH(u.publico||u.target||'')||'—'}</td>
+      <td style="text-align:center;font-size:14px;font-weight:600">${(u.respRate!=null&&u.respRate!=='')?u.respRate+'%':'—'}</td>
+      <td style="text-align:center;font-size:14px;font-weight:600">${(u.accRate!=null&&u.accRate!=='')?u.accRate+'%':'—'}</td>
+      <td style="font-size:14px;color:#475569;max-width:200px">${escH(u.obs||'')||'—'}</td>
+      <td style="white-space:nowrap"><button class="btn btn-o btn-s" style="font-size:11px" onclick="openCampMeasureModal('${c.id}','${cp.id}','${u.id}')">✏️</button> <button class="btn btn-o btn-s" style="font-size:11px;border-color:var(--red);color:var(--red)" onclick="deleteCampMeasure('${c.id}','${cp.id}','${u.id}')">🗑</button></td>
+    </tr>`).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px;font-size:14px">Nenhuma atualização ainda. Clique em "📊 Atualizar taxas".</td></tr>`;
     const _st=_campStatus(cp);const _inat=_st!=='ativa';
     return`<div class="card" style="margin-bottom:16px${_inat?';opacity:.72':''}">
       <div class="ch" style="background:${_inat?'linear-gradient(135deg,#64748B,#94A3B8)':'linear-gradient(135deg,#0891B2,#0EA5E9)'};align-items:flex-start;flex-wrap:wrap;gap:8px">
-        <div style="min-width:0"><h3 style="margin:0;color:white;font-size:14px">📣 ${escH(cp.name)} ${_campStBadge(cp)}</h3>
-        <span style="font-size:11px;color:rgba(255,255,255,.9)">Lançada: ${fd(cp.launchDate)}${cp.target?' · '+escH(cp.target):''}${cp.location?' · '+escH(cp.location):''}${cp.sector?' · '+escH(cp.sector):''}</span></div>
+        <div style="min-width:0"><h3 style="margin:0;color:white;font-size:16px">📣 ${escH(cp.name)} ${_campStBadge(cp)}</h3>
+        <span style="font-size:13px;color:rgba(255,255,255,.9)">Lançada: ${fd(cp.launchDate)}${cp.target?' · '+escH(cp.target):''}${cp.location?' · '+escH(cp.location):''}${cp.sector?' · '+escH(cp.sector):''}</span></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-          <button class="btn btn-s" style="background:white;color:#0891B2;font-weight:700;font-size:11px" onclick="openCampMeasureModal('${c.id}','${cp.id}',null)">📊 Atualizar taxas</button>
-          <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="openCampaignModal('${c.id}','${cp.id}')">✏️ Editar</button>
-          <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:11px" onclick="deleteCampaign('${c.id}','${cp.id}')">🗑</button>
+          <button class="btn btn-s" style="background:white;color:#0891B2;font-weight:700;font-size:13px" onclick="openCampMeasureModal('${c.id}','${cp.id}',null)">📊 Atualizar taxas</button>
+          <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:13px" onclick="openCampaignModal('${c.id}','${cp.id}')">✏️ Editar</button>
+          <button class="btn btn-s" style="background:rgba(255,255,255,.25);color:white;font-size:13px" onclick="deleteCampaign('${c.id}','${cp.id}')">🗑</button>
         </div>
       </div>
       <div class="cb">
         ${(cp.prospectsInseridos!==''&&cp.prospectsInseridos!=null)?`<div style="display:inline-flex;align-items:center;gap:12px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:10px 18px;margin-bottom:10px"><span style="font-size:32px;font-weight:900;color:#0D3D9B;line-height:1">${cp.prospectsInseridos}</span><span style="font-size:13px;color:#1E40AF;font-weight:700;line-height:1.2">👥 Prospectos<br>inseridos</span></div>`:''}
-        ${cp.notes?`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">📝 ${escH(cp.notes)}</div>`:''}
-        ${hist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:10px;color:var(--muted);align-self:center">Atual (${fd(cm.date)}):</span>${cm.publico||cm.target?chip('Público',cm.publico||cm.target):''}${chip('Taxa resposta',(cm.respRate!=null&&cm.respRate!=='')?cm.respRate+'%':'—')}${chip('Taxa aceitação',(cm.accRate!=null&&cm.accRate!=='')?cm.accRate+'%':'—')}</div>`:''}
-        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 4px">📊 Taxas por atualização (público, resposta, aceitação)</div>
-        <div class="tw"><table>
+        ${cp.notes?`<div style="font-size:14px;color:var(--muted);margin-bottom:10px">📝 ${escH(cp.notes)}</div>`:''}
+        ${hist.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px"><span style="font-size:13px;font-weight:600;color:var(--muted);align-self:center">Atual (${fd(cm.date)}):</span>${cm.publico||cm.target?chip('Público',cm.publico||cm.target):''}${chip('Taxa resposta',(cm.respRate!=null&&cm.respRate!=='')?cm.respRate+'%':'—')}${chip('Taxa aceitação',(cm.accRate!=null&&cm.accRate!=='')?cm.accRate+'%':'—')}</div>`:''}
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:12px 0 5px">📊 Taxas por atualização (público, resposta, aceitação)</div>
+        <div class="tw"><table style="font-size:14px">
           <thead><tr><th>Data</th><th style="text-align:center">Prospectos</th><th>Público / Cargo</th><th style="text-align:center">Resp.</th><th style="text-align:center">Aceit.</th><th>💡 Insight</th><th></th></tr></thead>
           <tbody>${histRows}</tbody>
         </table></div>
@@ -9425,7 +9429,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080517; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080518; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
