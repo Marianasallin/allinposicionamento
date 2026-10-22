@@ -271,7 +271,7 @@ details[open]>summary .acc-arrow{transform:rotate(90deg)}
     <div class="ni active" onclick="nav('dash')"><span class="ni-icon">📊</span><span>Dashboard</span></div>
     <div class="ni" onclick="nav('minhasamana')"><span class="ni-icon">⚡</span><span>Minha Semana</span></div>
     <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.38);padding:14px 12px 4px">Gestão</div>
-    <div class="ni" onclick="nav('clients',{clientId:null})"><span class="ni-icon">👥</span><span>Clientes</span></div>
+    <div class="ni" id="ni-clientes" onclick="nav('clients',{clientId:null})"><span class="ni-icon">👥</span><span>Clientes</span></div>
     <div class="ni" onclick="nav('semana')"><span class="ni-icon">📋</span><span>Visão da Equipe</span></div>
     <div class="ni" onclick="nav('team')"><span class="ni-icon">👩‍💼</span><span>Equipe</span></div>
     <div class="ni" onclick="nav('estruturacao')"><span class="ni-icon">🎯</span><span>Estruturação</span></div>
@@ -904,7 +904,7 @@ function render(){
   var _sbnav=document.querySelector('#sidebar .sb-nav');
   if(_sbnav){
     if(_isFinOnly(S.currentUser)){
-      var _allow={'ni-financeiro':1,'ni-comissoes':1,'nav-sec-fin':1,'nav-utils':1};
+      var _allow={'ni-clientes':1,'ni-financeiro':1,'ni-comissoes':1,'nav-sec-fin':1,'nav-utils':1};
       Array.prototype.forEach.call(_sbnav.children,function(el){el.style.display=(el.id&&_allow[el.id])?'':'none';});
     } else {
       Array.prototype.forEach.call(_sbnav.children,function(el){el.style.display='';});
@@ -915,7 +915,7 @@ function render(){
   var _finSec=document.getElementById('nav-sec-fin');if(_finSec)_finSec.style.display=_cf?'':'none';
   if(S.view==='carteira'&&!_isGestao(S.currentUser))S.view='dash';
   if((S.view==='financeiro'||S.view==='comissoes')&&!_cf)S.view='dash';
-  if(_isFinOnly(S.currentUser)&&S.view!=='financeiro'&&S.view!=='comissoes')S.view='financeiro';
+  if(_isFinOnly(S.currentUser)&&S.view!=='financeiro'&&S.view!=='comissoes'&&S.view!=='clients'&&S.view!=='carteira')S.view='financeiro';
   // Banner "Vendo como" (impersonação da Gestão)
   var _vb=document.getElementById('veras-banner');if(_vb)_vb.remove();
   if(S._realUser){document.body.insertAdjacentHTML('beforeend','<div id="veras-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#7C3AED,#9333EA);color:#fff;padding:9px 14px;text-align:center;font-size:13px;font-weight:600;box-shadow:0 -2px 10px rgba(0,0,0,.2)">👁 Você está vendo como <strong>'+(S.currentUser.name||'').split(' ')[0]+'</strong> (só visualização) <button onclick="voltarMeuPerfil()" style="margin-left:12px;background:#fff;color:#7C3AED;border:none;border-radius:6px;padding:4px 12px;font-weight:700;cursor:pointer">Voltar ao meu perfil</button></div>');}
@@ -6538,6 +6538,16 @@ function addAditivo(cid){
   if(valor&&document.getElementById('ct-val'))document.getElementById('ct-val').value=valor;
   if(compct!==''&&document.getElementById('ct-com-pct'))document.getElementById('ct-com-pct').value=compct;
   if(comvalor&&document.getElementById('ct-com-valor'))document.getElementById('ct-com-valor').value=comvalor;
+  // Estende o nº de parcelas até o novo vencimento, pra o Financeiro cobrar os meses do aditivo
+  if(venc&&!c.contratoIndeterminado){
+    var _pb=c.parcelaInicio||_finBaseDate(c);
+    if(_pb){var _b=new Date(_pb+'T12:00:00'),_v=new Date(venc+'T12:00:00');
+      if(!isNaN(_b)&&!isNaN(_v)&&_v>_b){
+        var _mo=(_v.getFullYear()-_b.getFullYear())*12+(_v.getMonth()-_b.getMonth());
+        if(_mo>0&&document.getElementById('ct-parcelas'))document.getElementById('ct-parcelas').value=_mo;
+      }
+    }
+  }
   saveContrato(cid); // persiste os campos atualizados + o aditivo e re-renderiza
   if(typeof toast==='function')toast('📄 Aditivo registrado!');
 }
@@ -9388,7 +9398,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080510; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080511; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
