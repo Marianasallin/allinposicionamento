@@ -332,9 +332,9 @@ async function _runtimeToken() {
 }
 // Access token da agenda via delegação de domínio SEM chave: assina o JWT pela
 // IAM Credentials API (signJwt) e troca por token imitando o dono da agenda.
-async function gcalAccessToken(subject) {
+async function gcalAccessToken(subject, scope) {
   const now = Math.floor(Date.now() / 1000);
-  const claim = { iss: GCAL_SA_EMAIL, sub: subject, scope: "https://www.googleapis.com/auth/calendar.readonly", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 };
+  const claim = { iss: GCAL_SA_EMAIL, sub: subject, scope: scope || "https://www.googleapis.com/auth/calendar.readonly", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 };
   const admTok = await _runtimeToken();
   const sr = await fetch("https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/" + encodeURIComponent(GCAL_SA_EMAIL) + ":signJwt", {
     method: "POST",
@@ -546,5 +546,67 @@ exports.custoReportNow = onRequest(
       const out = await runCustoReport();
       res.json(out);
     } catch (e) { res.status(500).json({ error: (e && e.message) || String(e) }); }
+  }
+);
+
+// ════════════════════════════════════════════════════════════════
+// LEMBRETE WAALAXY — cria evento na agenda da responsável 14 dias
+// após a 1ª campanha do cliente (fim do trial grátis do Waalaxy).
+// Precisa do escopo calendar.events na delegação de domínio.
+// ════════════════════════════════════════════════════════════════
+async function runWaalaxyReminders() {
+  const db = admin.database();
+  const ctrl = (await db.ref("agendaSync").get()).val() || {};
+  const subject = (ctrl.email || GCAL_DEFAULT_SUBJECT).trim();
+  const token = await gcalAccessToken(subject, "https://www.googleapis.com/auth/calendar.events");
+  const clientsSnap = await db.ref("allin/clients").get();
+  const clients = clientsSnap.val() || {};
+  const keys = Array.isArray(clients) ? clients.map((_, i) => String(i)) : Object.keys(clients);
+  const hojeMs = Date.now();
+  let criados = 0;
+  for (const k of keys) {
+    const c = clients[k];
+    if (!c || c.contractStatus === "inativo") continue;
+    const camps = Array.isArray(c.campaigns) ? c.campaigns : (c.campaigns && typeof c.campaigns === "object" ? Object.values(c.campaigns) : []);
+    const withDate = camps.filter((cp) => cp && cp.launchDate).sort((a, b) => ("" + a.launchDate).localeCompare("" + b.launchDate));
+    if (!withDate.length) continue;
+    const first = withDate[0];
+    if (c.waalaxyReminderFor === first.id) continue; // ja criado p/ essa 1a campanha
+    const d = new Date(first.launchDate + "T12:00:00");
+    if (isNaN(d)) continue;
+    d.setDate(d.getDate() + 14);
+    // so cria se o lembrete ainda nao passou (campanhas antigas ja venceram o trial)
+    if (d.getTime() < hojeMs - 86400000) { await db.ref("allin/clients/" + k + "/waalaxyReminderFor").set(first.id).catch(() => {}); continue; }
+    const p = (n) => (n < 10 ? "0" : "") + n;
+    const ymd = d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+    const nome = c.name || "cliente";
+    const body = {
+      summary: "⏰ Waalaxy — avisar " + nome + " (fim do trial gratis)",
+      description: "A 1a campanha de " + nome + " foi lancada em " + first.launchDate + ". Os 14 dias gratis do Waalaxy terminam hoje — lembrar o cliente de assinar.",
+      start: { date: ymd },
+      end: { date: ymd },
+    };
+    const r = await fetch("https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(subject) + "/events", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const j = await r.json();
+    if (j && j.id) {
+      await db.ref("allin/clients/" + k + "/waalaxyReminderFor").set(first.id).catch(() => {});
+      criados++;
+    } else {
+      console.warn("waalaxy evento falhou:", nome, (j && j.error && j.error.message) || JSON.stringify(j));
+    }
+  }
+  const out = { ok: true, criados, at: Date.now() };
+  await db.ref("agendaSync/lastWaalaxy").set(out).catch(() => {});
+  return out;
+}
+exports.waalaxyReminders = onSchedule(
+  { schedule: "every 12 hours", serviceAccount: GCAL_SA_EMAIL, region: "us-central1", timeoutSeconds: 120, memory: "256MiB" },
+  async () => {
+    try { console.log("waalaxyReminders:", JSON.stringify(await runWaalaxyReminders())); }
+    catch (e) { console.error("waalaxyReminders erro:", (e && e.message) || e); try { await admin.database().ref("agendaSync/lastWaalaxy").set({ error: String((e && e.message) || e), at: Date.now() }); } catch (_) {} }
   }
 );
