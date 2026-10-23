@@ -1494,7 +1494,7 @@ function rClients(){
   }
 
   S.viewMode='normal';
-  const products=['todos',...new Set(D.clients.flatMap(c=>c.products))];
+  const products=['todos',...new Set(D.clients.flatMap(c=>c.products).concat(['Gestão de Conteúdos']))];
   const statuses=['todos','ativo','vencido','finalizado'];
   const assignees=['todos',...new Set(D.team.map(m=>m.name))];
   let list=D.clients;
@@ -3980,9 +3980,9 @@ function rDetail(){
       <div class="fgrid3" style="margin-bottom:16px">
         <div class="fg"><label>Produto(s)</label>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
-            ${['Gestão de Perfil','Implementação Comercial','Estruturação de Perfil','Mentoria','Consultoria'].map(p=>{
+            ${['Gestão de Perfil','Implementação Comercial','Estruturação de Perfil','Gestão de Conteúdos','Mentoria','Consultoria'].map(p=>{
               const sel=c.products.includes(p);
-              const colors={'Gestão de Perfil':'#0D3D9B','Implementação Comercial':'#E8622A','Estruturação de Perfil':'#0891B2','Mentoria':'#7C3AED','Consultoria':'#057642'};
+              const colors={'Gestão de Perfil':'#0D3D9B','Implementação Comercial':'#E8622A','Estruturação de Perfil':'#0891B2','Gestão de Conteúdos':'#DB2777','Mentoria':'#7C3AED','Consultoria':'#057642'};
               const col=colors[p]||'#374151';
               return`<label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:2px solid ${sel?col:'#E5E7EB'};background:${sel?col+'18':'#F9FAFB'};cursor:pointer;font-size:12px;font-weight:600;color:${sel?col:'#6B7280'};transition:all .15s">
                 <input type="checkbox" id="ctp-${p.replace(/[\s\/]/g,'-')}" style="display:none" ${sel?'checked':''}
@@ -6442,7 +6442,7 @@ function setContractDate(cid,field,value){
 }
 function _readContrato(c){
   if(!c)return;
-  c.products=['Gestão de Perfil','Implementação Comercial','Estruturação de Perfil','Mentoria','Consultoria'].filter(p=>document.getElementById('ctp-'+p.replace(/[\s\/]/g,'-'))?.checked);
+  c.products=['Gestão de Perfil','Implementação Comercial','Estruturação de Perfil','Gestão de Conteúdos','Mentoria','Consultoria'].filter(p=>document.getElementById('ctp-'+p.replace(/[\s\/]/g,'-'))?.checked);
   if($('ct-categoria'))c.categoria=$('ct-categoria').value;
   // Ajusta as entregas conforme os produtos (adiciona o que falta; não remove pra não perder progresso)
   if(!c.deliverables)c.deliverables=[];
@@ -6847,6 +6847,7 @@ function addClient(){
               <label style="font-size:13px;text-transform:none;letter-spacing:0;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="nc-gp" checked onchange="_ncCatToggle()"> Gestão de Perfil</label>
               <label style="font-size:13px;text-transform:none;letter-spacing:0;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="nc-ic" onchange="_ncCatToggle()"> Implementação Comercial</label>
               <label style="font-size:13px;text-transform:none;letter-spacing:0;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="nc-ep" onchange="_ncCatToggle()"> Estruturação de Perfil</label>
+              <label style="font-size:13px;text-transform:none;letter-spacing:0;font-weight:500;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="nc-gc"> Gestão de Conteúdos</label>
             </div>
             <div id="nc-cat-wrap" style="margin-top:8px;display:none"><label style="font-size:11px">Categoria</label><select id="nc-categoria" class="mini" style="width:100%"><option value="">— Selecionar —</option><option value="Carreira">Carreira</option><option value="Negócios">Negócios</option></select></div>
           </div>
@@ -6877,6 +6878,7 @@ function confirmNC(){
   if($('nc-gp').checked)prods.push('Gestão de Perfil');
   if($('nc-ic').checked)prods.push('Implementação Comercial');
   if($('nc-ep')&&$('nc-ep').checked)prods.push('Estruturação de Perfil');
+  if($('nc-gc')&&$('nc-gc').checked)prods.push('Gestão de Conteúdos');
   if(!prods.length)prods.push('Gestão de Perfil');
   const i=D.clients.length;
   const cdv=$('nc-cd').value;
@@ -9429,7 +9431,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080518; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080519; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
