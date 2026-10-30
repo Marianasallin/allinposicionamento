@@ -5231,7 +5231,10 @@ function rLeadGoalEquipe(monthKey){
     // % = MÉDIA da % de cada cliente (cada um no máx. 100%). Ex.: 83+75+63+13+50+50 = 334 de 600 = 56%
     const totPct=mc.length?Math.round(mc.reduce((s,c)=>s+Math.min(getClientLeadsForMonth(c,monthKey)/(c.monthlyLeadGoal||1),1),0)/mc.length*100):0;
     const fdot=totPct>=100?'#16A34A':totPct>=50?'#F59E0B':'#EF4444';
-    return`<details class="meta-acc" style="margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+    // Lembra se este bloco estava aberto, pra não fechar sozinho quando a tela redesenha (sync em tempo real)
+    const _accId='macc-'+(m.id||m.name.replace(/\W/g,''));
+    const _accOpen=(window._openAcc&&window._openAcc[_accId])?'open':'';
+    return`<details class="meta-acc" id="${_accId}" ${_accOpen} ontoggle="(window._openAcc=window._openAcc||{})['${_accId}']=this.open" style="margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
       <summary style="padding:11px 13px;background:#F9FAFB;display:flex;align-items:center;gap:10px">
         <span class="arr">▶</span>
         <div class="av av-s" style="background:${m.color}">${m.initials}</div>
@@ -9434,7 +9437,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080522; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080523; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
