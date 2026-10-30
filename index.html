@@ -9434,7 +9434,7 @@ window.addEventListener('hashchange',handleNavigation);
     let _pendingFbSync=false;
     let _fbBlocked=false; // vira true quando esta aba descobre que está desatualizada → PARA de gravar no servidor (não sobrescreve dados novos)
     let _dataRev=0; // "carimbo de versão" dos dados — sobe a cada gravação; a regra do servidor exige carimbo >= atual (bloqueia versão antiga)
-    const APP_BUILD=2026080521; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
+    const APP_BUILD=2026080522; // bump a cada deploy → abas antigas recarregam sozinhas e param de sobrescrever
     // Snapshot do que já está salvo (por cliente) — pra gravar SÓ o que mudou (multiusuário seguro)
     let _fbSnap={ids:[],clients:[],team:'',assignedTasks:'',finance:'',processos:'',processoAreas:'',artLog:{}};
     function _resnap(){
@@ -9517,7 +9517,25 @@ window.addEventListener('hashchange',handleNavigation);
             // Era isso que apagava conteudos/campanhas que outra aba tinha criado.
           });
           const tj=JSON.stringify(D.team||[]);if(_fbSnap.team!==tj)updates['team']=JSON.parse(tj);
-          const aj=JSON.stringify(D.assignedTasks||[]);if(_fbSnap.assignedTasks!==aj)updates['assignedTasks']=JSON.parse(aj);
+          // assignedTasks: grava SÓ os índices novos/alterados (aditivo) — NUNCA sobrescreve a lista inteira.
+          // A gravação em bloco era o que apagava tarefas recém-criadas por outra aba quando várias pessoas
+          // mexiam ao mesmo tempo. Agora espelha o array local índice a índice, igual aos clientes.
+          (function(){
+            const aj=JSON.stringify(D.assignedTasks||[]);
+            if(_fbSnap.assignedTasks===aj)return;
+            let pv;try{pv=_fbSnap.assignedTasks?JSON.parse(_fbSnap.assignedTasks):[];}catch(_e){pv=[];}
+            const cur=D.assignedTasks||[];
+            if(Array.isArray(cur)&&Array.isArray(pv)){
+              for(let ix=0;ix<cur.length;ix++){
+                const cj=JSON.stringify(cur[ix]);
+                const pj=ix<pv.length?JSON.stringify(pv[ix]):undefined;
+                if(cj!==pj)updates['assignedTasks/'+ix]=cur[ix];
+              }
+              for(let ix=cur.length;ix<pv.length;ix++){updates['assignedTasks/'+ix]=null;} // tarefas removidas (fim da lista)
+            }else{
+              updates['assignedTasks']=JSON.parse(aj);
+            }
+          })();
           const fj=JSON.stringify(D.finance||null);if(_fbSnap.finance!==fj)updates['finance']=D.finance?JSON.parse(fj):null;
           const prj=JSON.stringify(D.processos||[]);if(_fbSnap.processos!==prj)updates['processos']=JSON.parse(prj);
           const paj=JSON.stringify(D.processoAreas||[]);if(_fbSnap.processoAreas!==paj)updates['processoAreas']=JSON.parse(paj);
